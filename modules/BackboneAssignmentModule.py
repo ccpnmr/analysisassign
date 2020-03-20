@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
 __credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -13,9 +13,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:21 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2020-03-20 18:10:03 +0000 (Fri, March 20, 2020) $"
+__version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,18 +28,14 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 import typing
 from collections import OrderedDict
 from PyQt5 import QtGui, QtWidgets
-
 from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 from ccpn.core.ChemicalShift import ChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot
-
 from ccpn.ui.gui.lib.Strip import matchAxesAndNmrAtoms
 from ccpn.ui.gui.lib.Strip import navigateToNmrResidueInDisplay
-
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
-
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, PulldownListCompoundWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, showYesNo
@@ -47,12 +43,12 @@ from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldow
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.widgets.DropBase import DropBase
-
+from ccpn.util.decorators import logCommand
 from ccpn.util.Logging import getLogger
 from ccpn.core.NmrAtom import NmrAtom
 from ccpn.ui.gui.widgets.PlaneToolbar import STRIPLABEL_CONNECTDIR, STRIPLABEL_CONNECTNONE, \
     STRIPCONNECT_LEFT, STRIPCONNECT_RIGHT
-from ccpn.core.lib.ContextManagers import undoBlock
+from ccpn.core.lib.ContextManagers import undoBlock, notificationEchoBlocking
 
 
 ALL = '<all>'
@@ -240,6 +236,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         col = data[CallBack.COL]
         self.navigateToNmrResidue(nmrResidue, row=row, col=col)
 
+    @logCommand(get='self')
     def navigateToNmrResidue(self, nmrResidue, row=None, col=None):
         """
         Navigate in selected displays to nmrResidue; skip if no displays defined
