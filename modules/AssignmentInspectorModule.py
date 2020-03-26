@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-26 12:02:33 +0000 (Thu, March 26, 2020) $"
+__dateModified__ = "$dateModified: 2020-03-26 12:09:18 +0000 (Thu, March 26, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -88,7 +88,7 @@ class AssignmentInspectorModule(CcpnModule):
     SETTING_PADDING = 4
 
     def __init__(self, mainWindow, name='Assignment Inspector', chemicalShiftList=None, selectFirstItem = False):
-        super().__init__(mainWindow=mainWindow, name=name, settingsScrollBarPolicies=('asneeded', 'never'))  # gwv
+        super().__init__(mainWindow=mainWindow, name=name, settingsScrollBarPolicies=('asNeeded', 'never'))  # gwv
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
