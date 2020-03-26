@@ -22,7 +22,7 @@ Reworked by EJB
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
 __credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -31,9 +31,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:21 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2020-03-26 13:13:29 +0000 (Thu, March 26, 2020) $"
+__version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -65,7 +65,7 @@ from ccpn.ui.gui.widgets.RadioButton import RadioButton
 from ccpn.ui.gui.widgets.RadioButtons import RadioButtons
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrResiduePulldown, NmrChainPulldown
 
@@ -78,6 +78,7 @@ from ccpn.util.Logging import getLogger
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.AssignmentLib import _assignNmrAtomsToPeaks
 from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
+from ccpn.ui.gui.guiSettings import BORDERNOFOCUS_COLOUR
 from ccpn.core.lib import CcpnSorting
 
 
@@ -118,7 +119,7 @@ class NmrAtomAssignerModule(CcpnModule):
     includeSettingsWidget = True
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
     defaultSettingsState = 0
-    settingsPosition = 'left'
+    settingsPosition = 'top'
 
     def __init__(self, mainWindow=None, name='NmrAtomAssigner', nmrAtom=None):
 
@@ -164,16 +165,29 @@ class NmrAtomAssignerModule(CcpnModule):
         # set size policies to allow the main widget to overlap the settings, cleaner display
         self._ASwidget.setMinimumSize(self._ASwidget.sizeHint())
         self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
-        self.settingsWidget.setContentsMargins(10, 10, 10, 10)
-        self.mainWidget.setContentsMargins(10, 10, 10, 10)
+        self.settingsWidget.setContentsMargins(5, 5, 5, 5)
 
         for w in self._sidechainModifiers:  w.hide()
 
         # add scrollable widget to the main widget area
-        self._scrollAreaWidget = ScrollArea(self.mainWidget, setLayout=True, grid=(0, 0), gridSpan=(1, 1))
-        self._scrollAreaWidget.setWidgetResizable(True)
+        # self._scrollAreaWidget = ScrollArea(self.mainWidget, setLayout=True, grid=(0, 0), gridSpan=(1, 1))
+        # self._scrollAreaWidget.setWidgetResizable(True)
 
-        self._residueFrame = Frame(self.mainWidget, setLayout=True, acceptDrops=True, showBorder=False, spacing=(5, 5))
+        #~~~~~~~~~~
+
+        self._residueFrame = ScrollableFrame(parent=self.mainWidget,
+                                       showBorder=False, setLayout=True,
+                                       acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
+        self._scrollAreaWidget = self._residueFrame._scrollArea
+        self._scrollAreaWidget.setStyleSheet('ScrollArea { border-right: 1px solid %s;'
+                                             'border-bottom: 1px solid %s;'
+                                             'background: transparent; }' % (BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR))
+        self._residueFrame.insertCornerWidget()
+
+        #~~~~~~~~~~
+
+        # self._residueFrame = Frame(self.mainWidget, setLayout=True, acceptDrops=True, showBorder=False, spacing=(5, 5))
+        self._residueFrame.setContentsMargins(5, 5, 5, 5)
         resRow = 0
 
         _f = Frame(self._residueFrame, setLayout=True, showBorder=False, grid=(resRow, 0), gridSpan=(1, 3))
@@ -194,10 +208,10 @@ class NmrAtomAssignerModule(CcpnModule):
                                               filterFunction=self._filterResidues,
                                               grid=(0, 1), hPolicy='minimal', minimumWidths=None,
                                               sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents)
-        self._newNmrResidueButton = Button(_f, text='New', grid=(0, 2), gridSpan=(1,1),
+        self._newNmrResidueButton = Button(_f, text='New', grid=(0, 2), gridSpan=(1, 1),
                                            callback=self._newNmrResidueCallback, hPolicy='minimal')
         self._newNmrResidueButton.setToolTip('Create new nmrResidue in current chain')
-        self._nmrResidueEditButton = Button(_f, text='Edit', grid=(0, 3), gridSpan=(1,1),
+        self._nmrResidueEditButton = Button(_f, text='Edit', grid=(0, 3), gridSpan=(1, 1),
                                             callback=self._nmrResidueEditCallback, hPolicy='minimal')
         self._nmrResidueEditButton.setToolTip('Edit current nmrResidue')
 
@@ -253,7 +267,7 @@ class NmrAtomAssignerModule(CcpnModule):
                          Peak._pluralLinkName, callback=self._currentPeaksCallback, onceOnly=True)
         self.setNotifier(self.current, [Notifier.CURRENT],
                          NmrResidue._pluralLinkName, callback=self._currentNmrResiduesCallback, onceOnly=True)
-        self.setGuiNotifier(self.mainWidget,[GuiNotifier.DROPEVENT],
+        self.setGuiNotifier(self._residueFrame, [GuiNotifier.DROPEVENT],
                             [DropBase.PIDS], callback=self._handleNmrResidue)
         self.setNotifier(self.project, [Notifier.RENAME],
                          'NmrResidue', self._updateNmrResidue, onceOnly=True)
@@ -610,7 +624,7 @@ class NmrAtomAssignerModule(CcpnModule):
             else:
                 peakList = makeIterableList(peak.assignedNmrAtoms)
 
-            for assignedNmrAtom in peakList:                            #makeIterableList(peak.assignedNmrAtoms):
+            for assignedNmrAtom in peakList:  #makeIterableList(peak.assignedNmrAtoms):
                 if assignedNmrAtom in nmrResidue.nmrAtoms:
                     for button in currentDisplayedButtons:
                         if assignedNmrAtom:
@@ -921,9 +935,9 @@ class NmrAtomAssignerModule(CcpnModule):
         #             [self._removeAtomsForButtons(atomList, 'C') for atomList in atomButtonList]
         #             [self._removeAtomsForButtons(atomList, 'H') for atomList in atomButtonList]
         #             [self._removeAtomsForButtons(atomList, 'N') for atomList in atomButtonList]
-                    # [atomList.remove(atom) for atom in sorted(atomList) if not atom.startswith('C') \
-                    #  and not atom.startswith('H') \
-                    #  and not atom.startswith('N')]
+        # [atomList.remove(atom) for atom in sorted(atomList) if not atom.startswith('C') \
+        #  and not atom.startswith('H') \
+        #  and not atom.startswith('N')]
 
         # # Activate button for Carbons
         # if not self.cCheckBox.isChecked():
@@ -951,7 +965,6 @@ class NmrAtomAssignerModule(CcpnModule):
         #             if item.widget():
         #                 item.widget().hide()
         #         self._assignWidget.layout().removeItem(item)
-
 
         rows = 0
         cols = 0
@@ -1027,6 +1040,7 @@ class NmrAtomAssignerModule(CcpnModule):
     def _removeWidget(self, widget, removeTopWidget=False):
         """Destroy a widget and all it's contents
         """
+
         def deleteItems(layout):
             if layout is not None:
                 while layout.count():
@@ -1100,7 +1114,7 @@ class NmrAtomAssignerModule(CcpnModule):
             return nmrChain.getNmrResidue(sequenceCode)
 
     def _fetchNmrResidue(self, nmrChain, sequenceCode: typing.Union[int, str] = None,
-                       residueType: str = None) -> typing.Optional[NmrResidue]:
+                         residueType: str = None) -> typing.Optional[NmrResidue]:
         partialId = '%s.%s.' % (nmrChain.id, str(sequenceCode).translate(Pid.remapSeparators))
         ll = self.project.getObjectsByPartialId(className='NmrResidue', idStartsWith=partialId)
         if ll:
