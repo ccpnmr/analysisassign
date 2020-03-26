@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-01-06 16:06:32 +0000 (Mon, January 06, 2020) $"
-__version__ = "$Revision: 3.0.0 $"
+__dateModified__ = "$dateModified: 2020-03-26 17:17:04 +0000 (Thu, March 26, 2020) $"
+__version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -203,8 +203,11 @@ class PeakAssigner(CcpnModule):
         # respond to peaks
         self._registerNotifiers()
 
-        self._settingsScrollArea.setMaximumHeight(35)
-        self._settingsScrollArea.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
+        self._settingsScrollArea.setMinimumHeight(40)
+        self.settingsWidget.setContentsMargins(5, 5, 5, 5)
+        self.settingsWidget.setScrollBarPolicies(scrollBarPolicies=('asNeeded', 'never'))
+        # self._settingsScrollArea.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
+
         self.closeModule = self._closeModule
 
         self._updateInterface()
