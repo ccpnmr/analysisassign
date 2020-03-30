@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-30 15:15:01 +0100 (Mon, March 30, 2020) $"
+__dateModified__ = "$dateModified: 2020-03-30 17:58:40 +0100 (Mon, March 30, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -415,7 +415,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             queryShifts = [shift for shift in self.allShifts[nmrResidue]
                            if shift.nmrAtom.isotopeCode == '13C']
             assignMatrix = getNmrResidueMatches(queryShifts, self.allShifts, 'averageQScore')
-            print('assignMatrix',assignMatrix)
+            # print('assignMatrix',assignMatrix)
         else:
             assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
 
