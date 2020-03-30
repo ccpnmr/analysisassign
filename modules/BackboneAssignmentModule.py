@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-20 18:10:03 +0000 (Fri, March 20, 2020) $"
+__dateModified__ = "$dateModified: 2020-03-30 15:15:01 +0100 (Mon, March 30, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -709,7 +709,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         in the assignMatrix.
         """
         if not assignMatrix:
-            getLogger().warn('No assignment matrix specified')
+            getLogger().warning('No assignment matrix specified')
             return
 
         # Assignment score has format {score: nmrResidue} where score is a float
