@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-26 12:09:18 +0000 (Thu, March 26, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-11 17:05:03 +0100 (Thu, June 11, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -30,6 +30,7 @@ __date__ = "$Date: 2016-07-09 14:17:30 +0100 (Sat, 09 Jul 2016) $"
 
 from PyQt5 import QtCore, QtWidgets
 from contextlib import contextmanager
+from typing import Optional
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Frame import Frame
@@ -274,6 +275,8 @@ class AssignmentInspectorModule(CcpnModule):
                          callback=self._highlightNmrResidues)
         self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrAtom._pluralLinkName,
                          callback=self._highlightNmrAtoms)
+        self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+                         NmrAtom.__name__, self._updateNmrAtoms, onceOnly=True)
 
     def _closeModule(self):
         """
@@ -419,6 +422,13 @@ class AssignmentInspectorModule(CcpnModule):
 
         self._selectByChemicalShifts(objList)
 
+    def _updateNmrAtoms(self, data):
+        """
+        Notifier Callback for nmrAtom change - to update assignment table and list
+        """
+        data[CallBack.OBJECT] = []
+        self._refreshNmrAtoms(data)
+
     def _selectByChemicalShifts(self, chemicalShifts):
         nmrResidues = [cs.nmrAtom.nmrResidue for cs in chemicalShifts]
 
@@ -543,6 +553,17 @@ class AssignmentInspectorModule(CcpnModule):
                                                            NMRATOMS   : self.current.nmrAtoms},
                                                           updateFromNmrResidues=False)
 
+    def _refreshNmrAtoms(self, data):
+        """
+        Notifier Callback for refreshing all NmrAtoms in the table
+        """
+        objList = data[CallBack.OBJECT]
+
+        if self.chemicalShiftTable._dataFrameObject:
+            getLogger().debug('_refreshNmrAtoms ', objList)
+
+            self.assignedPeaksTable._updateModuleCallback(None, updateFromNmrResidues=False)
+
         return
 
         # if objList:
@@ -661,7 +682,7 @@ class AssignmentInspectorTable(GuiTable):
                                selectCurrentCallBack=self._selectOnTableCurrentPeaksNotifierCallback,
                                moduleParent=moduleParent)
 
-    def _updateModuleCallback(self, data: dict, updateFromNmrResidues=True):
+    def _updateModuleCallback(self, data: Optional[dict], updateFromNmrResidues=True):
         """
         Callback function: Module responsive to nmrResidues; updates the list widget with nmrAtoms and updates peakTable if
         current.nmrAtom belongs to nmrResidue
@@ -682,6 +703,9 @@ class AssignmentInspectorTable(GuiTable):
                 # get from the data dict
                 nmrAtoms = data[NMRATOMS] if NMRATOMS in data else []
 
+            self._nmrResidues = nmrResidues
+            self._nmrAtoms = nmrAtoms
+
             # there is currently a hidden list widget containing the nmrAtom ids
             self.attachedNmrAtomsList.clear()
             self.ids = [atm.id for atm in nmrAtoms]
@@ -689,6 +713,18 @@ class AssignmentInspectorTable(GuiTable):
 
             # populate peak table with the correct peaks
             self._updatePeakTable(nmrAtoms, messageAll=updateFromNmrResidues)
+
+        else:
+            # data is None, so update from current settings - should only be called from _refreshNmrAtoms
+
+            # there is currently a hidden list widget containing the nmrAtom ids
+            self.attachedNmrAtomsList.clear()
+            _nmrAtoms = [atm for atm in self._nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
+            self.ids = [atm.id for atm in _nmrAtoms]
+            self.attachedNmrAtomsList.addItems(self.ids)
+
+            # populate peak table with the correct peaks
+            self._updatePeakTable(_nmrAtoms, messageAll=updateFromNmrResidues)
 
             # self.attachedNmrAtomsList.clear()
             #
@@ -780,7 +816,7 @@ class AssignmentInspectorTable(GuiTable):
             # self._updatePeakTable([atm for atm in nmrAtoms if atm is not None], messageAll=True)
 
         self._peakList = _emptyObject()
-        self._peakList.peaks = list(set([pk for nmrAtom in nmrAtoms for pk in nmrAtom.assignedPeaks]))
+        self._peakList.peaks = list(set([pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks]))
 
         # with self._projectBlanking():
         #     self._dataFrameObject = self.getDataFrameFromList(table=self,
