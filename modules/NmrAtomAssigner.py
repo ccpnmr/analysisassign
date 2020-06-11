@@ -32,7 +32,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-26 13:13:29 +0000 (Thu, March 26, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-11 14:55:24 +0100 (Thu, June 11, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -338,7 +338,7 @@ class NmrAtomAssignerModule(CcpnModule):
         from ccpn.ui.gui.popups.NmrResiduePopup import NmrResiduePopup
 
         popup = NmrResiduePopup(parent=self.mainWindow, mainWindow=self.mainWindow,
-                                nmrResidue=self.current.nmrResidue)
+                                obj=self.current.nmrResidue)
         popup.exec_()
 
     def _nmrChainPullDownCallback(self, value):
