@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-06-11 17:05:03 +0100 (Thu, June 11, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-12 16:00:39 +0100 (Fri, June 12, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -708,7 +708,7 @@ class AssignmentInspectorTable(GuiTable):
 
             # there is currently a hidden list widget containing the nmrAtom ids
             self.attachedNmrAtomsList.clear()
-            self.ids = [atm.id for atm in nmrAtoms]
+            self.ids = [atm.id for atm in nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
             self.attachedNmrAtomsList.addItems(self.ids)
 
             # populate peak table with the correct peaks
@@ -719,7 +719,7 @@ class AssignmentInspectorTable(GuiTable):
 
             # there is currently a hidden list widget containing the nmrAtom ids
             self.attachedNmrAtomsList.clear()
-            _nmrAtoms = [atm for atm in self._nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
+            _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not (_nmrRes.isDeleted or _nmrRes._flaggedForDelete) for atm in _nmrRes.nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
             self.ids = [atm.id for atm in _nmrAtoms]
             self.attachedNmrAtomsList.addItems(self.ids)
 
