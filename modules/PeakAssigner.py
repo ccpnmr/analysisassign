@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-26 17:17:04 +0000 (Thu, March 26, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-23 18:26:46 +0100 (Tue, June 23, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -31,30 +31,26 @@ import typing
 import numpy as np
 from functools import partial
 from collections import OrderedDict
-
 from PyQt5 import QtGui, QtWidgets, QtCore
-
 from ccpn.core.NmrAtom import NmrAtom
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.Peak import Peak
 from ccpn.core.lib import CcpnSorting
-from ccpn.core.lib.AssignmentLib import ATOM_NAMES, nmrAtomsForPeaks, peaksAreOnLine, sameAxisCodes, NEF_ATOM_NAMES
+from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, sameAxisCodes
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
-from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.HLine import HLine
-from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
-from ccpn.ui.gui.widgets.Table import ObjectTable, Column
 from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning
-from ccpn.ui.gui.guiSettings import COLOUR_SCHEMES, getColours, DIVIDER
+from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.util.Logging import getLogger
+from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
 from ccpn.core.lib.Notifiers import Notifier
@@ -291,7 +287,6 @@ class PeakAssigner(CcpnModule):
 
             # and enable the frame
             self.axisFrame.show()
-            from ccpn.util.Common import makeIterableList, _truncateText
 
             peaksIds = ' , '.join([str(pp.id) for pp in self.current.peaks])
             if len(self.current.peaks) < 2:
@@ -1102,24 +1097,14 @@ class AxisAssignmentObject(Frame):
         atomNames = ['']
         if self.current.peak:
             isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.index]
-            # atomPrefix = isotopeCode[-1]
-            if isotopeCode in NEF_ATOM_NAMES:
-                atomNames.extend([atomName for atomName in NEF_ATOM_NAMES[isotopeCode]])
+            atomNames += getIsotopeListFromCode(isotopeCode)
+
         if nmrAtom:
-            atomNames.extend([nmrAtom.name])
+            atomNames.insert(0, nmrAtom.name)
             thisAtom = nmrAtom.name  # set only if nmrAtom defined
+
         if self.lastNmrAtomSelected:
             atomNames.extend([self.lastNmrAtomSelected[3]])
-
-        def greekKey(word):
-            greekSort = '0123456789ABGDEZHQIKLMNXOPRSTUFCYWabgdezhqiklmnxoprstufcyw'
-            greekLetterCount = len(greekSort)
-
-            key = (0,)
-            if word:
-                key = (ord(word[0]),)
-                key += tuple(greekSort.index(c) if c in greekSort else greekLetterCount for c in word[1:])
-            return key
 
         self.atomTypePulldown.setData(sorted(list(set(atomNames)), key=greekKey))
         self.atomTypePulldown.setIndex(self.atomTypePulldown.texts.index(thisAtom) if thisAtom in self.atomTypePulldown.texts else 0)

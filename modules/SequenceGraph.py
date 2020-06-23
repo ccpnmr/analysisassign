@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-17 00:13:56 +0000 (Tue, March 17, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-23 18:26:46 +0100 (Tue, June 23, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -55,7 +55,7 @@ from ccpn.ui.gui.widgets.ToolBar import ToolBar
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget, ListCompoundWidget
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
 from ccpn.core.NmrChain import NmrChain
-from ccpn.util.Common import makeIterableList
+from ccpn.util.Common import makeIterableList, greekKey
 from ccpn.util.Constants import ccpnmrJsonData
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
@@ -3826,16 +3826,6 @@ ATOM_POSITION_DICT = {
 #       self._addConnectingLine(cg, hg2, 'white', 1.0, 0.0)
 #       self._addConnectingLine(cg, hg3, 'white', 1.0, 0.0)
 #       self._addConnectingLine(cg, cd, 'white', 1.0, 0.0)
-
-def greekKey(word):
-    greekSort = '0123456789ABGDEZHQIKLMNXOPRSTUFCYWabgdezhqiklmnxoprstufcyw'
-    greekLetterCount = len(greekSort)
-
-    key = (0,)
-    if word:
-        key = (ord(word[0]),)
-        key += tuple(greekSort.index(c) if c in greekSort else greekLetterCount for c in word[1:])
-    return key
 
 
 if __name__ == '__main__':
