@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-30 17:58:40 +0100 (Mon, March 30, 2020) $"
+__dateModified__ = "$dateModified: 2020-07-09 11:57:34 +0100 (Thu, July 09, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -140,9 +140,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self._fillMatchWidget()
         self.matchWidget.pulldownList.setIndex(0)
 
-        # new target module pulldown list
+        # new search module pulldown list
         row += 1
-        self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText="Target module:",
+        self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText="Search module:",
                                                        fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2))
         self.targetWidget.setPreSelect(self._fillTargetWidget)
         self._fillTargetWidget()
@@ -251,18 +251,18 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         matchIndex = self.matchWidget.getIndex()
         targetIndex = self.targetWidget.getIndex()
         if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
-            getLogger().warning('Undefined match module; select in settings first or unselect "Find matches"')
-            showWarning('startAssignment', 'Undefined match module;\nselect in settings first or unselect "Find matches"')
+            getLogger().warning('Undefined Match module; select in settings first or unselect "Find matches"')
+            showWarning('startAssignment', 'Undefined Match module;\nselect in settings first or unselect "Find matches"')
             return
 
         if self.matchCheckBoxWidget.isChecked() and targetIndex == 0:
-            getLogger().warning('Undefined target module; select in settings first or unselect "Find matches"')
-            showWarning('startAssignment', 'Undefined target module;\nselect in settings first or unselect "Find matches"')
+            getLogger().warning('Undefined Search module; select in settings first or unselect "Find matches"')
+            showWarning('startAssignment', 'Undefined Search module;\nselect in settings first or unselect "Find matches"')
             return
 
         if (matchIndex == targetIndex) and matchIndex != 0:
-            getLogger().warning('Match module and Target module cannot be the same')
-            showWarning('startAssignment', 'Match module and Target module cannot be the same')
+            getLogger().warning('Match module and Search module cannot be the same')
+            showWarning('startAssignment', 'Match module and Search module cannot be the same')
             return
 
         with undoBlock():
@@ -621,15 +621,17 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             yPosition = (max(yShiftValues) + min(yShiftValues)) / 2
             yWidth = max(yShiftValues) - min(yShiftValues) + 10
             strip.orderedAxes[1].position = yPosition
-            strip.orderedAxes[1].width = yWidth
+            if strip._CcpnGLWidget.aspectRatioMode == 0:
+                strip.orderedAxes[1].width = yWidth
 
             try:
                 axisCode = strip.axisCodes[1]
-                strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPosition, update=False)
-                strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yWidth, update=False)
-                strip._CcpnGLWidget._rescaleAllAxis()
-
-
+                if strip._CcpnGLWidget.aspectRatioMode == 0:
+                    strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPosition, update=False)
+                    strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yWidth, update=False)
+                    strip._CcpnGLWidget._rescaleAllAxis()
+                else:
+                    strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPosition, update=True)
 
             except Exception as es:
                 getLogger().debugGL('OpenGL widget not instantiated')
@@ -657,23 +659,32 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
             # original strips match axes
             strips[0].orderedAxes[1].position = yPosition
-            strips[0].orderedAxes[1].width = yWidth
+            if strips[0]._CcpnGLWidget.aspectRatioMode == 0:
+                strips[0].orderedAxes[1].width = yWidth
 
             try:
                 axisCode = strips[0].axisCodes[1]
 
+                firstStrip = None
                 for strip in strips:
                     # adjust the position of the strip to be clear of the new headers
 
-                    minPpm = 1.0 if axisCode[0] not in _minPpmWidths else _minPpmWidths[axisCode[0]]
+                    if firstStrip is None:
+                        minPpm = 1.0 if axisCode[0] not in _minPpmWidths else _minPpmWidths[axisCode[0]]
 
-                    yPixel = max(yWidth, minPpm) / strip._CcpnGLWidget.height()
-                    yPos = yPosition - (40 * yPixel)
-                    yW = max(yWidth, minPpm) + (140 * yPixel)
+                        yPixel = max(yWidth, minPpm) / strip._CcpnGLWidget.height()
+                        yPos = yPosition - (40 * yPixel)
+                        yW = max(yWidth, minPpm) + (140 * yPixel)
+                        # firstStrip = yPos, yW
+                    else:
+                        yPos, yW = firstStrip
 
-                    strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, update=False)
-                    strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yW, update=False)
-                    strip._CcpnGLWidget._scaleToYAxis()
+                    if strip._CcpnGLWidget.aspectRatioMode == 0:
+                        strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, update=False)
+                        strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yW, update=False)
+                        strip._CcpnGLWidget._scaleToYAxis()
+                    else:
+                        strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, update=True)
 
                 from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
 
