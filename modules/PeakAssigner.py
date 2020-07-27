@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-06-23 18:26:46 +0100 (Tue, June 23, 2020) $"
+__dateModified__ = "$dateModified: 2020-07-27 10:25:30 +0100 (Mon, July 27, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -239,9 +239,11 @@ class PeakAssigner(CcpnModule):
             self._nmrResidueNotifier.unRegister()
 
     def _updateNmrAtom(self, data):
+        print('>>> peakassigner _updateNmrAtom {}'.format(data))
         self._updateInterface(action=data[Notifier.TRIGGER])
 
     def _updateNmrResidue(self, data):
+        print('>>> peakassigner _updateNmrResidue {}'.format(data))
         self._updateInterface(action=data[Notifier.TRIGGER])
 
     def __del__(self):
