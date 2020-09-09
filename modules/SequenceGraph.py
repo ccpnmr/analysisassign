@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-06-23 18:26:46 +0100 (Tue, June 23, 2020) $"
+__dateModified__ = "$dateModified: 2020-09-09 18:38:58 +0100 (Wed, September 09, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -25,7 +25,6 @@ __date__ = "$Date: 2016-05-23 10:02:47 +0100 (Thu, 26 May 2016) $"
 # Start of code
 #=========================================================================================
 
-import json
 import typing
 import numpy as np
 from functools import partial
@@ -52,11 +51,10 @@ from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.ToolBar import ToolBar
-from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget, ListCompoundWidget
+from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
 from ccpn.core.NmrChain import NmrChain
 from ccpn.util.Common import makeIterableList, greekKey
-from ccpn.util.Constants import ccpnmrJsonData
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
 from ccpn.ui.gui.widgets.Splitter import Splitter
@@ -64,7 +62,7 @@ from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.modules.SequenceModule import SequenceModule
 from ccpn.ui.gui.widgets.SettingsWidgets import SequenceGraphSettings
 from ccpn.core.lib.AssignmentLib import getSpinSystemsLocation
-from ccpn.core.lib.ContextManagers import notificationEchoBlocking, catchExceptions, undoBlock
+from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlock
 from ccpnc.clibrary import Clibrary
 
 
@@ -405,7 +403,7 @@ class GuiNmrResidueGroup(QtWidgets.QGraphicsItemGroup):
 # NmrResidueList
 #==========================================================================================
 
-class NmrResidueList(object):
+class NmrResidueList():
     """
     A Class to hold the information about each gui object in the scene
     """
@@ -460,7 +458,7 @@ class NmrResidueList(object):
     def getIndexNmrResidue(self, nmrResidue):
         """get the index in the nmrResidueList of the required nmrResidue.
         """
-        for id, nmrCh in self.nmrChains.items():
+        for itemId, nmrCh in self.nmrChains.items():
             if nmrResidue in nmrCh:
                 return nmrCh.index(nmrResidue)
 
@@ -471,7 +469,7 @@ class NmrResidueList(object):
     def deleteNmrResidue(self, nmrResidue):
         """get the index in the nmrResidueList of the required nmrResidue.
         """
-        for id, nmrCh in self.nmrChains.items():
+        for itemId, nmrCh in self.nmrChains.items():
             if nmrResidue in nmrCh:
                 nmrCh.remove(nmrResidue)
                 print('>>>removing from nmrChains')
@@ -486,7 +484,7 @@ class NmrResidueList(object):
     #     """
     #     self.allNmrResidues.append((nmrResidue, guiAtoms))
 
-    def _insertNmrResiduePair(self, nmrChainId, index, nmrResidue, guiAtoms):
+    def _insertNmrResiduePair(self, nmrChainId, index, nmrResidue):
         """insert into the list as a tuple (obj, dict).
         """
         if nmrChainId not in self.nmrChains:
@@ -537,9 +535,9 @@ class NmrResidueList(object):
     def addNmrResidue(self, nmrChainId, nmrResidue, index=0, _insertNmrRes=True):
         """Add a new nmrResidue at the required position.
         """
-        self._addNmrResidue(nmrChainId, nmrResidue, nmrResidueIndex=index, lineList=self.connectingLines, _insertNmrRes=_insertNmrRes)
+        self._addNmrResidue(nmrChainId, nmrResidue, nmrResidueIndex=index, _insertNmrRes=_insertNmrRes)
 
-    def _addNmrResidue(self, nmrChainId, nmrResidue, nmrResidueIndex=0, lineList=None, _insertNmrRes=True):
+    def _addNmrResidue(self, nmrChainId, nmrResidue, nmrResidueIndex=0, _insertNmrRes=True):
         """Takes an Nmr Residue, and adds a residue to the sequence graph
         corresponding to the Nmr Residue at the required index.
         Nmr Residue name displayed beneath CA of residue drawn and residue type predictions displayed
@@ -588,7 +586,7 @@ class NmrResidueList(object):
 
         # insert into the correct nmrChain
         if _insertNmrRes:
-            self._insertNmrResiduePair(nmrChainId, nmrResidueIndex, nmrResidue, guiAtoms)
+            self._insertNmrResiduePair(nmrChainId, nmrResidueIndex, nmrResidue)
 
         # index = mainNmrResidues.index(nmrResidue)
         # self.allNmrResidues[nmrResidue][index] = (nmrResidue, guiAtoms)
@@ -599,10 +597,10 @@ class NmrResidueList(object):
         return newGuiResidueGroup
 
     def _addGhostResidue(self, nmrResidueCon1: NmrResidue,
-                         guiRef: GuiNmrAtom,
+                         # guiRef: GuiNmrAtom,
                          nmrResidueCon0: NmrResidue,
-                         name1: str, name0: str,
-                         offsetAdjust,
+                         # name1: str, name0: str,
+                         # offsetAdjust,
                          atomSpacing=None, lineList=None):
         """Takes an Nmr Residue and a direction, either '-1 or '+1', and adds a residue to the sequence graph
         corresponding to the Nmr Residue.
@@ -646,21 +644,21 @@ class NmrResidueList(object):
 
     #==========================================================================================
 
-    def _createGuiNmrAtom(self, atomType: str, position: tuple, nmrAtom: NmrAtom = None) -> GuiNmrAtom:
+    def _createGuiNmrAtom(self, atomType: str, position: typing.Iterable, nmrAtom: NmrAtom = None) -> GuiNmrAtom:
         """Creates a GuiNmrAtom specified by the atomType and graphical position supplied.
         GuiNmrAtom can be linked to an NmrAtom by supplying it to the function.
         """
-        guiAtom = GuiNmrAtom(self.mainWindow, text=atomType, pos=position, nmrAtom=nmrAtom)
+        guiAtom = GuiNmrAtom(self.mainWindow, text=atomType, pos=list(position), nmrAtom=nmrAtom)
         if nmrAtom:
             # only add to the dict if the nmrAtom exists
             self.guiNmrAtoms[nmrAtom] = guiAtom
         return guiAtom
 
-    def _createGhostGuiNmrAtom(self, atomType: str, position: tuple, nmrAtom: NmrAtom = None) -> GuiNmrAtom:
+    def _createGhostGuiNmrAtom(self, atomType: str, position: typing.Iterable, nmrAtom: NmrAtom = None) -> GuiNmrAtom:
         """Creates a GuiNmrAtom specified by the atomType and graphical position supplied.
         GuiNmrAtom can be linked to an NmrAtom by supplying it to the function.
         """
-        guiAtom = GuiNmrAtom(self.mainWindow, text=atomType, pos=position, nmrAtom=nmrAtom)
+        guiAtom = GuiNmrAtom(self.mainWindow, text=atomType, pos=list(position), nmrAtom=nmrAtom)
         if nmrAtom:
             # only add to the dict if the nmrAtom exists
             self.guiNmrAtoms[nmrAtom] = guiAtom
@@ -858,7 +856,7 @@ class NmrResidueList(object):
                 guiItem = self.guiNmrResidues[nmrResidue]
                 guiItem.setPos(QtCore.QPointF(ii * self.atomSpacing * 3.0, 0.0))
 
-    def updateConnectedChainPositions(self, nmrChainId):
+    def updateConnectedChainPositions(self):
         """Update the positions of the groups in the scene.
         """
 
@@ -965,13 +963,13 @@ class NmrResidueList(object):
                     if nmrAtomPair[1].nmrResidue.nmrChain is not nmrResidue.nmrChain:
                         continue
 
-                    newGhostResidue = self._addGhostResidue(nmrAtomPair[0].nmrResidue,
-                                                            guiNmrAtomPair[1],
-                                                            nmrAtomPair[1].nmrResidue,
-                                                            nmrAtomPair[0].name,
-                                                            nmrAtomPair[1].name,
-                                                            True,
-                                                            lineList=connectingLineList)
+                    self._addGhostResidue(nmrAtomPair[0].nmrResidue,
+                                          # guiNmrAtomPair[1],
+                                          nmrAtomPair[1].nmrResidue,
+                                          # nmrAtomPair[0].name,
+                                          # nmrAtomPair[1].name,
+                                          # True,
+                                          lineList=connectingLineList)
                     guiNmrAtomPair = (self.guiNmrAtoms.get(nmrAtomPair[0]),
                                       self.guiNmrAtoms.get(nmrAtomPair[1]),
                                       nmrAtomPair[2]
@@ -990,13 +988,13 @@ class NmrResidueList(object):
                     if nmrAtomPair[0].nmrResidue.nmrChain is not nmrResidue.nmrChain:
                         continue
 
-                    newGhostResidue = self._addGhostResidue(nmrAtomPair[1].nmrResidue,
-                                                            guiNmrAtomPair[0],
-                                                            nmrAtomPair[0].nmrResidue,
-                                                            nmrAtomPair[1].name,
-                                                            nmrAtomPair[0].name,
-                                                            True,
-                                                            lineList=connectingLineList)
+                    self._addGhostResidue(nmrAtomPair[1].nmrResidue,
+                                          # guiNmrAtomPair[0],
+                                          nmrAtomPair[0].nmrResidue,
+                                          # nmrAtomPair[1].name,
+                                          # nmrAtomPair[0].name,
+                                          # True,
+                                          lineList=connectingLineList)
                     guiNmrAtomPair = (self.guiNmrAtoms.get(nmrAtomPair[0]),
                                       self.guiNmrAtoms.get(nmrAtomPair[1]),
                                       nmrAtomPair[2]
@@ -1183,7 +1181,7 @@ class NmrResidueList(object):
             for line in lineList:
                 try:
                     line.updateEndPoints()
-                except Exception as es:
+                except:
                     pass
 
     def updateAssignmentLines(self):
@@ -1204,7 +1202,7 @@ class NmrResidueList(object):
             self.updateMainChainPositions(nmrChainId)
         if updateConnectedChains:
             # update crossChainResidue positions
-            self.updateConnectedChainPositions(nmrChainId)
+            self.updateConnectedChainPositions()
 
         # update the endpoints
         self.updateConnectionLines()
@@ -1563,13 +1561,13 @@ class SequenceGraphModule(CcpnModule):
                                     ))
         if self.activePulldownClass:
             settingsDict.update(OrderedDict(((LINKTOPULLDOWNCLASS, {'label'   : 'Link to current %s:' % self.activePulldownClass.className,
-                                                       'tipText' : 'Set/update current %s when selecting from pulldown' % self.activePulldownClass.className,
-                                                       'callBack': None,
-                                                       'enabled' : True,
-                                                       'checked' : True,
-                                                       '_init'   : None,
-                                                       }),
-                                )))
+                                                                    'tipText' : 'Set/update current %s when selecting from pulldown' % self.activePulldownClass.className,
+                                                                    'callBack': None,
+                                                                    'enabled' : True,
+                                                                    'checked' : True,
+                                                                    '_init'   : None,
+                                                                    }),
+                                             )))
 
         self._SGwidget = SequenceGraphSettings(parent=self.settingsWidget, mainWindow=self.mainWindow,
                                                settingsDict=settingsDict,
@@ -1656,10 +1654,10 @@ class SequenceGraphModule(CcpnModule):
         """Add a mouse handler to popupa menu from the contained scene
         """
         if event.button() == QtCore.Qt.RightButton:
-            object = self.scene.mouseGrabberItem()
-            # print('>>>grab', object)
-            if object:
-                self._raiseContextMenu(object, event)
+            obj = self.scene.mouseGrabberItem()
+            # print('>>>grab', obj)
+            if obj:
+                self._raiseContextMenu(obj, event)
         self._preMouserelease(event)
 
     # def _checkLayoutInit(self):
@@ -2072,10 +2070,6 @@ class SequenceGraphModule(CcpnModule):
         """Update the nmrResidues in the display.
         """
         nmrResidue = data[Notifier.OBJECT]
-
-        # print('>>>_changeNmrResidues', nmrResidue)
-        trigger = data[Notifier.TRIGGER]
-
         try:
             with self.sceneBlocking():
                 if nmrResidue in self.nmrChain.nmrResidues and nmrResidue not in self.nmrResidueList.guiNmrResidues:
@@ -2477,7 +2471,7 @@ class SequenceGraphModule(CcpnModule):
             for line in lineList:
                 try:
                     line.updateEndPoints()
-                except Exception as es:
+                except:
                     pass
 
     def _buildNmrResidues(self, nmrChainId, nmrResidueList):
@@ -3494,7 +3488,7 @@ class SequenceGraphModule(CcpnModule):
                                                   markPositions=self._SGwidget.checkBoxes['markPositions']['checkBox'].isChecked()
                                                   )
 
-    def _raiseContextMenu(self, object, event: QtGui.QMouseEvent):
+    def _raiseContextMenu(self, obj, event: QtGui.QMouseEvent):
         """Creates and raises a context menu enabling items to be disconnected
         """
         cursor = QtGui.QCursor()
@@ -3502,7 +3496,7 @@ class SequenceGraphModule(CcpnModule):
 
         pressed = self.scene.mouseGrabberItem()
 
-        if isinstance(object, AssignmentLine):  # self.selectedLine:
+        if isinstance(obj, AssignmentLine):  # self.selectedLine:
             thisLine = pressed  #self.selectedLine
 
             if thisLine._peak and thisLine._peak.assignedNmrAtoms:
@@ -3523,7 +3517,7 @@ class SequenceGraphModule(CcpnModule):
 
                 contextMenu.move(cursor.pos().x(), cursor.pos().y() + 10)
                 contextMenu.exec()
-                contextMenu = None
+                # contextMenu = None
 
         elif isinstance(pressed, GuiNmrResidue):
 
@@ -3535,7 +3529,7 @@ class SequenceGraphModule(CcpnModule):
                                                                    partial(self.disconnectNextNmrResidue))
             contextMenu.addSeparator()
             self._disconnectAllActionMenu = contextMenu.addAction('disconnect all nmrResidues', partial(self.disconnectAllNmrResidues))
-            if object.nmrResidue.residue:
+            if obj.nmrResidue.residue:
                 contextMenu.addSeparator()
                 self._deassignNmrChainActionMenu = contextMenu.addAction('deassign nmrChain', partial(self.deassignNmrChain))
 
@@ -3543,7 +3537,7 @@ class SequenceGraphModule(CcpnModule):
                 self._deassignNmrChainActionMenu.setEnabled(assign)
 
             contextMenu.addSeparator()
-            self._showActionMenu = contextMenu.addAction('Show nmrResidue', partial(self.showNmrResidue, object))
+            self._showActionMenu = contextMenu.addAction('Show nmrResidue', partial(self.showNmrResidue, obj))
 
             prev = pressed.nmrResidue.previousNmrResidue is not None
             nxt = pressed.nmrResidue.nextNmrResidue is not None
@@ -3555,7 +3549,7 @@ class SequenceGraphModule(CcpnModule):
 
             contextMenu.move(cursor.pos().x(), cursor.pos().y() + 10)
             contextMenu.exec()
-            contextMenu = None
+            # contextMenu = None
 
         elif isinstance(pressed, GuiNmrAtom):
 
@@ -3611,7 +3605,7 @@ class SequenceGraphModule(CcpnModule):
 
                 contextMenu.move(cursor.pos().x(), cursor.pos().y() + 10)
                 contextMenu.exec()
-                contextMenu = None
+                # contextMenu = None
 
     def _addPeaksToMenu(self, allPeaks, contextMenu):
         for peak in allPeaks:
@@ -3630,8 +3624,8 @@ class SequenceGraphModule(CcpnModule):
                             else:
                                 subMenu.addAction('(' + nmrAtom.id + ')', partial(self.deassignPeak, peak, nmrAtom))
 
-    def showNmrResidue(self, object):
-        self.navigateToNmrResidue(selectedNmrResidue=object.nmrResidue)
+    def showNmrResidue(self, obj):
+        self.navigateToNmrResidue(selectedNmrResidue=obj.nmrResidue)
 
 
 import math
@@ -3654,7 +3648,7 @@ DEFAULT_RESIDUE_ATOMS = {'H' : np.array([0, 0]),
                          'N' : np.array([0, -1 * atomSpacing]),
                          'CA': np.array([atomSpacing, -1 * atomSpacing]),
                          'CB': np.array([atomSpacing, -2 * atomSpacing]),
-                         'C': np.array([2 * atomSpacing, -1 * atomSpacing])
+                         'C' : np.array([2 * atomSpacing, -1 * atomSpacing])
                          }
 
 # Use loadCompoundPickle from chemBuild to load the structure for these; found in compound.variants.bonds
@@ -3832,6 +3826,7 @@ if __name__ == '__main__':
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.TextEditor import TextEditor
     from ccpnmodel.ccpncore.lib.assignment.ChemicalShift import PROTEIN_ATOM_NAMES, ALL_ATOMS_SORTED
+
 
     isotopes = ['13C', '1H', '15N']
     axisCodes = ['C', 'H', 'N']
