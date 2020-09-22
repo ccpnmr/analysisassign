@@ -22,7 +22,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-17 01:55:31 +0000 (Tue, March 17, 2020) $"
+__dateModified__ = "$dateModified: 2020-09-22 09:33:22 +0100 (Tue, September 22, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -33,22 +33,15 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtGui, QtWidgets
-
+from PyQt5 import QtCore
 from ccpn.ui.gui.lib import PeakList
 from ccpn.ui.gui.lib import Strip
-from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTable, NmrResidueTableModule
+from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.Button import Button
-from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.widgets.CheckBoxes import CheckBoxes
-from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Frame import Frame
-from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget, DoubleSpinBoxCompoundWidget
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.util.Logging import getLogger
-from ccpn.ui.gui.guiSettings import getColours, DIVIDER
-from ccpn.ui.gui.widgets.HLine import HLine
+from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.core.lib.ContextManagers import undoBlock
 
 logger = getLogger()
@@ -85,22 +78,18 @@ class PickAndAssignModule(NmrResidueTableModule):
         self.current = mainWindow.application.current
 
         # Main widget
-        self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick,
-                                           setLayout=True, spacing=(0, 0))
+        self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick,)
         self.nmrResidueTable.addWidgetToPos(self.restrictedPickButton, row=1, col=2)
 
-        self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected,
-                                           setLayout=True, spacing=(0, 0))
+        self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
         self.nmrResidueTable.addWidgetToPos(self.assignSelectedButton, row=1, col=3)
 
-        self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign',
-                                                    setLayout=True, spacing=(0, 0),
-                                                    callback=self.restrictedPickAndAssign)
+        self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=self.restrictedPickAndAssign)
+        self.nmrResidueTable.addWidgetToPos(self.restrictedPickAndAssignButton, row=1, col=4)
 
         self.restrictedPickButton.setEnabled(True)
         self.assignSelectedButton.setEnabled(True)
         self.restrictedPickAndAssignButton.setEnabled(True)
-        self.nmrResidueTable.addWidgetToPos(self.restrictedPickAndAssignButton, row=1, col=4)
 
         # change some of the defaults setting inherited from NmrResidueTableModule
         self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(False)
@@ -109,8 +98,7 @@ class PickAndAssignModule(NmrResidueTableModule):
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)  # select the <all> option
 
         self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s):')
-        self.nmrResidueTable._setWidgetHeight(50)
-
+        self.nmrResidueTable._setWidgetHeight(3.0 * getFontHeight())
 
         # need to feedback to current.nmrResidueTable
         self._selectOnTableCurrentNmrResiduesNotifier = None

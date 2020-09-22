@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-07-28 12:46:05 +0100 (Tue, July 28, 2020) $"
+__dateModified__ = "$dateModified: 2020-09-22 09:33:22 +0100 (Tue, September 22, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -40,7 +40,7 @@ from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, sameAx
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.HLine import HLine
@@ -48,6 +48,7 @@ from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning
+from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
@@ -57,6 +58,7 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.core.lib.ContextManagers import undoBlock
+from ccpn.ui.gui.guiSettings import BORDERNOFOCUS_COLOUR
 
 
 logger = getLogger()
@@ -156,15 +158,24 @@ class PeakAssigner(CcpnModule):
                               QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding,
                               grid=(1, 14), gridSpan=(1, 1))
 
-        # Main content widgets, create an expanding scroll area
+        # # correct way to setup a scroll area
+        # self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget,
+        #                                     showBorder=False, setLayout=True,
+        #                                     acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
+        # # self.axisFrameWidget = self._scrollFrame._scrollArea
+        # # self._scrollAreaWidget.setStyleSheet('ScrollArea { border-right: 1px solid %s;'
+        # #                                      'border-bottom: 1px solid %s;'
+        # #                                      'background: transparent; }' % (BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR))        # # Main content widgets, create an expanding scroll area
+
         self._axisFrameScrollArea = ScrollArea(parent=self.mainWidget,
                                                grid=(1, 0),
                                                hPolicy='expanding', vPolicy='expanding')
-        self._axisFrameScrollArea.setStyleSheet('''.ScrollArea {
-                                    margin-left : 2px;
-                                    margin-right : 1px;
-                                    margin-bottom : 1px}
-                                    ''')
+        # self._axisFrameScrollArea.setStyleSheet('''.ScrollArea {
+        #                             margin-left : 2px;
+        #                             margin-right : 1px;
+        #                             margin-bottom : 1px}
+        #                             ''')
+
         self.axisFrameWidget = Widget(parent=None, acceptDrops=True)
 
         # put a container widget into the scroll area
@@ -175,26 +186,37 @@ class PeakAssigner(CcpnModule):
         # put a label and axisFrame into the axisFrameWidget, this will be wrapped in scroll bars
         self.peakLabel = Label(parent=self.axisFrameWidget, setLayout=True, spacing=(0, 0),
                                text='Current Peak: ' + MSG, bold=True,
-                               grid=(0, 0), margins=(2, 2, 2, 2), hAlign='left', vAlign='t',
+                               grid=(0, 0),  #margins=(2, 2, 2, 2),
+                               hAlign='left', vAlign='t',
                                hPolicy='fixed', vPolicy='fixed')
         self.peakLabel.setAlignment(QtCore.Qt.AlignVCenter)
-        self.peakLabel.setFixedHeight(20)
+        # self.peakLabel.setFixedHeight(20)
+        self.peakLabel.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
 
-        self.axisFrame = Frame(parent=self.axisFrameWidget, setLayout=True, spacing=(0, 0),
-                               showBorder=False, fShape='noFrame',
-                               grid=(1, 0),
-                               hPolicy='expanding', vPolicy='expanding')
-        self.axisFrame.setStyleSheet('''.Frame {
-                                    padding-left: 2px;
-                                    padding-right: 3px;
-                                    }''')
+        # self.axisFrame = Frame(parent=self.axisFrameWidget, setLayout=True, spacing=(0, 0),
+        #                        showBorder=False, fShape='noFrame',
+        #                        grid=(1, 0),
+        #                        hPolicy='expanding', vPolicy='expanding')
+        # self.axisFrame.setStyleSheet('''.Frame {
+        #                             padding-left: 2px;
+        #                             padding-right: 3px;
+        #                             }''')
+
+        self.axisFrame = Splitter(self.axisFrameWidget, grid=(1, 0), horizontal=False, setLayout=True)
+        self.axisFrameWidget.getLayout().addWidget(self.axisFrame, 1, 0, 1, 1)  # just be added like this
+
+        # self.axisFrameWidget.setStyleSheet('border: 2px solid #FF0000;')
+
+        # self.axisFrame.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
+        # self.axisFrameWidget.getLayout().setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
+
         self.axisTables = []
         self.axisDivergeLabels = []
         self.NDims = 0
         self.currentAtoms = None
 
-        Spacer(self.axisFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
-               grid=(6, 0), gridSpan=(1, 1))
+        # Spacer(self.axisFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
+        #        grid=(6, 0), gridSpan=(1, 1))
 
         # respond to peaks
         self._registerNotifiers()
@@ -264,26 +286,39 @@ class PeakAssigner(CcpnModule):
             if Ndimensions > self.NDims:  # len(self.axisTables):
                 for addNew in range(len(self.axisTables), Ndimensions):
                     # add a new axis item to the end of the list
-                    self.axisTables.append(AxisAssignmentObject(self, index=addNew,
-                                                                parent=self.axisFrame,
-                                                                mainWindow=self.mainWindow,
-                                                                grid=(addNew, 0), gridSpan=(1, 1)))
+                    _frame = Frame(None, setLayout=True)
+                    _newAxis = AxisAssignmentObject(self, index=addNew,
+                                                    parent=_frame,
+                                                    mainWindow=self.mainWindow,
+                                                    grid=(addNew, 0), gridSpan=(1, 1))
+                    # _newAxis.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.MinimumExpanding)
+                    # _frame.setStyleSheet('Frame { border: 2px solid #0000FF; }')
+
+                    self.axisTables.append(_newAxis)
 
                     # make a small label that appears when there is nothing to display
-                    self.tempFrame = Frame(self.axisFrame, setLayout=True, grid=(addNew, 0))
+                    self.tempFrame = Frame(_frame, setLayout=True, grid=(addNew, 0))
                     self.tempDivider = HLine(self.tempFrame, grid=(0, 0), gridSpan=(1, 3), colour=getColours()[DIVIDER], height=15)
                     self.tempLabel = Label(self.tempFrame, text='', grid=(1, 0))
+                    self.tempLabel.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
                     self.axisDivergeLabels.append([self.tempFrame, self.tempDivider, self.tempLabel])
+                    # self.tempFrame.setStyleSheet('Frame { border: 2px solid #00FF00; }')
+
+                    self.axisFrame.addWidget(_frame)
+                    # self.axisFrame.setStretchFactor(addNew, 0)
 
                 for showNew in range(self.NDims, Ndimensions):
-                    self.axisTables[showNew].show()
+                    self.axisTables[showNew].setVisible(True)
                     self.axisDivergeLabels[showNew][0].hide()
+                    # self.axisFrame.setStretchFactor(showNew, 0)
 
             elif Ndimensions < len(self.axisTables):
                 for delOld in range(Ndimensions, len(self.axisTables)):
-                    self.axisTables[delOld].hide()
+                    self.axisTables[delOld].setVisible(False)
                     self.axisDivergeLabels[delOld][0].hide()
             self.NDims = Ndimensions
+            # self.axisFrame.setSizes([x for x in range(20)])
+            # self.axisFrame.setSizes([1, 2, 4, 8, 16])
 
             # and enable the frame
             self.axisFrame.show()
@@ -299,6 +334,8 @@ class PeakAssigner(CcpnModule):
                                  enableDeassignButton=enableDeassignButton,
                                  enableAssignButton=enableAssignButton,
                                  action=action)
+
+            self.adjustSize()
 
     def _updateNewTable(self, enableDeleteButton=False,
                         enableDeassignButton=False,
@@ -345,7 +382,7 @@ class PeakAssigner(CcpnModule):
 
                 # hide as this is not a valid table
                 if not self.nmrAtoms:
-                    self.axisTables[dim].hide()
+                    self.axisTables[dim].setVisible(False)
                     self.axisDivergeLabels[dim][0].show()
 
             positions = [peak.position[dim] for peak in self.current.peaks]
@@ -404,7 +441,7 @@ class PeakAssigner(CcpnModule):
         # average = sum(deltas)/len(deltas) #Bug: ZERO DIVISION!
 
         if len(deltas) > 0:
-            return float(np.mean(deltas))          #'%6.3f' % np.mean(deltas) - handled by table
+            return float(np.mean(deltas))  #'%6.3f' % np.mean(deltas) - handled by table
         else:
             return ''
 
@@ -420,7 +457,7 @@ class PeakAssigner(CcpnModule):
             if shiftList:
                 shift = shiftList.getChemicalShift(nmrAtom.id)
                 if shift:
-                    return shift.value          # '%8.3f' % shift.value
+                    return shift.value  # '%8.3f' % shift.value
 
     def _peaksAreCompatible(self) -> bool:
         """
@@ -514,20 +551,30 @@ class AxisAssignmentObject(Frame):
         self.current = mainWindow.application.current
         self.currentAtoms = None
 
-        row = 0
-        self.divider = HLine(self, grid=(row, 0), gridSpan=(1, 3), colour=getColours()[DIVIDER], height=15)
+        # none becuase injected into widgets later
+        self.splitter = Splitter(None, setLayout=True)
+        self._assignmentsFrame = Frame(None, setLayout=True, vAlign='t')
+        self._alternativesFrame = Frame(None, setLayout=True, vAlign='t')
 
-        # add the labelling to the top of the frame
-        # row += 1
-        # self.axisLabel = Label(self, 'Axis', hAlign='c', grid=(row,0))
-        row += 1
-        # self._assignmentsLabel = Label(self, 'Current Assignments', hAlign='l', grid=(row,0))
-        self.axisLabel = Label(self, 'Axis', hAlign='l', grid=(row, 0), bold=True)
-        self._alternativesLabel = Label(self, 'Alternatives', hAlign='l', grid=(row, 2))
+        parent.getLayout().addWidget(self.splitter, 1, 0)
+        self.splitter.addWidget(self._assignmentsFrame)
+        self.splitter.addWidget(self._alternativesFrame)
+        self.splitter.setSizes([1, 1])
+        self.splitter.setChildrenCollapsible(False)
+
+        self._assignmentsFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self._alternativesFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+
+        self.divider = HLine(parent, grid=(0, 0), colour=getColours()[DIVIDER], height=15)
+
+        self._alternativesLabel = Label(self._alternativesFrame, 'Alternatives', hAlign='l', grid=(0, 0))
+
+        row = 0
+        self.axisLabel = Label(self._assignmentsFrame, 'Axis', hAlign='l', grid=(row, 0), bold=True)
 
         # add two tables - left is current assignments, right is alternatives
         row += 1
-        self.tables = [GuiTable(parent=self,
+        self.tables = [GuiTable(parent=self._assignmentsFrame,
                                 mainWindow=mainWindow,
                                 dataFrameObject=None,
                                 setLayout=True,
@@ -539,14 +586,15 @@ class AxisAssignmentObject(Frame):
                                 enableSearch=False,
                                 acceptDrops=True),
 
-                       GuiTable(parent=self,
+                       GuiTable(parent=self._alternativesFrame,
                                 mainWindow=mainWindow,
                                 dataFrameObject=None,
                                 setLayout=True,
                                 autoResize=True, multiSelect=False,
                                 actionCallback=partial(self._assignDeassignNmrAtom, 1),
                                 selectionCallback=partial(self._updatePulldownLists, 1),
-                                grid=(row, 2), gridSpan=(7, 1),
+                                # grid=(row, 2), gridSpan=(7, 1),
+                                grid=(1, 0), gridSpan=(1, 1),
                                 stretchLastSection=True,
                                 enableSearch=False,
                                 acceptDrops=True)
@@ -576,19 +624,30 @@ class AxisAssignmentObject(Frame):
                                          callBackClass=NmrAtom,
                                          moduleParent=self.tables)  # just to give a unique id
 
-        # add a spacer to pad out the middle
-        Spacer(self, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding,
-               grid=(row, 1), gridSpan=(1, 1))
+        # self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
+
+        # self.tables[0].setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # self._alternativesFrame.getLayout().setRowStretch(1, 100)
+        # self.tables[0].getLayout().setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
+        # self.tables[1].getLayout().setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
+
+        # add a spacer to make the left table expand
+        Spacer(self._assignmentsFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
+               grid=(row, 0), gridSpan=(1, 1))
+        # add a spacer to make the right table expand
+        Spacer(self._alternativesFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
+               grid=(1, 0), gridSpan=(1, 1))
 
         # add pulldowns for editing new assignment
         row += 1
-        self.pulldownFrame = Frame(parent=self, setLayout=True, spacing=(5, 0), margins=(0, 0, 0, 0),
+        self.pulldownFrame = Frame(parent=self._assignmentsFrame, setLayout=True, spacing=(5, 0), margins=(0, 0, 0, 0),
                                    showBorder=False, fShape='noFrame',
                                    vAlign='top',
                                    grid=(row, 0), gridSpan=(1, 1))
 
-        Spacer(self.pulldownFrame, 10, 10, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(0, 0), gridSpan=(1, 1))
+        # Spacer(self.pulldownFrame, 10, 10, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+        #        grid=(0, 0), gridSpan=(1, 1))
         self.chainPulldown = self._createChainPulldown(parent=self.pulldownFrame,
                                                        grid=(1, 0), gridSpan=(1, 1),
                                                        tipText='Chain code')
@@ -601,12 +660,12 @@ class AxisAssignmentObject(Frame):
         self.atomTypePulldown = self._createPulldown(parent=self.pulldownFrame,
                                                      grid=(1, 6), gridSpan=(1, 1),
                                                      tipText='Atom type')
-        Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(1, 1), gridSpan=(1, 1))
-        Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(1, 3), gridSpan=(1, 1))
-        Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(1, 5), gridSpan=(1, 1))
+        # Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+        #        grid=(1, 1), gridSpan=(1, 1))
+        # Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+        #        grid=(1, 3), gridSpan=(1, 1))
+        # Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+        #        grid=(1, 5), gridSpan=(1, 1))
 
         self.chainPulldown.setMinimumWidth(70)
         self.seqCodePulldown.setMinimumWidth(70)
@@ -614,23 +673,23 @@ class AxisAssignmentObject(Frame):
         self.atomTypePulldown.setMinimumWidth(70)
 
         # set minimum width to accommodate the pulldowns
-        self.layout().setColumnMinimumWidth(0, 280)
+        # self.layout().setColumnMinimumWidth(0, 280)
 
-        self.pulldownFrame.setStyleSheet("""QComboBox {
-                                    padding: px;
-                                    margin: 0px 0px 0px 0px;
-                                    border: 0px;
-                              }
-                            """)
+        # self.pulldownFrame.setStyleSheet("""QComboBox {
+        #                             padding: px;
+        #                             margin: 0px 0px 0px 0px;
+        #                             border: 0px;
+        #                       }
+        #                     """)
 
         # another spacer
         row += 1
-        Spacer(self, 10, 10, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+        Spacer(self._assignmentsFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
                grid=(row, 0), gridSpan=(1, 1))
 
         # add a buttonlist
         row += 1
-        self.buttonList = ButtonList(parent=self, texts=['New', 'Delete', 'Deassign', 'Assign'],
+        self.buttonList = ButtonList(parent=self._assignmentsFrame, texts=['New', 'Delete', 'Deassign', 'Assign'],
                                      callbacks=[partial(self._createNewNmrAtom, index),
                                                 partial(self._deleteNmrAtom, index),
                                                 partial(self._deassignNmrAtom, index),
@@ -669,9 +728,15 @@ class AxisAssignmentObject(Frame):
         self.tables[1]._hiddenColumns = ['Pid', 'Shift']
 
         # set the fixed height of the frame
-        self.setFixedHeight(175)
+        # self.setFixedHeight(175)
+        # self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Expanding)
 
         self._setDefaultPulldowns()
+
+    def setVisible(self, visible: bool) -> None:
+        super(AxisAssignmentObject, self).setVisible(visible)
+        self.splitter.setVisible(visible)
+        self.divider.setVisible(visible)
 
     def _close(self):
         self.tables[0]._close()
