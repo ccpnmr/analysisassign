@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-09-11 11:52:32 +0100 (Fri, September 11, 2020) $"
+__dateModified__ = "$dateModified: 2020-09-22 09:32:48 +0100 (Tue, September 22, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -53,6 +53,7 @@ from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.ToolBar import ToolBar
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
+from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.core.NmrChain import NmrChain
 from ccpn.util.Common import makeIterableList, greekKey
 from ccpn.util.Logging import getLogger
@@ -60,6 +61,7 @@ from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.modules.SequenceModule import SequenceModule
+from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
 from ccpn.ui.gui.widgets.SettingsWidgets import SequenceGraphSettings
 from ccpn.core.lib.AssignmentLib import getSpinSystemsLocation
 from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlock
@@ -98,6 +100,7 @@ class GuiNmrAtom(QtWidgets.QGraphicsTextItem):
         self.connectedList = {}  # maintain connectivity between guiNmrAtoms
         # so that lines do not overlap
 
+        setWidgetFont(self, )
         self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
 
         # set the highlight colour for dragging to chain
@@ -184,7 +187,7 @@ class GuiNmrResidue(QtWidgets.QGraphicsTextItem):
     drop assignment in conjunction with the Sequence Module.
     """
 
-    def __init__(self, parent, nmrResidue, caAtom):
+    def __init__(self, parent, nmrResidue, caAtom, lineSpacing):
 
         super().__init__()
         self.setPlainText(nmrResidue.id)
@@ -194,11 +197,13 @@ class GuiNmrResidue(QtWidgets.QGraphicsTextItem):
         self.project = self.mainWindow.project
         self.current = self.mainWindow.application.current
 
-        self.setFont(self.mainWindow.application._fontSettings.textFontSmall)
+        # self.setFont(self.mainWindow.application._fontSettings.textFontSmall)
+        setWidgetFont(self, size='MEDIUM')
+
         self.colours = getColours()
         self.setDefaultTextColor(QtGui.QColor(self.colours[GUINMRRESIDUE]))
 
-        self.setPos(caAtom.x() - caAtom.boundingRect().width() / 2, caAtom.y() + 30)
+        self.setPos(caAtom.x() - caAtom.boundingRect().width() / 2, caAtom.y() + (2 * lineSpacing))
 
         self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable)
         self._parent = parent
@@ -276,6 +281,7 @@ class AssignmentLine(QtWidgets.QGraphicsLineItem):
         self.pen.setColor(QtGui.QColor(colour))
         self.pen.setCosmetic(True)
         self.pen.setWidth(width)
+        self._width = width
 
         if style == 'dash':
             self.pen.setStyle(QtCore.Qt.DotLine)
@@ -324,7 +330,7 @@ class AssignmentLine(QtWidgets.QGraphicsLineItem):
         length = 2.0 * pow(dx * dx + dy * dy, 0.5)
         if self.displacement is not None:
             count = (guiAtom1.connectedList[guiAtom2] - 1) // 2
-            disp = 6.0 * (self.displacement - count) / length
+            disp = self._width * 3 * (self.displacement - count) / length
         else:
             disp = 0.0
         offsetX = dy * disp
@@ -373,7 +379,7 @@ class GuiNmrResidueGroup(QtWidgets.QGraphicsItemGroup):
     Group item to group all nmrAtoms/connecting lines of nmrResidue
     """
 
-    def __init__(self, parent, nmrResidue, caAtom, pos):
+    def __init__(self, parent, nmrResidue, caAtom, pos, lineSpacing):
         super().__init__()
 
         self.mainWindow = parent.mainWindow
@@ -386,7 +392,7 @@ class GuiNmrResidueGroup(QtWidgets.QGraphicsItemGroup):
         self.crossChainCount = None
         self.crossChainResidue = None
 
-        self.nmrResidueLabel = GuiNmrResidue(parent, nmrResidue, caAtom)
+        self.nmrResidueLabel = GuiNmrResidue(parent, nmrResidue, caAtom, lineSpacing)
         self.addToGroup(self.nmrResidueLabel)
 
     def mousePressEvent(self, event):
@@ -408,7 +414,7 @@ class NmrResidueList():
     A Class to hold the information about each gui object in the scene
     """
 
-    def __init__(self, mainWindow, settingsWidget, lineColour, textColour, atomSpacing, scene, module):
+    def __init__(self, mainWindow, settingsWidget, lineColour, textColour, atomSpacing, lineSpacing, lineWidth, lineConnectWidth, scene, module, defaultResidueAtoms, atomPositionDict):
         """Initialise the new object.
         """
         self.mainWindow = mainWindow
@@ -421,9 +427,15 @@ class NmrResidueList():
         self._lineColour = lineColour
         self._textColour = textColour
         self._atomSpacing = atomSpacing
+        self._lineSpacing = lineSpacing
+        self._lineWidth = lineWidth
+        self._lineConnectWidth = lineConnectWidth
         self._scene = scene
         self._module = module
         self.nmrChain = None
+
+        self._defaultResidueAtoms = defaultResidueAtoms
+        self._atomPositionDict = atomPositionDict
 
     def reset(self):
         self.residueCount = 0
@@ -532,12 +544,12 @@ class NmrResidueList():
 
     #==========================================================================================
 
-    def addNmrResidue(self, nmrChainId, nmrResidue, index=0, _insertNmrRes=True):
+    def addNmrResidue(self, nmrChainId, nmrResidue, index=0, _insertNmrRes=True, spacing=66, residueAtoms=None):
         """Add a new nmrResidue at the required position.
         """
-        self._addNmrResidue(nmrChainId, nmrResidue, nmrResidueIndex=index, _insertNmrRes=_insertNmrRes)
+        self._addNmrResidue(nmrChainId, nmrResidue, nmrResidueIndex=index, _insertNmrRes=_insertNmrRes, spacing=spacing, residueAtoms=residueAtoms)
 
-    def _addNmrResidue(self, nmrChainId, nmrResidue, nmrResidueIndex=0, _insertNmrRes=True):
+    def _addNmrResidue(self, nmrChainId, nmrResidue, nmrResidueIndex=0, _insertNmrRes=True, spacing=66, residueAtoms=None):
         """Takes an Nmr Residue, and adds a residue to the sequence graph
         corresponding to the Nmr Residue at the required index.
         Nmr Residue name displayed beneath CA of residue drawn and residue type predictions displayed
@@ -551,10 +563,10 @@ class NmrResidueList():
         guiAtoms = {}
         # mainNmrResidues = nmrResidue.nmrChain.mainNmrResidues
 
-        if atomSpacing:
-            self.atomSpacing = atomSpacing
+        self.atomSpacing = spacing
         nmrAtomNames = [nmrAtom.name for nmrAtom in nmrResidue.nmrAtoms]
-        backboneAtoms = DEFAULT_RESIDUE_ATOMS.copy()
+        # backboneAtoms = DEFAULT_RESIDUE_ATOMS.copy()
+        backboneAtoms = residueAtoms.copy()
 
         if nmrResidue.residueType == 'GLY':
             # GLY doesn't have CB
@@ -601,7 +613,8 @@ class NmrResidueList():
                          nmrResidueCon0: NmrResidue,
                          # name1: str, name0: str,
                          # offsetAdjust,
-                         atomSpacing=None, lineList=None):
+                         atomSpacing=None, lineList=None,
+                         residueAtoms=None):
         """Takes an Nmr Residue and a direction, either '-1 or '+1', and adds a residue to the sequence graph
         corresponding to the Nmr Residue.
         Nmr Residue name displayed beneath CA of residue drawn and residue type predictions displayed
@@ -623,12 +636,13 @@ class NmrResidueList():
         if atomSpacing:
             self.atomSpacing = atomSpacing
         nmrAtoms = [nmrAtom.name for nmrAtom in nmrResidue.nmrAtoms]
-        residueAtoms = DEFAULT_RESIDUE_ATOMS.copy()
+        # residueAtoms = DEFAULT_RESIDUE_ATOMS.copy()
+        residueAtomsCopy = residueAtoms.copy()
 
         if nmrResidue.residueType == 'GLY':
-            del residueAtoms['CB']
+            del residueAtomsCopy['CB']
 
-        for k, v in residueAtoms.items():
+        for k, v in residueAtomsCopy.items():
             if k in nmrAtoms:
                 nmrAtom = nmrResidue.fetchNmrAtom(name=k)
             else:
@@ -685,7 +699,8 @@ class NmrResidueList():
         """Add the sideChain atoms above the backbone line.
         """
         # residue = {}
-        for k, v in ATOM_POSITION_DICT[nmrResidue.residueType].items():
+        # for k, v in ATOM_POSITION_DICT[nmrResidue.residueType].items():
+        for k, v in self._atomPositionDict[nmrResidue.residueType].items():
             if k != 'boundAtoms':
                 position = [cbAtom.x() + v[0], cbAtom.y() + v[1]]
                 if k in atomNames:
@@ -704,7 +719,7 @@ class NmrResidueList():
         """Takes an Nmr Residue and a dictionary of atom names and GuiNmrAtoms and
         creates a graphical representation of a residue in the assigner
         """
-        guiResidueGroup = GuiNmrResidueGroup(self._module, nmrResidue, guiAtoms['CA'], 0)
+        guiResidueGroup = GuiNmrResidueGroup(self._module, nmrResidue, guiAtoms['CA'], 0, self._lineSpacing)
 
         # insert into the gui list and add to the scene
         self.guiNmrResidues[nmrResidue] = guiResidueGroup
@@ -718,16 +733,20 @@ class NmrResidueList():
         # add the backbone lines - sidechain will be added in the future
         if "CB" in guiAtoms:
             self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['CA'], guiAtoms['CB'],
-                                           self._lineColour, 1.0, lineList=self.connectingLines, lineId=nmrResidue)
+                                           self._lineColour, self._lineConnectWidth,
+                                           lineList=self.connectingLines, lineId=nmrResidue)
 
         if "H" in guiAtoms and nmrResidue.residueType != 'PRO':
             self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['H'], guiAtoms['N'],
-                                           self._lineColour, 1.0, lineList=self.connectingLines, lineId=nmrResidue)
+                                           self._lineColour, self._lineConnectWidth,
+                                           lineList=self.connectingLines, lineId=nmrResidue)
 
         self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['N'], guiAtoms['CA'],
-                                       self._lineColour, 1.0, lineList=self.connectingLines, lineId=nmrResidue)
+                                       self._lineColour, self._lineConnectWidth,
+                                       lineList=self.connectingLines, lineId=nmrResidue)
         self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['C'], guiAtoms['CA'],
-                                       self._lineColour, 1.0, lineList=self.connectingLines, lineId=nmrResidue)
+                                       self._lineColour, self._lineConnectWidth,
+                                       lineList=self.connectingLines, lineId=nmrResidue)
 
         self._addGroupResiduePredictions(guiResidueGroup, nmrResidue, guiAtoms['CA'])
 
@@ -737,7 +756,7 @@ class NmrResidueList():
         """Takes an Nmr Residue and a dictionary of atom names and GuiNmrAtoms and
         creates a graphical representation of a residue in the assigner
         """
-        guiResidueGroup = GuiNmrResidueGroup(self._module, nmrResidue, guiAtoms['CA'], 0)
+        guiResidueGroup = GuiNmrResidueGroup(self._module, nmrResidue, guiAtoms['CA'], 0, self._lineSpacing)
         self.guiGhostNmrResidues[nmrResidue] = guiResidueGroup
         self._scene.addItem(guiResidueGroup)
 
@@ -749,16 +768,20 @@ class NmrResidueList():
         # add the backbone lines - sidechain will be added in the future
         if "CB" in list(guiAtoms.keys()):
             self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['CA'], guiAtoms['CB'],
-                                           self._lineColour, 1.0, lineList=lineList, lineId=nmrResidue)
+                                           self._lineColour, self._lineConnectWidth,
+                                           lineList=lineList, lineId=nmrResidue)
 
         if "H" in list(guiAtoms.keys()) and nmrResidue.residueType != 'PRO':
             self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['H'], guiAtoms['N'],
-                                           self._lineColour, 1.0, lineList=lineList, lineId=nmrResidue)
+                                           self._lineColour, self._lineConnectWidth,
+                                           lineList=lineList, lineId=nmrResidue)
 
         self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['N'], guiAtoms['CA'],
-                                       self._lineColour, 1.0, lineList=lineList, lineId=nmrResidue)
+                                       self._lineColour, self._lineConnectWidth,
+                                       lineList=lineList, lineId=nmrResidue)
         self._addConnectingLineToGroup(guiResidueGroup, guiAtoms['C'], guiAtoms['CA'],
-                                       self._lineColour, 1.0, lineList=lineList, lineId=nmrResidue)
+                                       self._lineColour, self._lineConnectWidth,
+                                       lineList=lineList, lineId=nmrResidue)
 
         return guiResidueGroup
 
@@ -812,7 +835,8 @@ class NmrResidueList():
                 # connect from this 'N' to the previous 'C'
                 self._addConnectingLineToGroup(self.guiNmrResidues[prevRes],
                                                prevGuiAtoms['C'], thisGuiAtoms['N'],
-                                               self._lineColour, 1.0, lineList=self.connectingLines,
+                                               self._lineColour, self._lineConnectWidth,
+                                               lineList=self.connectingLines,
                                                lineId=thisRes)
 
     #==========================================================================================
@@ -827,9 +851,12 @@ class NmrResidueList():
             predictionLabel = QtWidgets.QGraphicsTextItem()
             predictionLabel.setPlainText(prediction[0] + ' ' + prediction[1])
             predictionLabel.setDefaultTextColor(QtGui.QColor(self._textColour))
-            predictionLabel.setFont(self.mainWindow.application._fontSettings.textFontSmallBold)
+
+            # predictionLabel.setFont(self.mainWindow.application._fontSettings.textFontSmallBold)
+            setWidgetFont(predictionLabel, size='MEDIUM', bold=True)
+
             predictionLabel.setPos(caAtom.x() - caAtom.boundingRect().width() / 2,
-                                   caAtom.y() + (30 * (predictions.index(prediction) + 2)))
+                                   caAtom.y() + (self._lineSpacing * (predictions.index(prediction) + 3.5)))
 
             guiResidueGroup.addToGroup(predictionLabel)
 
@@ -934,7 +961,7 @@ class NmrResidueList():
                                                guiNmrAtomPair[0],
                                                guiNmrAtomPair[1],
                                                spectrum.positiveContourColour,
-                                               2.0, displacement=displacement,
+                                               self._lineWidth, displacement=displacement,
                                                peak=peak, lineList=lineList, lineId=peak)
 
                 # update displacements for both guiNmrAtoms
@@ -969,7 +996,8 @@ class NmrResidueList():
                                           # nmrAtomPair[0].name,
                                           # nmrAtomPair[1].name,
                                           # True,
-                                          lineList=connectingLineList)
+                                          lineList=connectingLineList,
+                                          residueAtoms=self._defaultResidueAtoms)
                     guiNmrAtomPair = (self.guiNmrAtoms.get(nmrAtomPair[0]),
                                       self.guiNmrAtoms.get(nmrAtomPair[1]),
                                       nmrAtomPair[2]
@@ -981,7 +1009,7 @@ class NmrResidueList():
                                                    guiNmrAtomPair[1],
                                                    guiNmrAtomPair[0],
                                                    spectrum.positiveContourColour,
-                                                   2.0, displacement=displacement,
+                                                   self._lineWidth, displacement=displacement,
                                                    peak=peak, lineList=peaklineList, lineId=nmrResidue)
 
                 elif guiNmrAtomPair[1] is None:
@@ -994,7 +1022,8 @@ class NmrResidueList():
                                           # nmrAtomPair[1].name,
                                           # nmrAtomPair[0].name,
                                           # True,
-                                          lineList=connectingLineList)
+                                          lineList=connectingLineList,
+                                          residueAtoms=self._defaultResidueAtoms)
                     guiNmrAtomPair = (self.guiNmrAtoms.get(nmrAtomPair[0]),
                                       self.guiNmrAtoms.get(nmrAtomPair[1]),
                                       nmrAtomPair[2]
@@ -1006,7 +1035,7 @@ class NmrResidueList():
                                                    guiNmrAtomPair[0],
                                                    guiNmrAtomPair[1],
                                                    spectrum.positiveContourColour,
-                                                   2.0, displacement=displacement,
+                                                   self._lineWidth, displacement=displacement,
                                                    peak=peak, lineList=peaklineList, lineId=nmrResidue)
 
                 else:
@@ -1017,7 +1046,7 @@ class NmrResidueList():
                                                        guiNmrAtomPair[0],
                                                        guiNmrAtomPair[1],
                                                        spectrum.positiveContourColour,
-                                                       2.0, displacement=displacement,
+                                                       self._lineWidth, displacement=displacement,
                                                        peak=peak, lineList=peaklineList, lineId=nmrResidue)
 
                     elif nmrAtomPair[1].nmrResidue.nmrChain is nmrResidue.nmrChain:
@@ -1027,7 +1056,7 @@ class NmrResidueList():
                                                        guiNmrAtomPair[1],
                                                        guiNmrAtomPair[0],
                                                        spectrum.positiveContourColour,
-                                                       2.0, displacement=displacement,
+                                                       self._lineWidth, displacement=displacement,
                                                        peak=peak, lineList=peaklineList, lineId=nmrResidue)
                     else:
                         continue
@@ -1322,7 +1351,8 @@ class NmrResidueList():
         if atomSpacing:
             self.atomSpacing = atomSpacing
         atomNames = [nmrAtom.name for nmrAtom in nmrResidue.nmrAtoms]
-        residueAtoms = DEFAULT_RESIDUE_ATOMS.copy()
+        # residueAtoms = DEFAULT_RESIDUE_ATOMS.copy()
+        residueAtoms = self._defaultResidueAtoms.copy()
 
         for k, v in residueAtoms.items():
             if k in atomNames:
@@ -1575,18 +1605,21 @@ class SequenceGraphModule(CcpnModule):
 
         self.initialiseScene()
         self.residueCount = 0
-        self.atomSpacing = 66
-        self.nmrResidueList = NmrResidueList(self.mainWindow, self._SGwidget, self._lineColour, self._textColour, self.atomSpacing,
-                                             self.scene, self)
+
+        self.defineAtoms()
+        self.nmrResidueList = NmrResidueList(self.mainWindow, self._SGwidget, self._lineColour, self._textColour,
+                                             self.atomSpacing, self.lineSpacing, self.lineWidth, self.lineConnectWidth,
+                                             self.scene, self, self.DEFAULT_RESIDUE_ATOMS, self.ATOM_POSITION_DICT)
         self._deleteStore = {}
 
         colwidth = 180
         self._MWwidget = Widget(self.mainWidget, setLayout=True,
                                 grid=(0, 0), vAlign='top', hAlign='left')
 
-        self.nmrChainPulldown = NmrChainPulldown(self._MWwidget, self.mainWindow, grid=(0, 0), gridSpan=(1, 1),
+        _col = 0
+        self.nmrChainPulldown = NmrChainPulldown(self._MWwidget, self.mainWindow, grid=(0, _col), gridSpan=(1, 1),
                                                  showSelectName=True,
-                                                 fixedWidths=(colwidth, colwidth, colwidth),
+                                                 # fixedWidths=(colwidth, colwidth, colwidth),
                                                  callback=self.showNmrChainFromPulldown)
 
         # self.refreshCheckBox = CheckBoxCompoundWidget(self._MWwidget,
@@ -1597,30 +1630,40 @@ class SequenceGraphModule(CcpnModule):
         #                                               tipText='Update display when current.nmrChain changes',
         #                                               grid=(0, 1), gridSpan=(1, 1))
 
+        _col += 1
+        _height = getFontHeight()
+        Spacer(self._MWwidget, _height * 5, 5,
+               QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+               grid=(0, _col), gridSpan=(1, 1))
+
+        _col += 1
         self.sequenceCheckBox = CheckBoxCompoundWidget(self._MWwidget,
                                                        labelText='Show Sequence:',
                                                        checked=True,
-                                                       fixedWidths=(colwidth, 15),
+                                                       # fixedWidths=(colwidth, 15),
                                                        orientation='right', hAlign='left',
                                                        tipText='Show chain sequences',
                                                        callback=self._toggleSequence,
-                                                       grid=(0, 2), gridSpan=(1, 1))
+                                                       grid=(0, _col), gridSpan=(1, 1))
 
+        _col += 1
         self.nmrResiduesCheckBox = CheckBoxCompoundWidget(self._MWwidget,
                                                           labelText='Show all NmrResidues:',
                                                           checked=True,
-                                                          fixedWidths=(colwidth, 15),
+                                                          # fixedWidths=(colwidth, 15),
                                                           orientation='right', hAlign='left',
                                                           tipText='Show all the NmrResidues in the NmrChain',
                                                           callback=self.showNmrChainFromPulldown,
-                                                          grid=(0, 3), gridSpan=(1, 1))
+                                                          grid=(0, _col), gridSpan=(1, 1))
+
+        _col += 1
+        self.editingToolbar = ToolBar(self._MWwidget, grid=(0, _col), gridSpan=(1, 1), hAlign='right', iconSizes=(24, 24))
+        # self.editingToolbar = ToolBar(self._SequenceModuleFrame, grid=(0, 6), gridSpan=(1, 1), hAlign='right', iconSizes=(24,24))
 
         self._MWwidget.setMinimumWidth(self._MWwidget.sizeHint().width())
+        self._MWwidget.setContentsMargins(5, 5, 5, 5)
         self._MWwidget.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
-
-        self.editingToolbar = ToolBar(self._MWwidget, grid=(0, 6), gridSpan=(1, 1), hAlign='right', iconSizes=(24, 24))
-        # self.editingToolbar = ToolBar(self._SequenceModuleFrame, grid=(0, 6), gridSpan=(1, 1), hAlign='right', iconSizes=(24,24))
 
         self.disconnectPreviousAction = self.editingToolbar.addAction("disconnectPrevious", self.disconnectPreviousNmrResidue)
         self.disconnectPreviousIcon = Icon('icons/disconnectPrevious')
@@ -2512,7 +2555,8 @@ class SequenceGraphModule(CcpnModule):
                 # iterate through and and add new residues that don't already exists
                 for ii, nmrRes in enumerate(newResSet):
                     # do not _insertNmrRes as the list is built
-                    self.nmrResidueList.addNmrResidue(nmrChainId, nmrRes, ii, _insertNmrRes=False)
+                    self.nmrResidueList.addNmrResidue(nmrChainId, nmrRes, ii, _insertNmrRes=False,
+                                                      spacing=self.atomSpacing, residueAtoms=self.DEFAULT_RESIDUE_ATOMS)
 
         # add the connecting lines
         # guiNmrResidues = [self.guiNmrResidues[nmrResidue] for nmrResidue in nmrResidueList if nmrResidue is nmrResidue.mainNmrResidue]
@@ -2654,7 +2698,8 @@ class SequenceGraphModule(CcpnModule):
 
             # add the nmrResidues to the scene
             for ii, nmrRes in enumerate(nmrList):
-                self.nmrResidueList.addNmrResidue(thisChainId, nmrRes, index=ii)
+                self.nmrResidueList.addNmrResidue(thisChainId, nmrRes, index=ii,
+                                                  spacing=self.atomSpacing, residueAtoms=self.DEFAULT_RESIDUE_ATOMS)
 
             # add the connecting lines
             self.nmrResidueList.addConnectionsBetweenGroups(thisChainId)
@@ -3131,24 +3176,24 @@ class SequenceGraphModule(CcpnModule):
         else:
             self._sequenceModuleFrame.show()
 
-    def _addConnectingLineToGroup(self, group: GuiNmrResidueGroup, guiAtom1: GuiNmrAtom, guiAtom2: GuiNmrAtom,
-                                  colour: str, width: float, displacement: float = None, style: str = None,
-                                  peak: Peak = None, lineList=None, lineId='default'):
-        """Adds a line between two GuiNmrAtoms using the width, colour, displacement and style specified.
-        """
-        newLine = AssignmentLine(0, 0, 0, 0, colour, width,
-                                 parent=self, style=style, peak=peak,
-                                 guiAtom1=guiAtom1, guiAtom2=guiAtom2, displacement=displacement)
-
-        # not sure why this is different
-        # group.addToGroup(newLine)
-        newLine.setParentItem(group)
-
-        itemKey = id(lineId)
-        if itemKey not in lineList:
-            lineList[itemKey] = []
-        lineList[itemKey].append(newLine)
-        return newLine
+    # def _addConnectingLineToGroup(self, group: GuiNmrResidueGroup, guiAtom1: GuiNmrAtom, guiAtom2: GuiNmrAtom,
+    #                               colour: str, width: float, displacement: float = None, style: str = None,
+    #                               peak: Peak = None, lineList=None, lineId='default'):
+    #     """Adds a line between two GuiNmrAtoms using the width, colour, displacement and style specified.
+    #     """
+    #     newLine = AssignmentLine(0, 0, 0, 0, colour, width,
+    #                              parent=self, style=style, peak=peak,
+    #                              guiAtom1=guiAtom1, guiAtom2=guiAtom2, displacement=displacement)
+    #
+    #     # not sure why this is different
+    #     # group.addToGroup(newLine)
+    #     newLine.setParentItem(group)
+    #
+    #     itemKey = id(lineId)
+    #     if itemKey not in lineList:
+    #         lineList[itemKey] = []
+    #     lineList[itemKey].append(newLine)
+    #     return newLine
 
     # def _createGuiNmrAtom(self, atomType: str, position: tuple, nmrAtom: NmrAtom = None) -> GuiNmrAtom:
     #     """Creates a GuiNmrAtom specified by the atomType and graphical position supplied.
@@ -3627,156 +3672,160 @@ class SequenceGraphModule(CcpnModule):
     def showNmrResidue(self, obj):
         self.navigateToNmrResidue(selectedNmrResidue=obj.nmrResidue)
 
+    def defineAtoms(self):
+        import math
 
-import math
+        self.lineSpacing = getFontHeight()
+        self.atomSpacing = atomSpacing = self.lineSpacing * 5
+        self.lineConnectWidth = max(2, ((self.lineSpacing - 0) // 6))
+        self.lineWidth = self.lineConnectWidth + 1
 
+        cos36 = math.cos(math.pi / 5)
+        sin36 = math.sin(math.pi / 5)
+        tan36 = math.tan(math.pi / 5)
 
-atomSpacing = 66
-cos36 = math.cos(math.pi / 5)
-sin36 = math.sin(math.pi / 5)
-tan36 = math.tan(math.pi / 5)
+        cos54 = math.cos(3 * math.pi / 10)
+        sin54 = math.sin(3 * math.pi / 10)
 
-cos54 = math.cos(3 * math.pi / 10)
-sin54 = math.sin(3 * math.pi / 10)
+        cos60 = math.cos(math.pi / 3)
+        sin60 = math.sin(math.pi / 3)
+        sin72 = math.sin(2 * math.pi / 5)
+        cos72 = math.cos(2 * math.pi / 5)
 
-cos60 = math.cos(math.pi / 3)
-sin60 = math.sin(math.pi / 3)
-sin72 = math.sin(2 * math.pi / 5)
-cos72 = math.cos(2 * math.pi / 5)
+        self.DEFAULT_RESIDUE_ATOMS = {'H' : np.array([0, 0]),
+                                      'N' : np.array([0, -1 * atomSpacing]),
+                                      'CA': np.array([atomSpacing, -1 * atomSpacing]),
+                                      'CB': np.array([atomSpacing, -2 * atomSpacing]),
+                                      'C' : np.array([2 * atomSpacing, -1 * atomSpacing])
+                                      }
 
-DEFAULT_RESIDUE_ATOMS = {'H' : np.array([0, 0]),
-                         'N' : np.array([0, -1 * atomSpacing]),
-                         'CA': np.array([atomSpacing, -1 * atomSpacing]),
-                         'CB': np.array([atomSpacing, -2 * atomSpacing]),
-                         'C' : np.array([2 * atomSpacing, -1 * atomSpacing])
-                         }
+        # Use loadCompoundPickle from chemBuild to load the structure for these; found in compound.variants.bonds
 
-# Use loadCompoundPickle from chemBuild to load the structure for these; found in compound.variants.bonds
+        self.ATOM_POSITION_DICT = {
 
-ATOM_POSITION_DICT = {
+            'ALA': {'HB%'       : (0.0, -0.75 * atomSpacing),
+                    'boundAtoms': ('')},
+            'CYS': {'SG': (0.0, -1 * atomSpacing), 'HG': (0, -1.75 * atomSpacing)},
+            'ASP': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CG' : (0, -1 * atomSpacing)},
+            'ASN': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CG'  : (0, -1 * atomSpacing), 'ND2': (0, -2 * atomSpacing),
+                    'HD2x': (atomSpacing * -0.75, -2 * atomSpacing - (0.75 * atomSpacing * cos60)),
+                    'HD2y': (atomSpacing * +0.75, -2 * atomSpacing - (0.75 * atomSpacing * cos60)),
+                    },
+            'GLU': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
+                    'CG' : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing)
+                    },
+            'GLN': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'HGx' : (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
+                    'CG'  : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing), 'NE2': (0, -3 * atomSpacing),
+                    'HD2x': (atomSpacing * -0.75, -3 * atomSpacing - (0.75 * atomSpacing * cos60)),
+                    'HD2y': (atomSpacing * +0.75, -3 * atomSpacing - (0.75 * atomSpacing * cos60)),
+                    },
+            'PHE': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CG' : (0, -1 * atomSpacing), 'CD1': (-1 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'CD2': (1 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'CE1': (-1 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'CE2': (1 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'HD1': (-1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'HD2': (1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'HE1': (-1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'HE2': (1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'CZ' : (0, (-2 - cos60 - sin60) * atomSpacing), 'HZ': (0, (-2 - cos60 - sin60 - 0.75) * atomSpacing)
+                    },
+            'TYR': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CG' : (0, -1 * atomSpacing), 'CD1': (-1 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'CD2': (1 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'CE1': (-1 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'CE2': (1 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'HD1': (-1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'HD2': (1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'HE1': (-1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'HE2': (1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
+                    'CZ' : (0, (-2 - cos60 - sin60) * atomSpacing), 'HH': (0, (-2 - cos60 - sin60 - 0.75) * atomSpacing)
+                    },
+            'SER': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'HG' : (0, -1 * atomSpacing)
+                    },
+            'THR': {'HG1': (atomSpacing * -0.75, 0.0), 'HB': (atomSpacing * 0.75, 0.0),
+                    'CG2': (0, -1 * atomSpacing), 'HG2%': (0, -1.75 * atomSpacing)
+                    },
+            'MET': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
+                    'CG' : (0, -1 * atomSpacing), 'SD': (0, -2 * atomSpacing), 'CE': (0, -3 * atomSpacing),
+                    'HE%': (0, -3.75 * atomSpacing)
+                    },
+            'ARG': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
+                    'CG' : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing), 'NE': (0, -3 * atomSpacing),
+                    'CZ' : (0, -4 * atomSpacing), 'NH1': (atomSpacing * -1, -4 * atomSpacing - (0.75 * atomSpacing * cos60)),
+                    'NH2': (atomSpacing * +1, -4 * atomSpacing - (0.75 * atomSpacing * cos60)),
+                    },
+            'VAL': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CGx' : (-1 * atomSpacing, -1 * (cos60 * atomSpacing)),
+                    'CGy' : (1 * atomSpacing, -1 * (cos60 * atomSpacing)),
+                    'HGx%': (atomSpacing * -1, -1 * (cos60 * atomSpacing) - (0.75 * atomSpacing)),
+                    'HGy%': (atomSpacing * +1, -1 * (cos60 * atomSpacing) - (0.75 * atomSpacing))
+                    },
+            'LEU': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'HGx' : (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
+                    'CG'  : (0, -1 * atomSpacing),
+                    'CDx' : (-1 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'CDy' : (1 * atomSpacing, (-1 - cos60) * atomSpacing),
+                    'HDx%': (atomSpacing * -1, ((-1 - cos60) * atomSpacing) - (0.75 * atomSpacing)),
+                    'HDy%': (atomSpacing * +1, ((-1 - cos60) * atomSpacing) - (0.75 * atomSpacing))
+                    },
+            'ILE': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CG1' : (-1 * atomSpacing, -1 * (cos60 * atomSpacing)),
+                    'CG2%': (1 * atomSpacing, -1 * (cos60 * atomSpacing)),
+                    'HG1x': (atomSpacing * -1.75, -1 * (cos60 * atomSpacing)),
+                    'HG1y': (atomSpacing * -0.25, -1 * (cos60 * atomSpacing)),
+                    'HG2%': (1 * atomSpacing, -1 * (cos60 * atomSpacing) - (0.75 * atomSpacing)),
+                    'CD1%': (-1 * atomSpacing, -1 * (cos60 * atomSpacing) - atomSpacing),
+                    'HD1%': (-1 * atomSpacing, -1 * (cos60 * atomSpacing) - (1.75 * atomSpacing)),
+                    },
+            'LYS': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
+                    'CG' : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing),
+                    'HDx': (atomSpacing * -0.75, -2 * atomSpacing), 'HDy': (atomSpacing * 0.75, -2 * atomSpacing),
+                    'HEx': (atomSpacing * -0.75, -3 * atomSpacing), 'HEy': (atomSpacing * 0.75, -3 * atomSpacing),
+                    'CE' : (0, -3 * atomSpacing),
+                    'NZ' : (0, -4 * atomSpacing), 'HZ%': (0, -4.75 * atomSpacing),
+                    },
+            'HIS': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CG' : (0, -1 * atomSpacing), 'ND1': (-1 * atomSpacing, -1 * (atomSpacing + (atomSpacing / (2 * tan36)))),
+                    'CD2': (atomSpacing, -1 * (atomSpacing + (atomSpacing / (2 * tan36)))),
+                    'NE2': (atomSpacing / 2, -1 * (atomSpacing + (atomSpacing / (2 * sin36)) + (atomSpacing / (2 * tan36)))),
+                    'CD1': (-0.5 * atomSpacing, -1 * (atomSpacing + (atomSpacing / (2 * sin36)) + (atomSpacing / (2 * tan36)))),
+                    },
 
-    'ALA': {'HB%'       : (0.0, -0.75 * atomSpacing),
-            'boundAtoms': ('')},
-    'CYS': {'SG': (0.0, -1 * atomSpacing), 'HG': (0, -1.75 * atomSpacing)},
-    'ASP': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CG' : (0, -1 * atomSpacing)},
-    'ASN': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CG'  : (0, -1 * atomSpacing), 'ND2': (0, -2 * atomSpacing),
-            'HD2x': (atomSpacing * -0.75, -2 * atomSpacing - (0.75 * atomSpacing * cos60)),
-            'HD2y': (atomSpacing * +0.75, -2 * atomSpacing - (0.75 * atomSpacing * cos60)),
-            },
-    'GLU': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
-            'CG' : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing)
-            },
-    'GLN': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'HGx' : (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
-            'CG'  : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing), 'NE2': (0, -3 * atomSpacing),
-            'HD2x': (atomSpacing * -0.75, -3 * atomSpacing - (0.75 * atomSpacing * cos60)),
-            'HD2y': (atomSpacing * +0.75, -3 * atomSpacing - (0.75 * atomSpacing * cos60)),
-            },
-    'PHE': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CG' : (0, -1 * atomSpacing), 'CD1': (-1 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'CD2': (1 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'CE1': (-1 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'CE2': (1 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'HD1': (-1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'HD2': (1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'HE1': (-1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'HE2': (1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'CZ' : (0, (-2 - cos60 - sin60) * atomSpacing), 'HZ': (0, (-2 - cos60 - sin60 - 0.75) * atomSpacing)
-            },
-    'TYR': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CG' : (0, -1 * atomSpacing), 'CD1': (-1 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'CD2': (1 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'CE1': (-1 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'CE2': (1 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'HD1': (-1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'HD2': (1.75 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'HE1': (-1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'HE2': (1.75 * atomSpacing, (-2 - cos60) * atomSpacing),
-            'CZ' : (0, (-2 - cos60 - sin60) * atomSpacing), 'HH': (0, (-2 - cos60 - sin60 - 0.75) * atomSpacing)
-            },
-    'SER': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'HG' : (0, -1 * atomSpacing)
-            },
-    'THR': {'HG1': (atomSpacing * -0.75, 0.0), 'HB': (atomSpacing * 0.75, 0.0),
-            'CG2': (0, -1 * atomSpacing), 'HG2%': (0, -1.75 * atomSpacing)
-            },
-    'MET': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
-            'CG' : (0, -1 * atomSpacing), 'SD': (0, -2 * atomSpacing), 'CE': (0, -3 * atomSpacing),
-            'HE%': (0, -3.75 * atomSpacing)
-            },
-    'ARG': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
-            'CG' : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing), 'NE': (0, -3 * atomSpacing),
-            'CZ' : (0, -4 * atomSpacing), 'NH1': (atomSpacing * -1, -4 * atomSpacing - (0.75 * atomSpacing * cos60)),
-            'NH2': (atomSpacing * +1, -4 * atomSpacing - (0.75 * atomSpacing * cos60)),
-            },
-    'VAL': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CGx' : (-1 * atomSpacing, -1 * (cos60 * atomSpacing)),
-            'CGy' : (1 * atomSpacing, -1 * (cos60 * atomSpacing)),
-            'HGx%': (atomSpacing * -1, -1 * (cos60 * atomSpacing) - (0.75 * atomSpacing)),
-            'HGy%': (atomSpacing * +1, -1 * (cos60 * atomSpacing) - (0.75 * atomSpacing))
-            },
-    'LEU': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'HGx' : (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
-            'CG'  : (0, -1 * atomSpacing),
-            'CDx' : (-1 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'CDy' : (1 * atomSpacing, (-1 - cos60) * atomSpacing),
-            'HDx%': (atomSpacing * -1, ((-1 - cos60) * atomSpacing) - (0.75 * atomSpacing)),
-            'HDy%': (atomSpacing * +1, ((-1 - cos60) * atomSpacing) - (0.75 * atomSpacing))
-            },
-    'ILE': {'HBx' : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CG1' : (-1 * atomSpacing, -1 * (cos60 * atomSpacing)),
-            'CG2%': (1 * atomSpacing, -1 * (cos60 * atomSpacing)),
-            'HG1x': (atomSpacing * -1.75, -1 * (cos60 * atomSpacing)),
-            'HG1y': (atomSpacing * -0.25, -1 * (cos60 * atomSpacing)),
-            'HG2%': (1 * atomSpacing, -1 * (cos60 * atomSpacing) - (0.75 * atomSpacing)),
-            'CD1%': (-1 * atomSpacing, -1 * (cos60 * atomSpacing) - atomSpacing),
-            'HD1%': (-1 * atomSpacing, -1 * (cos60 * atomSpacing) - (1.75 * atomSpacing)),
-            },
-    'LYS': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'HGx': (atomSpacing * -0.75, -1 * atomSpacing), 'HGy': (atomSpacing * 0.75, -1 * atomSpacing),
-            'CG' : (0, -1 * atomSpacing), 'CD': (0, -2 * atomSpacing),
-            'HDx': (atomSpacing * -0.75, -2 * atomSpacing), 'HDy': (atomSpacing * 0.75, -2 * atomSpacing),
-            'HEx': (atomSpacing * -0.75, -3 * atomSpacing), 'HEy': (atomSpacing * 0.75, -3 * atomSpacing),
-            'CE' : (0, -3 * atomSpacing),
-            'NZ' : (0, -4 * atomSpacing), 'HZ%': (0, -4.75 * atomSpacing),
-            },
-    'HIS': {'HBx': (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CG' : (0, -1 * atomSpacing), 'ND1': (-1 * atomSpacing, -1 * (atomSpacing + (atomSpacing / (2 * tan36)))),
-            'CD2': (atomSpacing, -1 * (atomSpacing + (atomSpacing / (2 * tan36)))),
-            'NE2': (atomSpacing / 2, -1 * (atomSpacing + (atomSpacing / (2 * sin36)) + (atomSpacing / (2 * tan36)))),
-            'CD1': (-0.5 * atomSpacing, -1 * (atomSpacing + (atomSpacing / (2 * sin36)) + (atomSpacing / (2 * tan36)))),
-            },
+            'TRP': {'HBx'       : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
+                    'CG'        : (0, -1 * atomSpacing), 'CD1': (atomSpacing, -1 * atomSpacing),
+                    'NE1'       : (atomSpacing + (atomSpacing * cos72), -1 * (atomSpacing + (atomSpacing * sin72))),
+                    'CE2'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54),
+                                   -1 * (atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
+                    'CD2'       : (-1 * (atomSpacing * cos72), -1 * (atomSpacing + (atomSpacing * sin72))),
+                    'CE3'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54) - (2 * (atomSpacing * sin60)),
+                                   -1 * (atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
+                    'CZ2'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54),
+                                   -1 * (2 * atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
+                    'CZ3'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54) - (2 * (atomSpacing * sin60)),
+                                   -1 * (2 * atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
+                    'CH2'       : (-1 * (atomSpacing * cos72), -1 * (2 * atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54) + (atomSpacing * cos60))),
 
-    'TRP': {'HBx'       : (atomSpacing * -0.75, 0.0), 'HBy': (atomSpacing * 0.75, 0.0),
-            'CG'        : (0, -1 * atomSpacing), 'CD1': (atomSpacing, -1 * atomSpacing),
-            'NE1'       : (atomSpacing + (atomSpacing * cos72), -1 * (atomSpacing + (atomSpacing * sin72))),
-            'CE2'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54),
-                           -1 * (atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
-            'CD2'       : (-1 * (atomSpacing * cos72), -1 * (atomSpacing + (atomSpacing * sin72))),
-            'CE3'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54) - (2 * (atomSpacing * sin60)),
-                           -1 * (atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
-            'CZ2'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54),
-                           -1 * (2 * atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
-            'CZ3'       : (atomSpacing + (atomSpacing * cos72) - (atomSpacing * sin54) - (2 * (atomSpacing * sin60)),
-                           -1 * (2 * atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54))),
-            'CH2'       : (-1 * (atomSpacing * cos72), -1 * (2 * atomSpacing + (atomSpacing * sin72) + (atomSpacing * cos54) + (atomSpacing * cos60))),
+                    'boundAtoms': (('CG', 'CD1'), ('CG', 'CD2'), ('CD2', 'CE3'), ('CD2', 'CE2'),
+                                   ('CD1', 'NE1'), ('CE2', 'CZ2'), ('CE3', 'CZ3'), ('CZ3', 'CH2'),
+                                   ('CZ2', 'CH2'), ('NE1', 'CE2'))
+                    },
 
-            'boundAtoms': (('CG', 'CD1'), ('CG', 'CD2'), ('CD2', 'CE3'), ('CD2', 'CE2'),
-                           ('CD1', 'NE1'), ('CE2', 'CZ2'), ('CE3', 'CZ3'), ('CZ3', 'CH2'),
-                           ('CZ2', 'CH2'), ('NE1', 'CE2'))
-            },
+            'PRO': {
+                'CB': (atomSpacing * cos72, -1 * (atomSpacing * sin72) + atomSpacing),
+                'CG': (-0.5 * atomSpacing, -1 * atomSpacing / (2 * tan36)),
+                'CD': (-1 * (atomSpacing + (atomSpacing * cos72)), -1 * (atomSpacing * sin72) + atomSpacing),
+                }
+            }
 
-    'PRO': {
-        'CB': (atomSpacing * cos72, -1 * (atomSpacing * sin72) + atomSpacing),
-        'CG': (-0.5 * atomSpacing, -1 * atomSpacing / (2 * tan36)),
-        'CD': (-1 * (atomSpacing + (atomSpacing * cos72)), -1 * (atomSpacing * sin72) + atomSpacing),
-        }
-    }
 
 # if residueType == 'ALA':
 #       hb = self._createGuiNmrAtom('HB%', (cbAtom.x(), cbAtom.y()-self.atomSpacing))

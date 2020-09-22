@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-07-09 11:57:34 +0100 (Thu, July 09, 2020) $"
+__dateModified__ = "$dateModified: 2020-09-22 09:32:48 +0100 (Tue, September 22, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -43,6 +43,7 @@ from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldow
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.widgets.DropBase import DropBase
+from ccpn.ui.gui.widgets.Font import getTextDimensionsFromFont
 from ccpn.util.decorators import logCommand
 from ccpn.util.Logging import getLogger
 from ccpn.core.NmrAtom import NmrAtom
@@ -92,9 +93,14 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if self.nmrResidueTableSettings.displaysWidget:
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
 
-        colWidth0 = 180
-        colWidth = 200  # for labels of the compound widgets
-        colWidth2 = 120  # for the numberOfMatchesWidget
+        # colWidth0 = 180
+        texts = ['i-1 Matches to show:',
+                 'i+1 Matches to show:',
+                 'Match module',
+                 'Search module',
+                 'ChemicalShiftList']
+        _, maxDim = getTextDimensionsFromFont(textList=texts)
+        colWidth0 = maxDim.width()
 
         row = self.nmrResidueTableSettings.maxRows  ## Number of widgets of NmrResidueTable - add extra widgets below
         col = 0
@@ -102,19 +108,21 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # Number of matches to show
         row += 1
         self.numberOfMinusMatchesWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings,
-                                                                     grid=(row, col), vAlign='top', hAlign='left',
+                                                                     grid=(row, col), gridSpan=(1, 2),
+                                                                     vAlign='top', hAlign='left',
                                                                      fixedWidths=(colWidth0, colWidth0, None),
-                                                                     orientation='left',
-                                                                     labelText="i-1 Matches to show:",
+                                                                     # orientation='left',
+                                                                     labelText=texts[0],
                                                                      texts=[str(tt) for tt in range(MINMATCHES, MAXMATCHES)],
                                                                      default=DEFAULTMATCHES
                                                                      )
         row += 1
         self.numberOfPlusMatchesWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings,
-                                                                    grid=(row, col), vAlign='top', hAlign='left',
+                                                                    grid=(row, col), gridSpan=(1, 2),
+                                                                    vAlign='top', hAlign='left',
                                                                     fixedWidths=(colWidth0, colWidth0, None),
-                                                                    orientation='left',
-                                                                    labelText="i+1 Matches to show:",
+                                                                    # orientation='left',
+                                                                    labelText=texts[1],
                                                                     texts=[str(tt) for tt in range(MINMATCHES, MAXMATCHES)],
                                                                     default=DEFAULTMATCHES
                                                                     )
@@ -134,16 +142,20 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # new match module pulldown list
         row += 1
-        self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText="Match module:",
-                                                      fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2))
+        self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[2],
+                                                      fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2),
+                                                      vAlign='top', hAlign='left',
+                                                      )
         self.matchWidget.setPreSelect(self._fillMatchWidget)
         self._fillMatchWidget()
         self.matchWidget.pulldownList.setIndex(0)
 
         # new search module pulldown list
         row += 1
-        self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText="Search module:",
-                                                       fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2))
+        self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[3],
+                                                       fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2),
+                                                       vAlign='top', hAlign='left',
+                                                       )
         self.targetWidget.setPreSelect(self._fillTargetWidget)
         self._fillTargetWidget()
         self.targetWidget.pulldownList.setIndex(0)
@@ -151,7 +163,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # Chemical shift list selection
         row += 1
         self.shiftListWidget = ChemicalShiftListPulldown(self.nmrResidueTableSettings, self.mainWindow,
-                                                         grid=(row, col), vAlign='top', hAlign='left',
+                                                         grid=(row, col), gridSpan=(1, 2),
+                                                         vAlign='top', hAlign='left',
                                                          fixedWidths=(colWidth0, colWidth0, None),
                                                          callback=self._setupShiftDicts, default=None
                                                          )
