@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-09-22 09:33:22 +0100 (Tue, September 22, 2020) $"
+__dateModified__ = "$dateModified: 2020-09-23 09:36:15 +0100 (Wed, September 23, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -551,7 +551,7 @@ class AxisAssignmentObject(Frame):
         self.current = mainWindow.application.current
         self.currentAtoms = None
 
-        # none becuase injected into widgets later
+        # none because injected into widgets later
         self.splitter = Splitter(None, setLayout=True)
         self._assignmentsFrame = Frame(None, setLayout=True, vAlign='t')
         self._alternativesFrame = Frame(None, setLayout=True, vAlign='t')
