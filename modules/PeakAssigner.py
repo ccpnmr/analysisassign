@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-10-05 11:10:15 +0100 (Mon, October 05, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-05 12:08:51 +0100 (Mon, October 05, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -717,7 +717,7 @@ class AxisAssignmentObject(Frame):
         self._minWidth = (self.buttonList.sizeHint()).width()
 
     def sizeHint(self) -> QtCore.QSize:
-        _size = super(AxisAssignmentObject, self).sizeHint()
+        _size = super().sizeHint()
         _width = max(self._minWidth, self._parent.width() - 30)
         t0 = self._parent._axisFrameScrollArea.verticalScrollBar()
         if t0.isVisible():
@@ -835,7 +835,7 @@ class AxisAssignmentObject(Frame):
             except Exception as es:
                 showWarning(str(self.windowTitle()), str(es))
 
-    def _reassignNmrAtom(self, dim: int, action: bool = False):
+    def _reassignNmrAtom(self, dim: int):
         """
         Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
         :param dim - axis dimension of the atom:
@@ -853,71 +853,68 @@ class AxisAssignmentObject(Frame):
                                       newResType,
                                       nmrAtomName)
             atomCompare = self._atomCompare(self.lastNmrAtomSelected, currentNmrAtomSelected)
-
-            create = False
-
             nmrAtom = None
+
+            if not self._clickedNmrAtom:
+                showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
+                return
 
             # wrap all actions in a single undo block
             with undoBlock():
 
                 _chainPid = 'NC:{}'.format(nmrChainName)
-                if create and not action:
-                    # get the current chain (but may create a new one)
-                    _nmrChain = self.project.fetchNmrChain(nmrChainName)
-                else:
-                    # find the existing nmrChain
-                    _nmrChain = self.project.getByPid(_chainPid)
-                    if not _nmrChain:
-                        # raise error to notify popup
-                        raise ValueError("NmrChain doesn't exists")
+                # if create and not action:
+                #     # get the current chain (but may create a new one)
+                #     _nmrChain = self.project.fetchNmrChain(nmrChainName)
+                # else:
+                #     # find the existing nmrChain
+                #     _nmrChain = self.project.getByPid(_chainPid)
+                #     if not _nmrChain:
+                #         # raise error to notify popup
+                #         raise ValueError("NmrChain doesn't exists")
 
+                _nmrChain = self.project.fetchNmrChain(nmrChainName)
                 nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
                 nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
 
-                if not action:
-                    if not self._clickedNmrAtom:
-                        showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
-                        return
-
-                    # edit existing
-                    if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
-                        # existing different nmrResidue
-                        nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                        if nmrAtom:
-                            yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
-                                                               "{}   into   {}".format(self._clickedNmrAtom.id,
-                                                                                       nmrAtom.id))
-                            if yesNo:
-                                # merge into the new nmrAtom
-                                nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
-
-                        else:
-                            # assign to a new nmrAtom
-                            self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
-                                                          sequenceCode=seqCode,
-                                                          residueType=newResType,
-                                                          name=nmrAtomName,
-                                                          mergeToExisting=False)
-
-                    elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
-                        # rename the same nmrAtom
-                        if newResType != nmrResidue.residueType:
-                            nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-
-                        if nmrAtomName != self._clickedNmrAtom.name:
-                            nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                            if nmrAtom:
-                                raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
-                            self._clickedNmrAtom.rename(nmrAtomName)
+                # edit existing
+                if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
+                    # existing different nmrResidue
+                    nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                    if nmrAtom:
+                        yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
+                                                           "{}   into   {}".format(self._clickedNmrAtom.id,
+                                                                                   nmrAtom.id))
+                        if yesNo:
+                            # merge into the new nmrAtom
+                            nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
 
                     else:
-                        # nmrResidue doesn't exists
+                        # assign to a new nmrAtom
                         self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
                                                       sequenceCode=seqCode,
                                                       residueType=newResType,
                                                       name=nmrAtomName,
                                                       mergeToExisting=False)
+
+                elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
+                    # rename the same nmrAtom
+                    if newResType != nmrResidue.residueType:
+                        nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+
+                    if nmrAtomName != self._clickedNmrAtom.name:
+                        nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                        if nmrAtom:
+                            raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
+                        self._clickedNmrAtom.rename(nmrAtomName)
+
+                else:
+                    # nmrResidue doesn't exists
+                    self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                                                  sequenceCode=seqCode,
+                                                  residueType=newResType,
+                                                  name=nmrAtomName,
+                                                  mergeToExisting=False)
 
             self._parent._updateInterface()
 
@@ -926,8 +923,8 @@ class AxisAssignmentObject(Frame):
 
         except Exception as es:
             showWarning('Rename NmrAtom', str(es))
-            self._updateAssignmentWidget(self.lastTableSelected, None)
-            self.buttonList.setButtonEnabled('Assign', False)
+            # self._updateAssignmentWidget(self.lastTableSelected, None)
+            # self.buttonList.setButtonEnabled('Assign', False)
 
         # if not self._clickedNmrAtom:
         #     return
@@ -1011,7 +1008,7 @@ class AxisAssignmentObject(Frame):
                 if not action:
                     if create:
                         if nmrResidue:
-                            if self._clickedNmrAtom.nmrResidue == nmrResidue and nmrResidue.residueType != newResType:
+                            if self._clickedNmrAtom and self._clickedNmrAtom.nmrResidue == nmrResidue and nmrResidue.residueType != newResType:
                                 if len(nmrResidue.nmrAtoms) > 1:
                                     yes = showYesNoWarning('Assigning nmrAtoms',
                                                         'This will change all nmrAtoms to the residueType {}, continue?'.format(newResType))
@@ -1027,48 +1024,50 @@ class AxisAssignmentObject(Frame):
                         nmrAtom = nmrResidue.fetchNmrAtom(nmrAtomName)
 
                     else:
-                        if not self._clickedNmrAtom:
-                            showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
-                            return
+                        pass
 
-                        # edit existing
-                        if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
-                            # existing different nmrResidue
-                            nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                            if nmrAtom:
-                                yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
-                                                                    "{}   into   {}".format(self._clickedNmrAtom.id,
-                                                                                            nmrAtom.id))
-                                if yesNo:
-                                    # merge into the new nmrAtom
-                                    nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
-
-                            else:
-                                # assign to a new nmrAtom
-                                self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
-                                                              sequenceCode=seqCode,
-                                                              residueType=newResType,
-                                                              name=nmrAtomName,
-                                                              mergeToExisting=False)
-
-                        elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
-                            # rename the same nmrAtom
-                            if newResType != nmrResidue.residueType:
-                                nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-
-                            if nmrAtomName != self._clickedNmrAtom.name:
-                                nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                                if nmrAtom:
-                                    raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
-                                self._clickedNmrAtom.rename(nmrAtomName)
-
-                        else:
-                            # nmrResidue doesn't exists
-                            self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
-                                                          sequenceCode=seqCode,
-                                                          residueType=newResType,
-                                                          name=nmrAtomName,
-                                                          mergeToExisting=False)
+                        # if not self._clickedNmrAtom:
+                        #     showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
+                        #     return
+                        #
+                        # # edit existing
+                        # if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
+                        #     # existing different nmrResidue
+                        #     nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                        #     if nmrAtom:
+                        #         yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
+                        #                                             "{}   into   {}".format(self._clickedNmrAtom.id,
+                        #                                                                     nmrAtom.id))
+                        #         if yesNo:
+                        #             # merge into the new nmrAtom
+                        #             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
+                        #
+                        #     else:
+                        #         # assign to a new nmrAtom
+                        #         self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                        #                                       sequenceCode=seqCode,
+                        #                                       residueType=newResType,
+                        #                                       name=nmrAtomName,
+                        #                                       mergeToExisting=False)
+                        #
+                        # elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
+                        #     # rename the same nmrAtom
+                        #     if newResType != nmrResidue.residueType:
+                        #         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+                        #
+                        #     if nmrAtomName != self._clickedNmrAtom.name:
+                        #         nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                        #         if nmrAtom:
+                        #             raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
+                        #         self._clickedNmrAtom.rename(nmrAtomName)
+                        #
+                        # else:
+                        #     # nmrResidue doesn't exists
+                        #     self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                        #                                   sequenceCode=seqCode,
+                        #                                   residueType=newResType,
+                        #                                   name=nmrAtomName,
+                        #                                   mergeToExisting=False)
 
                 try:
 
@@ -1117,9 +1116,9 @@ class AxisAssignmentObject(Frame):
             self.update()
 
         except Exception as es:
-            showWarning('Assign Peak to NmrAtom', str(es))
-            self._updateAssignmentWidget(self.lastTableSelected, None)
-            self.buttonList.setButtonEnabled('Assign', False)
+            showWarning('Assign NmrAtom', str(es))
+            # self._updateAssignmentWidget(self.lastTableSelected, None)
+            # self.buttonList.setButtonEnabled('Assign', False)
 
     def _deassignNmrAtom(self, dim: int):
         """
