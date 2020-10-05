@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-09-23 09:36:15 +0100 (Wed, September 23, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-05 11:10:15 +0100 (Mon, October 05, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -33,12 +33,12 @@ from functools import partial
 from collections import OrderedDict
 from PyQt5 import QtGui, QtWidgets, QtCore
 from ccpn.core.NmrAtom import NmrAtom
-from ccpn.core.NmrResidue import NmrResidue
+from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue
 from ccpn.core.Peak import Peak
 from ccpn.core.lib import CcpnSorting
 from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, sameAxisCodes
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
-from ccpn.ui.gui.widgets.ButtonList import ButtonList
+from ccpn.ui.gui.widgets.ButtonList import ButtonList, Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
@@ -49,14 +49,17 @@ from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning
 from ccpn.ui.gui.widgets.Splitter import Splitter
-from ccpn.ui.gui.guiSettings import getColours, DIVIDER
+from ccpn.ui.gui.widgets.Icon import Icon
+from ccpn.ui.gui.guiSettings import getColours, DIVIDER, LABEL_WARNINGFOREGROUND
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
-from ccpn.ui.gui.widgets.MessageDialog import showWarning
+from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNo
 from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
 from ccpn.ui.gui.widgets.Widget import Widget
+from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
+from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
 from ccpn.core.lib.ContextManagers import undoBlock
 from ccpn.ui.gui.guiSettings import BORDERNOFOCUS_COLOUR
 
@@ -90,13 +93,21 @@ allowedResidueTypes = [('', '', ''),
 
 MSG = '<Not-defined. Select any to start>'
 
+ROWDEFAULT = 300
+ROWSIZES = {7 : 3000,
+            4 : 2500,
+            0 : 2000,
+            -1: 1200,
+            -2: ROWDEFAULT,
+            }
+
 
 class PeakAssigner(CcpnModule):
     """Module for assignment of nmrAtoms to the different axes of a peak.
     Module responds to current.peak
     """
 
-    # overide in specific module implementations
+    # override in specific module implementations
     includeSettingsWidget = True
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
     settingsPosition = 'top'
@@ -158,73 +169,43 @@ class PeakAssigner(CcpnModule):
                               QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding,
                               grid=(1, 14), gridSpan=(1, 1))
 
-        # # correct way to setup a scroll area
-        # self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget,
-        #                                     showBorder=False, setLayout=True,
-        #                                     acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
-        # # self.axisFrameWidget = self._scrollFrame._scrollArea
-        # # self._scrollAreaWidget.setStyleSheet('ScrollArea { border-right: 1px solid %s;'
-        # #                                      'border-bottom: 1px solid %s;'
-        # #                                      'background: transparent; }' % (BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR))        # # Main content widgets, create an expanding scroll area
+        self._height = getFontHeight()
+        self._tableHeight = getFontHeight(name=TABLEFONT)
+        self._settingsScrollArea.setMinimumHeight(self._height * 1.5)
+        self.settingsWidget.setContentsMargins(5, 5, 5, 5)
+        self.settingsWidget.setScrollBarPolicies(scrollBarPolicies=('asNeeded', 'never'))
+        # self._settingsScrollArea.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
 
-        self._axisFrameScrollArea = ScrollArea(parent=self.mainWidget,
-                                               grid=(1, 0),
-                                               hPolicy='expanding', vPolicy='expanding')
-        # self._axisFrameScrollArea.setStyleSheet('''.ScrollArea {
-        #                             margin-left : 2px;
-        #                             margin-right : 1px;
-        #                             margin-bottom : 1px}
-        #                             ''')
+        # correct way to setup a scroll area
+        self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
+                                               acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
+        self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
 
-        self.axisFrameWidget = Widget(parent=None, acceptDrops=True)
+        row = 0
+        self.spacer = Spacer(self.axisFrameWidget, 5, 5,
+                             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+                             grid=(row, 0), gridSpan=(1, 1))
 
-        # put a container widget into the scroll area
-        self._axisFrameScrollArea.setWidget(self.axisFrameWidget)
-        self.axisFrameWidget.setGridLayout()
-        self._axisFrameScrollArea.setWidgetResizable(True)
-
+        row += 1
         # put a label and axisFrame into the axisFrameWidget, this will be wrapped in scroll bars
         self.peakLabel = Label(parent=self.axisFrameWidget, setLayout=True, spacing=(0, 0),
                                text='Current Peak: ' + MSG, bold=True,
-                               grid=(0, 0),  #margins=(2, 2, 2, 2),
+                               grid=(row, 0),  #margins=(1, 3, 1, 3),
                                hAlign='left', vAlign='t',
-                               hPolicy='fixed', vPolicy='fixed')
-        self.peakLabel.setAlignment(QtCore.Qt.AlignVCenter)
-        # self.peakLabel.setFixedHeight(20)
-        self.peakLabel.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
+                               hPolicy='ignored', vPolicy='fixed'
+                               )
 
-        # self.axisFrame = Frame(parent=self.axisFrameWidget, setLayout=True, spacing=(0, 0),
-        #                        showBorder=False, fShape='noFrame',
-        #                        grid=(1, 0),
-        #                        hPolicy='expanding', vPolicy='expanding')
-        # self.axisFrame.setStyleSheet('''.Frame {
-        #                             padding-left: 2px;
-        #                             padding-right: 3px;
-        #                             }''')
-
-        self.axisFrame = Splitter(self.axisFrameWidget, grid=(1, 0), horizontal=False, setLayout=True)
-        self.axisFrameWidget.getLayout().addWidget(self.axisFrame, 1, 0, 1, 1)  # just be added like this
-
-        # self.axisFrameWidget.setStyleSheet('border: 2px solid #FF0000;')
-
-        # self.axisFrame.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
-        # self.axisFrameWidget.getLayout().setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
+        row += 1
+        self.axisFrame = Splitter(self, grid=(row, 0), horizontal=False)
+        self.axisFrameWidget.getLayout().addWidget(self.axisFrame, row, 0, 1, 1)  # MUST be added like this
 
         self.axisTables = []
         self.axisDivergeLabels = []
         self.NDims = 0
         self.currentAtoms = None
 
-        # Spacer(self.axisFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
-        #        grid=(6, 0), gridSpan=(1, 1))
-
         # respond to peaks
         self._registerNotifiers()
-
-        self._settingsScrollArea.setMinimumHeight(40)
-        self.settingsWidget.setContentsMargins(5, 5, 5, 5)
-        self.settingsWidget.setScrollBarPolicies(scrollBarPolicies=('asNeeded', 'never'))
-        # self._settingsScrollArea.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
 
         self.closeModule = self._closeModule
 
@@ -282,43 +263,41 @@ class PeakAssigner(CcpnModule):
         else:
 
             Ndimensions = len(self.current.peak.position)
+            # _sizes = [1000] * Ndimensions
 
             if Ndimensions > self.NDims:  # len(self.axisTables):
                 for addNew in range(len(self.axisTables), Ndimensions):
                     # add a new axis item to the end of the list
-                    _frame = Frame(None, setLayout=True)
+                    _frame = Frame(self, setLayout=True, hAlign='l', vAlign='t')
                     _newAxis = AxisAssignmentObject(self, index=addNew,
                                                     parent=_frame,
                                                     mainWindow=self.mainWindow,
-                                                    grid=(addNew, 0), gridSpan=(1, 1))
-                    # _newAxis.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.MinimumExpanding)
-                    # _frame.setStyleSheet('Frame { border: 2px solid #0000FF; }')
-
+                                                    grid=(0, 0), gridSpan=(1, 1))
                     self.axisTables.append(_newAxis)
 
                     # make a small label that appears when there is nothing to display
-                    self.tempFrame = Frame(_frame, setLayout=True, grid=(addNew, 0))
-                    self.tempDivider = HLine(self.tempFrame, grid=(0, 0), gridSpan=(1, 3), colour=getColours()[DIVIDER], height=15)
-                    self.tempLabel = Label(self.tempFrame, text='', grid=(1, 0))
-                    self.tempLabel.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
+                    self.tempFrame = Frame(_frame, setLayout=True, grid=(1, 0))
+                    self.tempDivider = None  #HLine(self.tempFrame, grid=(0, 0), gridSpan=(1, 3), colour=getColours()[DIVIDER], height=15)
+                    self.tempLabel = Label(self.tempFrame, text='', grid=(1, 0), hPolicy='ignored', textColour=getColours()[LABEL_WARNINGFOREGROUND], )
+                    self.tempLabel.setFixedHeight(self._height * 3)
+
                     self.axisDivergeLabels.append([self.tempFrame, self.tempDivider, self.tempLabel])
-                    # self.tempFrame.setStyleSheet('Frame { border: 2px solid #00FF00; }')
 
                     self.axisFrame.addWidget(_frame)
-                    # self.axisFrame.setStretchFactor(addNew, 0)
 
                 for showNew in range(self.NDims, Ndimensions):
                     self.axisTables[showNew].setVisible(True)
                     self.axisDivergeLabels[showNew][0].hide()
-                    # self.axisFrame.setStretchFactor(showNew, 0)
+                    self.axisFrame.widget(showNew).setVisible(True)
 
             elif Ndimensions < len(self.axisTables):
                 for delOld in range(Ndimensions, len(self.axisTables)):
-                    self.axisTables[delOld].setVisible(False)
-                    self.axisDivergeLabels[delOld][0].hide()
+                    # self.axisTables[delOld].setVisible(False)
+                    # self.axisDivergeLabels[delOld][0].hide()
+                    # _sizes.append(1)
+                    self.axisFrame.widget(delOld).setVisible(False)
+
             self.NDims = Ndimensions
-            # self.axisFrame.setSizes([x for x in range(20)])
-            # self.axisFrame.setSizes([1, 2, 4, 8, 16])
 
             # and enable the frame
             self.axisFrame.show()
@@ -330,12 +309,17 @@ class PeakAssigner(CcpnModule):
                 self.peakLabel.setText('Current Peaks: %s' % _truncateText(peaksIds, maxWords=6))
                 self.peakLabel.setToolTip(peaksIds)
 
-            self._updateNewTable(enableDeleteButton=enableDeleteButton,
-                                 enableDeassignButton=enableDeassignButton,
-                                 enableAssignButton=enableAssignButton,
-                                 action=action)
+            _sizes = self._updateNewTable(enableDeleteButton=enableDeleteButton,
+                                          enableDeassignButton=enableDeassignButton,
+                                          enableAssignButton=enableAssignButton,
+                                          action=action)
 
-            self.adjustSize()
+            if all(val == ROWDEFAULT for val in _sizes):
+                self.axisFrame.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
+            else:
+                self.axisFrame.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
+
+            self.axisFrame.setSizes(_sizes)
 
     def _updateNewTable(self, enableDeleteButton=False,
                         enableDeassignButton=False,
@@ -362,6 +346,7 @@ class PeakAssigner(CcpnModule):
 
         self._tables = [self._emptyObject()] * Ndimensions
 
+        _sizes = []
         for dim, nmrAtoms in zip(range(Ndimensions),
                                  nmrAtomsForTables):
             self.axisTables[dim].show()
@@ -373,12 +358,23 @@ class PeakAssigner(CcpnModule):
 
             self.currentList.append([str(a.pid) for a in self.nmrAtoms])  # ejb - keep another list
             self.axisTables[dim].setAssignedTable(self.nmrAtoms)
+            _rows = self.axisTables[dim].tables[0].rowCount()
+            # _rows = self.axisTables[dim].tables[0].sizeHint().height()
 
             nmrAtomsForTables[dim] = [nmr for nmr in nmrAtomsForTables[dim] if nmr not in self.nmrAtoms]
+
             if peaksAreOnLine(peaks, dim):
                 self.axisTables[dim].setAlternativesTable(nmrAtomsForTables[dim])
+                _rows = max(_rows, self.axisTables[dim].tables[1].rowCount())
+                for k, val in ROWSIZES.items():
+                    if _rows > k:
+                        _sizes.append(val)
+                        break
+                else:
+                    _sizes.append(ROWDEFAULT)
             else:
                 self.axisTables[dim].setAlternativesTable(None)
+                _sizes.append(ROWDEFAULT)
 
                 # hide as this is not a valid table
                 if not self.nmrAtoms:
@@ -393,7 +389,6 @@ class PeakAssigner(CcpnModule):
             self.axisDivergeLabels[dim][2].setText(axisCode + ': peaks diverge')
 
             # check whether the buttons can be enabled/disabled
-
             currentNmrAtomSelected = (self.axisTables[dim].chainPulldown.currentText(),
                                       self.axisTables[dim].seqCodePulldown.currentText(),
                                       self.axisTables[dim].resTypePulldown.currentText(),
@@ -422,6 +417,8 @@ class PeakAssigner(CcpnModule):
                 enable = enable or (False not in self.axisTables[dim]._atomCompare(item, currentNmrAtomSelected))
 
             self.axisTables[dim].buttonList.setButtonEnabled('Assign', enable)
+
+        return _sizes
 
     def _getDeltaShift(self, nmrAtom: NmrAtom, dim: int) -> typing.Union[float, str]:
         """
@@ -538,11 +535,10 @@ class AxisAssignmentObject(Frame):
     """
 
     def __init__(self, parentModule, index=None, parent=None, mainWindow=None, grid=None, gridSpan=None):
-        super(AxisAssignmentObject, self).__init__(parent=parent, setLayout=True, spacing=(0, 0),
-                                                   showBorder=False, fShape='noFrame',
-                                                   vAlign='top',
-                                                   hPolicy='expanding', vPolicy='expanding',
-                                                   grid=grid, gridSpan=gridSpan)
+        super(AxisAssignmentObject, self).__init__(parent=parent,
+                                                   setLayout=True,
+                                                   spacing=(5, 0), grid=grid, gridSpan=gridSpan
+                                                   )
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -550,23 +546,19 @@ class AxisAssignmentObject(Frame):
         self.project = mainWindow.application.project
         self.current = mainWindow.application.current
         self.currentAtoms = None
+        self._clickedNmrAtom = None
 
-        # none because injected into widgets later
-        self.splitter = Splitter(None, setLayout=True)
-        self._assignmentsFrame = Frame(None, setLayout=True, vAlign='t')
-        self._alternativesFrame = Frame(None, setLayout=True, vAlign='t')
-
-        parent.getLayout().addWidget(self.splitter, 1, 0)
-        self.splitter.addWidget(self._assignmentsFrame)
-        self.splitter.addWidget(self._alternativesFrame)
-        self.splitter.setSizes([1, 1])
-        self.splitter.setChildrenCollapsible(False)
+        self.splitter = Splitter(self)
+        self.getLayout().addWidget(self.splitter, 0, 0)
+        self._assignmentsFrame = Frame(self.splitter, setLayout=True)
+        self._alternativesFrame = Frame(self.splitter, setLayout=True)
+        self.splitter.setSizes([1000, 1000])
+        self.splitter.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
         self._assignmentsFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self._alternativesFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
 
-        self.divider = HLine(parent, grid=(0, 0), colour=getColours()[DIVIDER], height=15)
-
+        # self.divider = HLine(self, grid=(0, 0), colour=getColours()[DIVIDER], height=15)
         self._alternativesLabel = Label(self._alternativesFrame, 'Alternatives', hAlign='l', grid=(0, 0))
 
         row = 0
@@ -581,7 +573,7 @@ class AxisAssignmentObject(Frame):
                                 autoResize=True, multiSelect=False,
                                 actionCallback=partial(self._assignDeassignNmrAtom, 0),
                                 selectionCallback=partial(self._updatePulldownLists, 0),
-                                grid=(row, 0), gridSpan=(1, 1),
+                                grid=(1, 0), gridSpan=(1, 1),
                                 stretchLastSection=True,
                                 enableSearch=False,
                                 acceptDrops=True),
@@ -593,7 +585,6 @@ class AxisAssignmentObject(Frame):
                                 autoResize=True, multiSelect=False,
                                 actionCallback=partial(self._assignDeassignNmrAtom, 1),
                                 selectionCallback=partial(self._updatePulldownLists, 1),
-                                # grid=(row, 2), gridSpan=(7, 1),
                                 grid=(1, 0), gridSpan=(1, 1),
                                 stretchLastSection=True,
                                 enableSearch=False,
@@ -624,30 +615,33 @@ class AxisAssignmentObject(Frame):
                                          callBackClass=NmrAtom,
                                          moduleParent=self.tables)  # just to give a unique id
 
-        # self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
+        self._assignmentsFrame.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self._alternativesFrame.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.tables[0].setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
-        # self.tables[0].setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        # self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        # self._alternativesFrame.getLayout().setRowStretch(1, 100)
-        # self.tables[0].getLayout().setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
-        # self.tables[1].getLayout().setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
-
-        # add a spacer to make the left table expand
-        Spacer(self._assignmentsFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
-               grid=(row, 0), gridSpan=(1, 1))
-        # add a spacer to make the right table expand
-        Spacer(self._alternativesFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding,
-               grid=(1, 0), gridSpan=(1, 1))
+        self._bottomFrame = Frame(self, setLayout=True, showBorder=False, grid=(1, 0), gridSpan=(1, 1), margins=(3, 3, 3, 3), vPolicy='minimum', hPolicy='minimum', )
 
         # add pulldowns for editing new assignment
-        row += 1
-        self.pulldownFrame = Frame(parent=self._assignmentsFrame, setLayout=True, spacing=(5, 0), margins=(0, 0, 0, 0),
+        bRow = 0
+        # self._clickedFrame = Frame(self._bottomFrame, setLayout=True, grid=(bRow, 0), gridSpan=(1, 2),
+        #                            vPolicy='fixed', hPolicy='minimum', hAlign='l')
+        # self._clickedLabel = Label(self._clickedFrame, text='Current NmrAtom: ', grid=(0, 0))
+        # self._clickedClear = Button(self._clickedFrame, grid=(0, 1),
+        #                             callback=self._clearClicked, icon=Icon('icons/reset'),
+        #                             vPolicy='ignored', hPolicy='Fixed', hAlign='l', vAlign='t')
+        # self._clickedClear.setFlat(True)
+        # self._clickedClear.setVisible(False)
+        #
+        # bRow += 1
+        self.pulldownFrame = Frame(parent=self._bottomFrame, setLayout=True,
                                    showBorder=False, fShape='noFrame',
-                                   vAlign='top',
-                                   grid=(row, 0), gridSpan=(1, 1))
+                                   vAlign='top', hAlign='l',
+                                   vPolicy='fixed', hPolicy='minimum',
+                                   # grid=(row, 0), gridSpan=(1, 1)
+                                   grid=(bRow, 0), gridSpan=(1, 2)
+                                   )
 
-        # Spacer(self.pulldownFrame, 10, 10, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-        #        grid=(0, 0), gridSpan=(1, 1))
         self.chainPulldown = self._createChainPulldown(parent=self.pulldownFrame,
                                                        grid=(1, 0), gridSpan=(1, 1),
                                                        tipText='Chain code')
@@ -660,51 +654,42 @@ class AxisAssignmentObject(Frame):
         self.atomTypePulldown = self._createPulldown(parent=self.pulldownFrame,
                                                      grid=(1, 6), gridSpan=(1, 1),
                                                      tipText='Atom type')
-        # Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-        #        grid=(1, 1), gridSpan=(1, 1))
-        # Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-        #        grid=(1, 3), gridSpan=(1, 1))
-        # Spacer(self.pulldownFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-        #        grid=(1, 5), gridSpan=(1, 1))
 
-        self.chainPulldown.setMinimumWidth(70)
-        self.seqCodePulldown.setMinimumWidth(70)
-        self.resTypePulldown.setMinimumWidth(70)
-        self.atomTypePulldown.setMinimumWidth(70)
-
-        # set minimum width to accommodate the pulldowns
-        # self.layout().setColumnMinimumWidth(0, 280)
-
-        # self.pulldownFrame.setStyleSheet("""QComboBox {
-        #                             padding: px;
-        #                             margin: 0px 0px 0px 0px;
-        #                             border: 0px;
-        #                       }
-        #                     """)
-
-        # another spacer
-        row += 1
-        Spacer(self._assignmentsFrame, 5, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(row, 0), gridSpan=(1, 1))
+        _width = parentModule._height * 6
+        self.chainPulldown.setMinimumWidth(_width)
+        self.seqCodePulldown.setMinimumWidth(_width)
+        self.resTypePulldown.setMinimumWidth(_width)
+        self.atomTypePulldown.setMinimumWidth(_width)
 
         # add a buttonlist
-        row += 1
-        self.buttonList = ButtonList(parent=self._assignmentsFrame, texts=['New', 'Delete', 'Deassign', 'Assign'],
+        bRow += 1
+        self.buttonList = ButtonList(parent=self._bottomFrame, texts=['New', 'Delete', 'Deassign', 'Assign', 'Rename'],
                                      callbacks=[partial(self._createNewNmrAtom, index),
                                                 partial(self._deleteNmrAtom, index),
                                                 partial(self._deassignNmrAtom, index),
-                                                partial(self._assignNmrAtom, index)],
-                                     grid=(row, 0), gridSpan=(1, 1),
-                                     vPolicy='minimum', hPolicy='expanding',
-                                     vAlign='b')
+                                                partial(self._assignNmrAtom, index),
+                                                partial(self._reassignNmrAtom, index),
+                                                ],
+                                     grid=(bRow, 0), gridSpan=(1, 1),
+                                     vAlign='c', hAlign='l')
 
+        self.buttonList.setFixedHeight(parentModule._height * 1.5)
         self.buttonList.setButtonEnabled('Delete', False)
         self.buttonList.setButtonEnabled('Deassign', False)
         self.buttonList.setButtonEnabled('Assign', False)
+        self.buttonList.setButtonEnabled('Rename', True)
 
-        self.layout().setColumnStretch(0, 1)
-        self.layout().setColumnStretch(1, 0)
-        self.layout().setColumnStretch(2, 2)
+        # self.createNew = CheckBoxCompoundWidget(
+        #         self._bottomFrame,
+        #         grid=(bRow, 1), vAlign='c', hAlign='left',
+        #         #minimumWidths=(colwidth, 0),
+        #         # fixedWidths=(None, None),
+        #         orientation='right',
+        #         labelText='Create New',
+        #         checked=True
+        #         )
+        Spacer(self._bottomFrame, 5, 5, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed,
+               grid=(bRow, 2), gridSpan=(1, 1))
 
         # initialise axis information
         self.index = index
@@ -727,21 +712,29 @@ class AxisAssignmentObject(Frame):
         self.tables[0]._hiddenColumns = ['Pid', 'Shift']
         self.tables[1]._hiddenColumns = ['Pid', 'Shift']
 
-        # set the fixed height of the frame
-        # self.setFixedHeight(175)
-        # self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Expanding)
-
         self._setDefaultPulldowns()
+        # self._minWidth = (self.buttonList.sizeHint() + self.createNew.sizeHint()).width()
+        self._minWidth = (self.buttonList.sizeHint()).width()
 
-    def setVisible(self, visible: bool) -> None:
-        super(AxisAssignmentObject, self).setVisible(visible)
-        self.splitter.setVisible(visible)
-        self.divider.setVisible(visible)
+    def sizeHint(self) -> QtCore.QSize:
+        _size = super(AxisAssignmentObject, self).sizeHint()
+        _width = max(self._minWidth, self._parent.width() - 30)
+        t0 = self._parent._axisFrameScrollArea.verticalScrollBar()
+        if t0.isVisible():
+            _width -= t0.width()
+        return QtCore.QSize(_width, _size.height())
 
     def _close(self):
         self.tables[0]._close()
         self.tables[1]._close()
         self.tables = None
+
+    def _clearClicked(self, val):
+        pass
+
+        # self._clickedNmrAtom = None
+        # self._clickedLabel.setText('Current NmrAtom: <None>')
+        # self._clickedClear.setVisible(False)
 
     def _assignDeassignNmrAtom(self, tableNum: int, data):
         """
@@ -758,17 +751,18 @@ class AxisAssignmentObject(Frame):
 
     def _updatePulldownLists(self, tableNum, data):
         self.lastTableSelected = tableNum
-        if tableNum == 0:
-            obj = data[Notifier.OBJECT]
-            if obj:
+        obj = data[Notifier.OBJECT]
+        if obj:
+            self._clickedNmrAtom = obj[0]
+            # self._clickedLabel.setText('Current NmrAtom: {}'.format(obj[0].pid))
+            # self._clickedClear.setVisible(True)
+            if tableNum == 0:
                 self._updateAssignmentWidget(tableNum, obj[0])
                 self.tables[1].clearSelection()
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', True)
                 self.buttonList.setButtonEnabled('Assign', False)
-        elif tableNum == 1:
-            obj = data[Notifier.OBJECT]
-            if obj:
+            elif tableNum == 1:
                 self._updateAssignmentWidget(tableNum, obj[0])
                 self.tables[0].clearSelection()
                 self.buttonList.setButtonEnabled('Delete', True)
@@ -841,7 +835,134 @@ class AxisAssignmentObject(Frame):
             except Exception as es:
                 showWarning(str(self.windowTitle()), str(es))
 
-    def _assignNmrAtom(self, dim: int, action: bool = False):
+    def _reassignNmrAtom(self, dim: int, action: bool = False):
+        """
+        Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
+        :param dim - axis dimension of the atom:
+        :param action - True if callback is action from the table:
+        """
+        try:
+            nmrChainName = self.chainPulldown.currentText()
+            seqCode = self.seqCodePulldown.currentText()
+            newResType = self.resTypePulldown.currentText()
+            nmrAtomName = self.atomTypePulldown.currentText()
+
+            # get options from the pulldowns
+            currentNmrAtomSelected = (nmrChainName,
+                                      seqCode,
+                                      newResType,
+                                      nmrAtomName)
+            atomCompare = self._atomCompare(self.lastNmrAtomSelected, currentNmrAtomSelected)
+
+            create = False
+
+            nmrAtom = None
+
+            # wrap all actions in a single undo block
+            with undoBlock():
+
+                _chainPid = 'NC:{}'.format(nmrChainName)
+                if create and not action:
+                    # get the current chain (but may create a new one)
+                    _nmrChain = self.project.fetchNmrChain(nmrChainName)
+                else:
+                    # find the existing nmrChain
+                    _nmrChain = self.project.getByPid(_chainPid)
+                    if not _nmrChain:
+                        # raise error to notify popup
+                        raise ValueError("NmrChain doesn't exists")
+
+                nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
+                nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
+
+                if not action:
+                    if not self._clickedNmrAtom:
+                        showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
+                        return
+
+                    # edit existing
+                    if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
+                        # existing different nmrResidue
+                        nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                        if nmrAtom:
+                            yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
+                                                               "{}   into   {}".format(self._clickedNmrAtom.id,
+                                                                                       nmrAtom.id))
+                            if yesNo:
+                                # merge into the new nmrAtom
+                                nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
+
+                        else:
+                            # assign to a new nmrAtom
+                            self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                                                          sequenceCode=seqCode,
+                                                          residueType=newResType,
+                                                          name=nmrAtomName,
+                                                          mergeToExisting=False)
+
+                    elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
+                        # rename the same nmrAtom
+                        if newResType != nmrResidue.residueType:
+                            nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+
+                        if nmrAtomName != self._clickedNmrAtom.name:
+                            nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                            if nmrAtom:
+                                raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
+                            self._clickedNmrAtom.rename(nmrAtomName)
+
+                    else:
+                        # nmrResidue doesn't exists
+                        self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                                                      sequenceCode=seqCode,
+                                                      residueType=newResType,
+                                                      name=nmrAtomName,
+                                                      mergeToExisting=False)
+
+            self._parent._updateInterface()
+
+            # update the module
+            self.update()
+
+        except Exception as es:
+            showWarning('Rename NmrAtom', str(es))
+            self._updateAssignmentWidget(self.lastTableSelected, None)
+            self.buttonList.setButtonEnabled('Assign', False)
+
+        # if not self._clickedNmrAtom:
+        #     return
+        #
+        # nmrChainName = self.chainPulldown.currentText()
+        # seqCode = self.seqCodePulldown.currentText()
+        # newResType = self.resTypePulldown.currentText()
+        # nmrAtomName = self.atomTypePulldown.currentText()
+        #
+        # _chainPid = 'NC:{}'.format(nmrChainName)
+        # # find the existing nmrChain
+        # _nmrChain = self.project.getByPid(_chainPid)
+        # if not _nmrChain:
+        #     # raise error to notify popup
+        #     raise ValueError("NmrChain doesn't exists")
+        #
+        # nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
+        #
+        # if nmrResidue != self._clickedNmrAtom.nmrResidue:
+        #     raise ValueError("Wrong nmrResidue")
+        #
+        # # rename the residueType
+        # if nmrResidue.residueType != newResType:
+        #     nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+        #
+        # # change the atomName
+        # nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+        # if nmrAtom and self._clickedNmrAtom.name != nmrAtomName:
+        #     raise ValueError("NmrAtom already exists")
+        #
+        # self._clickedNmrAtom.rename(nmrAtomName)
+        #
+        # self._parent._updateInterface()
+
+    def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True):
         """
         Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
         :param dim - axis dimension of the atom:
@@ -854,41 +975,100 @@ class AxisAssignmentObject(Frame):
             return
 
         try:
-            # get options form the pulldowns
-            currentNmrAtomSelected = (self.chainPulldown.currentText(),
-                                      self.seqCodePulldown.currentText(),
-                                      self.resTypePulldown.currentText(),
-                                      self.atomTypePulldown.currentText())
+            nmrChainName = self.chainPulldown.currentText()
+            seqCode = self.seqCodePulldown.currentText()
+            newResType = self.resTypePulldown.currentText()
+            nmrAtomName = self.atomTypePulldown.currentText()
+
+            # get options from the pulldowns
+            currentNmrAtomSelected = (nmrChainName,
+                                      seqCode,
+                                      newResType,
+                                      nmrAtomName)
             atomCompare = self._atomCompare(self.lastNmrAtomSelected, currentNmrAtomSelected)
+
+            # create = self.createNew.isChecked()
+
             nmrAtom = None
 
             # wrap all actions in a single undo block
             with undoBlock():
 
-                # get the current chain (but may create a new one)
-                nmrChain = self.project.fetchNmrChain(self.chainPulldown.currentText())
-
-                if not action and (atomCompare[0] == True and
-                                   atomCompare[1] == True and
-                                   atomCompare[2] == False):
-
-                    seqCode = self.seqCodePulldown.currentText()
-                    newResType = self.resTypePulldown.currentText()
-                    if showYesNoWarning('Assigning nmrAtoms',
-                                        'This will change all nmrAtoms to the residueType %s, continue?' % newResType):
-                        nmrResidue = nmrChain.fetchNmrResidue(seqCode)
-
-                        # change the residueType
-                        nmrResidue.rename('.'.join([seqCode, newResType]))
-                    else:
-                        return
-
+                _chainPid = 'NC:{}'.format(nmrChainName)
+                if create and not action:
+                    # get the current chain (but may create a new one)
+                    _nmrChain = self.project.fetchNmrChain(nmrChainName)
                 else:
-                    nmrResidue = nmrChain.fetchNmrResidue(self.seqCodePulldown.currentText(),
-                                                          self.resTypePulldown.currentText())
+                    # find the existing nmrChain
+                    _nmrChain = self.project.getByPid(_chainPid)
+                    if not _nmrChain:
+                        # raise error to notify popup
+                        raise ValueError("NmrChain doesn't exists")
 
-                if nmrResidue:
-                    nmrAtom = nmrResidue.fetchNmrAtom(self.atomTypePulldown.currentText())
+                nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
+                nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
+
+                if not action:
+                    if create:
+                        if nmrResidue:
+                            if self._clickedNmrAtom.nmrResidue == nmrResidue and nmrResidue.residueType != newResType:
+                                if len(nmrResidue.nmrAtoms) > 1:
+                                    yes = showYesNoWarning('Assigning nmrAtoms',
+                                                        'This will change all nmrAtoms to the residueType {}, continue?'.format(newResType))
+                                    if yes:
+                                        nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+                                else:
+                                    nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+
+                        else:
+                            # can do a residueType rename
+                            nmrResidue = _nmrChain.fetchNmrResidue(seqCode, newResType)
+
+                        nmrAtom = nmrResidue.fetchNmrAtom(nmrAtomName)
+
+                    else:
+                        if not self._clickedNmrAtom:
+                            showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
+                            return
+
+                        # edit existing
+                        if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
+                            # existing different nmrResidue
+                            nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                            if nmrAtom:
+                                yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
+                                                                    "{}   into   {}".format(self._clickedNmrAtom.id,
+                                                                                            nmrAtom.id))
+                                if yesNo:
+                                    # merge into the new nmrAtom
+                                    nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
+
+                            else:
+                                # assign to a new nmrAtom
+                                self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                                                              sequenceCode=seqCode,
+                                                              residueType=newResType,
+                                                              name=nmrAtomName,
+                                                              mergeToExisting=False)
+
+                        elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
+                            # rename the same nmrAtom
+                            if newResType != nmrResidue.residueType:
+                                nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+
+                            if nmrAtomName != self._clickedNmrAtom.name:
+                                nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                                if nmrAtom:
+                                    raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
+                                self._clickedNmrAtom.rename(nmrAtomName)
+
+                        else:
+                            # nmrResidue doesn't exists
+                            self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                                                          sequenceCode=seqCode,
+                                                          residueType=newResType,
+                                                          name=nmrAtomName,
+                                                          mergeToExisting=False)
 
                 try:
 
@@ -914,6 +1094,7 @@ class AxisAssignmentObject(Frame):
             # nmrResidue._finaliseAction('change')
 
             self._parent._updateInterface()
+
             self.tables[0].selectObjects([nmrAtom], setUpdatesEnabled=False)
 
             if nmrAtom:
@@ -1006,40 +1187,19 @@ class AxisAssignmentObject(Frame):
         self.tables[0].populateTable(rowObjects=atomList,
                                      columnDefs=self.columnDefs
                                      )
-
-        # # self.project.blankNotification()
-        # objs = self.tables[0].getSelectedObjects()
-        #
-        # # build a dataFrame object from the list" atomList - list of nmrAtoms
-        # self.dataFrameAssigned = self.tables[0].getDataFrameFromList(table=self.tables[0],
-        #                                                              buildList=atomList,
-        #                                                              colDefs=self.columnDefs,
-        #                                                              hiddenColumns=self._hiddenColumns[0])
-        #
-        # # populate from the Pandas dataFrame inside the dataFrameObject
-        # self.tables[0].setTableFromDataFrameObject(dataFrameObject=self.dataFrameAssigned)
-        # self.tables[0]._highLightObjs(objs)
-        # # self.project.unblankNotification()
+        objs = self.tables[0].getFirstObject()
+        if objs:
+            objPid = objs.get('Pid')
+            if objPid:
+                nmrAtom = self.project.getByPid(objPid)
+                if nmrAtom:
+                    self._updatePulldownLists(0, {Notifier.OBJECT: [nmrAtom]})
 
     def setAlternativesTable(self, atomList: list):
 
         self.tables[1].populateTable(rowObjects=atomList,
                                      columnDefs=self.columnDefs
                                      )
-
-        # # self.project.blankNotification()
-        # objs = self.tables[1].getSelectedObjects()
-        #
-        # # build a dataFrame object from the list" atomList - list of nmrAtoms
-        # self.dataFrameAlternatives = self.tables[1].getDataFrameFromList(table=self.tables[1],
-        #                                                                  buildList=atomList,
-        #                                                                  colDefs=self.columnDefs,
-        #                                                                  hiddenColumns=self._hiddenColumns[1])
-        #
-        # # populate from the Pandas dataFrame inside the dataFrameObject
-        # self.tables[1].setTableFromDataFrameObject(dataFrameObject=self.dataFrameAlternatives)
-        # self.tables[1]._highLightObjs(objs)
-        # # self.project.unblankNotification()
 
     def _updateAssignmentWidget(self, tableNum: int, item: object):
         """
