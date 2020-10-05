@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-10-05 12:08:51 +0100 (Mon, October 05, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-05 12:21:02 +0100 (Mon, October 05, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -1179,7 +1179,7 @@ class AxisAssignmentObject(Frame):
                     self.buttonList.setButtonEnabled('Assign', False)
 
         except Exception as es:
-            showWarning('Deassign Peak from NmrAtom', str(es))
+            showWarning('Deassign NmrAtom', str(es))
 
     def setAssignedTable(self, atomList: list):
 
