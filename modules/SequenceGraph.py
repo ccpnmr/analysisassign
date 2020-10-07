@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-09-22 09:32:48 +0100 (Tue, September 22, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-07 17:06:39 +0100 (Wed, October 07, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -42,9 +42,10 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.Strip import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
+from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Widget import Widget
 # from ccpn.ui.gui.guiSettings import textFontSmall, textFontSmallBold, textFont
-from ccpn.ui.gui.guiSettings import getColours
+from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS
 from ccpn.ui.gui.guiSettings import GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, \
     GUINMRRESIDUE, SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
@@ -61,7 +62,7 @@ from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.modules.SequenceModule import SequenceModule
-from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight
+from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, SEQUENCEGRAPHFONT
 from ccpn.ui.gui.widgets.SettingsWidgets import SequenceGraphSettings
 from ccpn.core.lib.AssignmentLib import getSpinSystemsLocation
 from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlock
@@ -100,7 +101,7 @@ class GuiNmrAtom(QtWidgets.QGraphicsTextItem):
         self.connectedList = {}  # maintain connectivity between guiNmrAtoms
         # so that lines do not overlap
 
-        setWidgetFont(self, )
+        setWidgetFont(self, name=SEQUENCEGRAPHFONT)
         self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
 
         # set the highlight colour for dragging to chain
@@ -144,14 +145,14 @@ class GuiNmrAtom(QtWidgets.QGraphicsTextItem):
         else:
             self.connectedList[keyVal] = 1
 
-    def removeConnectedList(self, connectedAtom):
-        """maintain number of links between adjacent nmrAtoms.
-        """
-        keyVal = connectedAtom
-        if keyVal in self.connectedList:
-            self.connectedList[keyVal] -= 1
-        else:
-            raise RuntimeError('Connection does not exist')
+    # def removeConnectedList(self, connectedAtom):
+    #     """maintain number of links between adjacent nmrAtoms.
+    #     """
+    #     keyVal = connectedAtom
+    #     if keyVal in self.connectedList:
+    #         self.connectedList[keyVal] -= 1
+    #     else:
+    #         raise RuntimeError('Connection does not exist')
 
     def getConnectedList(self, connectedAtom):
         """Retrieve number of links between adjacent nmrAtoms.
@@ -169,12 +170,12 @@ class GuiNmrAtom(QtWidgets.QGraphicsTextItem):
             keyVal.connectedList[self] = 0
             self.connectedList[keyVal] = 0
 
-    def deleteConnectedList(self):
-        """Delete all connections for this guiNmrAtom.
-        """
-        for keyVal in self.connectedList:
-            del keyVal.connectedList[self]
-        self.connectedList = {}
+    # def deleteConnectedList(self):
+    #     """Delete all connections for this guiNmrAtom.
+    #     """
+    #     for keyVal in self.connectedList:
+    #         del keyVal.connectedList[self]
+    #     self.connectedList = {}
 
 
 #==========================================================================================
@@ -198,7 +199,7 @@ class GuiNmrResidue(QtWidgets.QGraphicsTextItem):
         self.current = self.mainWindow.application.current
 
         # self.setFont(self.mainWindow.application._fontSettings.textFontSmall)
-        setWidgetFont(self, size='MEDIUM')
+        setWidgetFont(self, name=SEQUENCEGRAPHFONT, size='MEDIUM')
 
         self.colours = getColours()
         self.setDefaultTextColor(QtGui.QColor(self.colours[GUINMRRESIDUE]))
@@ -478,13 +479,13 @@ class NmrResidueList():
         # if nmrResidue in resList:
         #     return resList.index(nmrResidue)
 
-    def deleteNmrResidue(self, nmrResidue):
-        """get the index in the nmrResidueList of the required nmrResidue.
-        """
-        for itemId, nmrCh in self.nmrChains.items():
-            if nmrResidue in nmrCh:
-                nmrCh.remove(nmrResidue)
-                print('>>>removing from nmrChains')
+    # def deleteNmrResidue(self, nmrResidue):
+    #     """get the index in the nmrResidueList of the required nmrResidue.
+    #     """
+    #     for itemId, nmrCh in self.nmrChains.items():
+    #         if nmrResidue in nmrCh:
+    #             nmrCh.remove(nmrResidue)
+    #             print('>>>removing from nmrChains')
 
     # def deleteNmrResidueIndex(self, index):
     #     """insert into the list as a tuple (obj, dict).
@@ -643,10 +644,10 @@ class NmrResidueList():
             del residueAtomsCopy['CB']
 
         for k, v in residueAtomsCopy.items():
-            if k in nmrAtoms:
-                nmrAtom = nmrResidue.fetchNmrAtom(name=k)
-            else:
-                nmrAtom = None
+            # if k in nmrAtoms:
+            nmrAtom = nmrResidue.getNmrAtom(k)
+            # else:
+            #     nmrAtom = None
             atoms[k] = self._createGhostGuiNmrAtom(k, v, nmrAtom)
 
         newGuiResidueGroup = self._assembleGhostResidue(nmrResidue, atoms, lineList=lineList)
@@ -689,10 +690,10 @@ class NmrResidueList():
         """add the backbone atoms.
         """
         for k, v in backboneAtoms.items():
-            if k in atomNames:
-                nmrAtom = nmrResidue.fetchNmrAtom(name=k)
-            else:
-                nmrAtom = None
+            # if k in atomNames:
+            nmrAtom = nmrResidue.getNmrAtom(k)
+            # else:
+            #     nmrAtom = None
             guiAtoms[k] = self._createGuiNmrAtom(k, v, nmrAtom)
 
     def addSideChainAtoms(self, nmrResidue, cbAtom, atomNames, guiAtoms):
@@ -703,10 +704,10 @@ class NmrResidueList():
         for k, v in self._atomPositionDict[nmrResidue.residueType].items():
             if k != 'boundAtoms':
                 position = [cbAtom.x() + v[0], cbAtom.y() + v[1]]
-                if k in atomNames:
-                    nmrAtom = nmrResidue.fetchNmrAtom(name=k)
-                else:
-                    nmrAtom = None
+                # if k in atomNames:
+                nmrAtom = nmrResidue.getNmrAtom(k)
+                # else:
+                #     nmrAtom = None
                 newAtom = self._createGuiNmrAtom(k, position, nmrAtom)
 
                 # self.scene.addItem(newAtom)
@@ -853,7 +854,7 @@ class NmrResidueList():
             predictionLabel.setDefaultTextColor(QtGui.QColor(self._textColour))
 
             # predictionLabel.setFont(self.mainWindow.application._fontSettings.textFontSmallBold)
-            setWidgetFont(predictionLabel, size='MEDIUM', bold=True)
+            setWidgetFont(predictionLabel, name=SEQUENCEGRAPHFONT, bold=True)
 
             predictionLabel.setPos(caAtom.x() - caAtom.boundingRect().width() / 2,
                                    caAtom.y() + (self._lineSpacing * (predictions.index(prediction) + 3.5)))
@@ -1355,10 +1356,10 @@ class NmrResidueList():
         residueAtoms = self._defaultResidueAtoms.copy()
 
         for k, v in residueAtoms.items():
-            if k in atomNames:
-                fetchedNmrAtom = nmrResidue.fetchNmrAtom(name=k)
-            else:
-                fetchedNmrAtom = None
+            # if k in atomNames:
+            fetchedNmrAtom = nmrResidue.getNmrAtom(k)
+            # else:
+            #     fetchedNmrAtom = None
             if fetchedNmrAtom is nmrAtom:
                 guiAtoms[k] = self._createGuiNmrAtom(k, v, nmrAtom)
 
@@ -1525,6 +1526,7 @@ class SequenceGraphModule(CcpnModule):
         self._sequenceModuleFrame = Frame(None, setLayout=True)
         # self._SequenceGraphFrame = Frame(self.splitter, setLayout=True)
         self.mainWidget.getLayout().addWidget(self.splitter, 1, 0)
+        # self.mainWidget.setContentsMargins(1, 1, 1, 1)
 
         self.thisSequenceModule = SequenceModule(moduleParent=self,
                                                  parent=self._sequenceModuleFrame,
@@ -1539,6 +1541,11 @@ class SequenceGraphModule(CcpnModule):
         # self._sequenceGraphScrollArea.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
         self._sequenceGraphScrollArea.setWidgetResizable(True)
         self._sequenceGraphScrollArea.setMinimumHeight(80)
+
+        # self._sequenceGraphScrollArea.setStyleSheet('QScrollArea { border-top: 1px solid %s;'
+        #                                             'border-bottom: 1px solid %s;'
+        #                                      'background: transparent; }' % (BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR))
+
 
         self.splitter.addWidget(self._sequenceGraphScrollArea)
         self.splitter.addWidget(self._sequenceModuleFrame)
@@ -1613,8 +1620,9 @@ class SequenceGraphModule(CcpnModule):
         self._deleteStore = {}
 
         colwidth = 180
-        self._MWwidget = Widget(self.mainWidget, setLayout=True,
-                                grid=(0, 0), vAlign='top', hAlign='left')
+        self._MWwidget = Frame(self.mainWidget, setLayout=True,
+                                grid=(0, 0), vAlign='top', hAlign='left',
+                               hPolicy='preferred', vPolicy='fixed')
 
         _col = 0
         self.nmrChainPulldown = NmrChainPulldown(self._MWwidget, self.mainWindow, grid=(0, _col), gridSpan=(1, 1),
@@ -1660,9 +1668,9 @@ class SequenceGraphModule(CcpnModule):
         self.editingToolbar = ToolBar(self._MWwidget, grid=(0, _col), gridSpan=(1, 1), hAlign='right', iconSizes=(24, 24))
         # self.editingToolbar = ToolBar(self._SequenceModuleFrame, grid=(0, 6), gridSpan=(1, 1), hAlign='right', iconSizes=(24,24))
 
-        self._MWwidget.setMinimumWidth(self._MWwidget.sizeHint().width())
+        # self._MWwidget.setMinimumWidth(self._MWwidget.sizeHint().width())
         self._MWwidget.setContentsMargins(5, 5, 5, 5)
-        self._MWwidget.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+        # self._MWwidget.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
 
         self.disconnectPreviousAction = self.editingToolbar.addAction("disconnectPrevious", self.disconnectPreviousNmrResidue)
@@ -2640,14 +2648,17 @@ class SequenceGraphModule(CcpnModule):
     def resetScene(self):
         """Reset all gui items and data in the scene.
         """
-        self.nmrResidueList.reset()
-        self.scene.clear()
-        self.scene.setSceneRect(self.scene.itemsBoundingRect())
-        self.thisSequenceModule._initialiseChainLabels()
+        with self.mainWidget.blockWidgetSignals():
+            self.nmrResidueList.reset()
+            self.scene.clear()
+            self.scene.setSceneRect(self.scene.itemsBoundingRect())
+            self.thisSequenceModule._initialiseChainLabels()
 
     def setNmrChain(self, nmrChain):
         self.nmrResidueList.nmrChain = nmrChain
 
+    from ccpn.util.decorators import profile
+    @profile
     def setNmrChainDisplay(self, nmrChainOrPid):
 
         # print('>>>setNmrChainDisplay')
@@ -2669,8 +2680,8 @@ class SequenceGraphModule(CcpnModule):
         self.nmrChain = nmrChain
         thisChainId = nmrChain.pid
 
-        with notificationEchoBlocking():
-
+        # with notificationEchoBlocking():
+        with self.mainWidget.blockWidgetSignals():
             # currently only handles one visible nmrChain at a time - but changing to a dict
             self.resetScene()
             self.setNmrChain(nmrChain)
@@ -2724,7 +2735,7 @@ class SequenceGraphModule(CcpnModule):
             with self.sceneBlocking():
                 self.setNmrChainDisplay(nmrChainPid)
 
-            # check whther to update self.current.nmrChain
+            # check whether to update self.current.nmrChain
             self._setCurrentNmrChain(nmrChainPid)
         else:
             # nmrChainOrPid could be '<Select>' in which case nmrChain would be None
@@ -2896,6 +2907,23 @@ class SequenceGraphModule(CcpnModule):
         self.scrollContents.setGeometry(QtCore.QRect(0, 0, 300, 400))
         self.scrollContents.setAlignment(QtCore.Qt.AlignCenter)
         self._sequenceGraphScrollArea.setWidget(self.scrollContents)
+        self._setFocusColour()
+
+    def _setFocusColour(self, focusColour=None, noFocusColour=None):
+        """Set the focus/noFocus colours for the widget
+        """
+        focusColour = getColours()[BORDERFOCUS]
+        noFocusColour = getColours()[BORDERNOFOCUS]
+        styleSheet = "QGraphicsView { " \
+                     "border: 1px solid;" \
+                     "border-radius: 1px;" \
+                     "border-color: %s;" \
+                     "} " \
+                     "QGraphicsView:focus { " \
+                     "border: 1px solid %s; " \
+                     "border-radius: 1px; " \
+                     "}" % (noFocusColour, focusColour)
+        self.scrollContents.setStyleSheet(styleSheet)
 
     # def deassignNmrAtom(self, selectedNmrAtom=None):
     #     """Remove the selected peaks from the assignedPeaks list
@@ -2991,7 +3019,7 @@ class SequenceGraphModule(CcpnModule):
     #     for k, v in ATOM_POSITION_DICT[nmrResidue.residueType].items():
     #         if k != 'boundAtoms':
     #             position = [cbAtom.x() + v[0], cbAtom.y() + v[1]]
-    #             nmrAtom = nmrResidue.fetchNmrAtom(name=k)
+    #             nmrAtom = nmrResidue.getNmrAtom(k)
     #             newAtom = self._createGuiNmrAtom(k, position, nmrAtom)
     #             self.scene.addItem(newAtom)
     #             residue[k] = newAtom
@@ -3019,7 +3047,7 @@ class SequenceGraphModule(CcpnModule):
     #
     #     for k, v in residueAtoms.items():
     #         if k in nmrAtoms:
-    #             fetchedNmrAtom = nmrResidue.fetchNmrAtom(name=k)
+    #             fetchedNmrAtom = nmrResidue.getNmrAtom(k)
     #         else:
     #             fetchedNmrAtom = None
     #         if fetchedNmrAtom is nmrAtom:
@@ -3058,7 +3086,7 @@ class SequenceGraphModule(CcpnModule):
     #     if not self.guiResiduesShown:
     #         for k, v in residueAtoms.items():
     #             if k in nmrAtoms:
-    #                 nmrAtom = nmrResidue.fetchNmrAtom(name=k)
+    #                 nmrAtom = nmrResidue.getNmrAtom(k)
     #             else:
     #                 nmrAtom = None
     #             atoms[k] = self._createGuiNmrAtom(k, v, nmrAtom)
@@ -3074,7 +3102,7 @@ class SequenceGraphModule(CcpnModule):
     #     else:
     #         for k, v in residueAtoms.items():
     #             if k in nmrAtoms:
-    #                 nmrAtom = nmrResidue.fetchNmrAtom(name=k)
+    #                 nmrAtom = nmrResidue.getNmrAtom(k)
     #             else:
     #                 nmrAtom = None
     #             atoms[k] = self._createGuiNmrAtom(k, v, nmrAtom)
@@ -3470,7 +3498,7 @@ class SequenceGraphModule(CcpnModule):
     #
     #     for k, v in residueAtoms.items():
     #         if k in nmrAtoms:
-    #             nmrAtom = nmrResidue.fetchNmrAtom(name=k)
+    #             nmrAtom = nmrResidue.getNmrAtom(k)
     #         else:
     #             nmrAtom = None
     #         atoms[k] = self._createGhostGuiNmrAtom(k, v, nmrAtom)
@@ -3675,7 +3703,7 @@ class SequenceGraphModule(CcpnModule):
     def defineAtoms(self):
         import math
 
-        self.lineSpacing = getFontHeight()
+        self.lineSpacing = getFontHeight(name=SEQUENCEGRAPHFONT)
         self.atomSpacing = atomSpacing = self.lineSpacing * 5
         self.lineConnectWidth = max(2, ((self.lineSpacing - 0) // 6))
         self.lineWidth = self.lineConnectWidth + 1
@@ -3699,6 +3727,7 @@ class SequenceGraphModule(CcpnModule):
                                       'C' : np.array([2 * atomSpacing, -1 * atomSpacing])
                                       }
 
+        # need a connectivity between the atoms as a list of pairs e.g., ((H, N), (N, CA), (CA, CB), (CA, C))
         # Use loadCompoundPickle from chemBuild to load the structure for these; found in compound.variants.bonds
 
         self.ATOM_POSITION_DICT = {
