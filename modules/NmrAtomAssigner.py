@@ -32,7 +32,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-06-11 14:55:24 +0100 (Thu, June 11, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-07 17:12:46 +0100 (Wed, October 07, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -167,24 +167,14 @@ class NmrAtomAssignerModule(CcpnModule):
         self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         self.settingsWidget.setContentsMargins(5, 5, 5, 5)
 
-        for w in self._sidechainModifiers:  w.hide()
-
-        # add scrollable widget to the main widget area
-        # self._scrollAreaWidget = ScrollArea(self.mainWidget, setLayout=True, grid=(0, 0), gridSpan=(1, 1))
-        # self._scrollAreaWidget.setWidgetResizable(True)
-
-        #~~~~~~~~~~
+        for w in self._sidechainModifiers:
+            w.hide()
 
         self._residueFrame = ScrollableFrame(parent=self.mainWidget,
                                        showBorder=False, setLayout=True,
                                        acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
         self._scrollAreaWidget = self._residueFrame._scrollArea
-        self._scrollAreaWidget.setStyleSheet('ScrollArea { border-right: 1px solid %s;'
-                                             'border-bottom: 1px solid %s;'
-                                             'background: transparent; }' % (BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR))
         self._residueFrame.insertCornerWidget()
-
-        #~~~~~~~~~~
 
         # self._residueFrame = Frame(self.mainWidget, setLayout=True, acceptDrops=True, showBorder=False, spacing=(5, 5))
         self._residueFrame.setContentsMargins(5, 5, 5, 5)
