@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-06-12 16:00:39 +0100 (Fri, June 12, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-07 17:12:46 +0100 (Wed, October 07, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -610,14 +610,13 @@ class AssignmentInspectorTable(GuiTable):
 
         # main window
 
-        # Frame-1: NmrAtoms list, hidden when table first opens
+        # Frame-1: NmrAtoms list, hidden when table first opens - left hand side
         # GST NOT TRUE ANY MORE?
         self._nmrAtomListFrameWidth = 150
-        self.nmrAtomListFrame = Frame(parent, grid=(0, 0), gridSpan=(1, 1), setLayout=True)  # ejb
+        self.nmrAtomListFrame = Frame(parent, grid=(0, 0), gridSpan=(1, 1), setLayout=True)
 
-        self.nmrAtomListFrame.setFixedWidth(self._nmrAtomListFrameWidth)
         self.nmrAtomLabel = Label(self.nmrAtomListFrame, 'Filter by NmrAtom(s):', bold=True,
-                                  grid=(0, 0), gridSpan=(1, 1), vAlign='center', margins=[2, 4, 2, 5])
+                                  grid=(0, 0), gridSpan=(1, 1))
 
         self.attachedNmrAtomsList = ListWidget(self.nmrAtomListFrame,
                                                contextMenu=False,
@@ -626,21 +625,16 @@ class AssignmentInspectorTable(GuiTable):
         self.attachedNmrAtomsList.itemSelectionChanged.connect(self._updatePeakTableCallback)
         self.attachedNmrAtomsList.setDragEnabled(False)
 
-        self.attachedNmrAtomsList.setFixedWidth(self._nmrAtomListFrameWidth - 2)
-        self.attachedNmrAtomsList.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.MinimumExpanding)
-        self.nmrAtomListFrame.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-        self.attachedNmrAtomsList.setStyleSheet('''.ListWidget {
-                                                        border: 1px solid #a9a9a9;
-                                                        border-radius: 2px;}''')
-
+        self.attachedNmrAtomsList.setFixedWidth(self.nmrAtomLabel.sizeHint().width())
+        self.attachedNmrAtomsList.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.MinimumExpanding)
+        self.nmrAtomListFrame.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Ignored)
 
         # Frame-2: peaks
-        self.frame2 = Frame(parent, grid=(0, 1), gridSpan=(1, 1), setLayout=True)  # ejb
+        self.frame2 = Frame(parent, grid=(0, 1), gridSpan=(1, 1), setLayout=True)
         self.peaksLabel = Label(self.frame2, 'Peaks assigned to NmrAtom(s):', bold=True,
-                                grid=(0, 0), gridSpan=(1, 4), margins=[2, 5, 2, 5])
+                                grid=(0, 0), gridSpan=(1, 4))
 
-        self.peaksLabel.setFixedHeight(24)
-        self.peaksLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
+        self.peaksLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
         self.frame2.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
 
         # initialise the currently attached dataFrame
