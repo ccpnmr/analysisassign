@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-10-05 12:21:02 +0100 (Mon, October 05, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-08 17:30:40 +0100 (Thu, October 08, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -130,53 +130,37 @@ class PeakAssigner(CcpnModule):
         self.current = mainWindow.application.current
 
         # settings
+        row = 0
         self.doubleToleranceCheckbox = CheckBox(self.settingsWidget, checked=False,
                                                 callback=self._updateInterface,
-                                                grid=(0, 0))
-        doubleToleranceCheckboxLabel = Label(self.settingsWidget, text="Double Tolerances ", grid=(0, 1))
-        Spacer(self.settingsWidget, 10, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(0, 2), gridSpan=(1, 1))
+                                                grid=(row, 1))
+        doubleToleranceCheckboxLabel = Label(self.settingsWidget, text="Double Tolerances ", grid=(row, 0))
 
-        #
+        row += 1
         self.intraCheckbox = CheckBox(self.settingsWidget, checked=False,
                                       callback=self._updateInterface,
-                                      grid=(0, 3))
-        intraCheckboxLabel = Label(self.settingsWidget, text="Only Intra-residual ", grid=(0, 4))
-        Spacer(self.settingsWidget, 10, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(0, 5), gridSpan=(1, 1))
+                                      grid=(row, 1))
+        intraCheckboxLabel = Label(self.settingsWidget, text="Only Intra-residual ", grid=(row, 0))
 
-        #
+        row += 1
         self.multiCheckbox = CheckBox(self.settingsWidget, checked=True,
                                       callback=self._updateInterface,
-                                      grid=(0, 6))
-        multiCheckboxLabel = Label(self.settingsWidget, text="Allow Multiple Peaks ", grid=(0, 7))
-        Spacer(self.settingsWidget, 10, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(0, 8), gridSpan=(1, 1))
+                                      grid=(row, 1))
+        multiCheckboxLabel = Label(self.settingsWidget, text="Allow Multiple Peaks ", grid=(row, 0))
 
-        # expCheckBoxLabel = Label(self.settingsWidget, "Filter By Experiment", grid=(0, 10))
-        # self.expCheckBox = CheckBox(self.settingsWidget, checked=True,
-        #                             callback=self._updateInterface,
-        #                             grid=(0, 9))
-        # Spacer(self.settingsWidget, 10, 5, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-        #        grid=(0, 11), gridSpan=(1, 1))
-
+        row += 1
         self.allChainCheckBoxLabel = CheckBox(self.settingsWidget, checked=False,
                                               callback=self._updateInterface,
-                                              grid=(0, 12))
-        allChainCheckBoxLabel = Label(self.settingsWidget, "Peak Selection from Table", grid=(0, 13))
-
-        self._spacer = Spacer(self.settingsWidget, 5, 5,
-                              QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding,
-                              grid=(1, 14), gridSpan=(1, 1))
+                                              grid=(row, 1))
+        allChainCheckBoxLabel = Label(self.settingsWidget, "Peak Selection from Table", grid=(row, 0))
 
         self._height = getFontHeight()
         self._tableHeight = getFontHeight(name=TABLEFONT)
-        self._settingsScrollArea.setMinimumHeight(self._height * 1.5)
         self.settingsWidget.setContentsMargins(5, 5, 5, 5)
+        self.settingsWidget.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.settingsWidget.setScrollBarPolicies(scrollBarPolicies=('asNeeded', 'never'))
-        # self._settingsScrollArea.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
 
-        # correct way to setup a scroll area
+        # setup a scroll area
         self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
                                                acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
         self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
