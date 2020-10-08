@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-10-07 17:06:39 +0100 (Wed, October 07, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-08 17:14:57 +0100 (Thu, October 08, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -1524,9 +1524,7 @@ class SequenceGraphModule(CcpnModule):
 
         self.splitter = Splitter(self.mainWidget, horizontal=False)
         self._sequenceModuleFrame = Frame(None, setLayout=True)
-        # self._SequenceGraphFrame = Frame(self.splitter, setLayout=True)
-        self.mainWidget.getLayout().addWidget(self.splitter, 1, 0)
-        # self.mainWidget.setContentsMargins(1, 1, 1, 1)
+        self.mainWidget.getLayout().addWidget(self.splitter, 1, 0, 1, 1)
 
         self.thisSequenceModule = SequenceModule(moduleParent=self,
                                                  parent=self._sequenceModuleFrame,
@@ -1538,14 +1536,8 @@ class SequenceGraphModule(CcpnModule):
 
         ###frame = Frame(parent=self.mainWidget)
         self._sequenceGraphScrollArea = QtWidgets.QScrollArea()
-        # self._sequenceGraphScrollArea.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
         self._sequenceGraphScrollArea.setWidgetResizable(True)
         self._sequenceGraphScrollArea.setMinimumHeight(80)
-
-        # self._sequenceGraphScrollArea.setStyleSheet('QScrollArea { border-top: 1px solid %s;'
-        #                                             'border-bottom: 1px solid %s;'
-        #                                      'background: transparent; }' % (BORDERNOFOCUS_COLOUR, BORDERNOFOCUS_COLOUR))
-
 
         self.splitter.addWidget(self._sequenceGraphScrollArea)
         self.splitter.addWidget(self._sequenceModuleFrame)
@@ -1619,10 +1611,17 @@ class SequenceGraphModule(CcpnModule):
                                              self.scene, self, self.DEFAULT_RESIDUE_ATOMS, self.ATOM_POSITION_DICT)
         self._deleteStore = {}
 
-        colwidth = 180
-        self._MWwidget = Frame(self.mainWidget, setLayout=True,
+        # seems to need nested frames to enforce the sizeConstraint
+        self._MWwidgetFrame2 = Frame(self.mainWidget, setLayout=True,
                                 grid=(0, 0), vAlign='top', hAlign='left',
-                               hPolicy='preferred', vPolicy='fixed')
+                               hPolicy='ignored', vPolicy='minimum')
+        self._MWwidgetFrame = Frame(self._MWwidgetFrame2, setLayout=True,
+                                grid=(0, 0), vAlign='top', hAlign='left',
+                               )
+        self._MWwidgetFrame.getLayout().setSizeConstraint(QtWidgets.QLayout.SetMinAndMaxSize)
+        self._MWwidget = Frame(self._MWwidgetFrame, setLayout=True,
+                                grid=(0, 0), vAlign='top', hAlign='left',
+                               hPolicy='fixed', vPolicy='fixed')
 
         _col = 0
         self.nmrChainPulldown = NmrChainPulldown(self._MWwidget, self.mainWindow, grid=(0, _col), gridSpan=(1, 1),
@@ -1640,7 +1639,7 @@ class SequenceGraphModule(CcpnModule):
 
         _col += 1
         _height = getFontHeight()
-        Spacer(self._MWwidget, _height * 5, 5,
+        Spacer(self._MWwidget, _height * 3, 5,
                QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
                grid=(0, _col), gridSpan=(1, 1))
 
@@ -1665,12 +1664,17 @@ class SequenceGraphModule(CcpnModule):
                                                           grid=(0, _col), gridSpan=(1, 1))
 
         _col += 1
-        self.editingToolbar = ToolBar(self._MWwidget, grid=(0, _col), gridSpan=(1, 1), hAlign='right', iconSizes=(24, 24))
-        # self.editingToolbar = ToolBar(self._SequenceModuleFrame, grid=(0, 6), gridSpan=(1, 1), hAlign='right', iconSizes=(24,24))
+        _minSize = max(24, _height * 1.25)
 
-        # self._MWwidget.setMinimumWidth(self._MWwidget.sizeHint().width())
+        # put next to _MWidget so height can stretch
+        self._editingToolbarFrame = Frame(self._MWwidgetFrame, setLayout=True,
+                                grid=(0, 1), vAlign='top', hAlign='left',
+                               hPolicy='expanding', vPolicy='ignored')
+        self.editingToolbar = ToolBar(self._editingToolbarFrame, grid=(0, 0), gridSpan=(1, 1), hAlign='right',
+                                      iconSizes=(_minSize, _minSize),
+                                      )
+
         self._MWwidget.setContentsMargins(5, 5, 5, 5)
-        # self._MWwidget.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
 
         self.disconnectPreviousAction = self.editingToolbar.addAction("disconnectPrevious", self.disconnectPreviousNmrResidue)
@@ -1687,14 +1691,8 @@ class SequenceGraphModule(CcpnModule):
         self._preMouserelease = self.scene.mouseReleaseEvent
         self.scene.mouseReleaseEvent = self._sceneMouseRelease
 
-        # calulate the connections between axes based on experiment types
+        # calculate the connections between axes based on experiment types
         self._updateMagnetisationTransfers()
-
-        # stop the mainWidget from squishing during a resize
-        self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-
-        # install the event filter to handle maximising from floated dock
-        # self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
         # initialise notifiers
         self._registerNotifiers()
