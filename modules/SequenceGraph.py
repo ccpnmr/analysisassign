@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-10-16 14:38:50 +0100 (Fri, October 16, 2020) $"
+__dateModified__ = "$dateModified: 2020-10-27 09:43:01 +0000 (Tue, October 27, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -54,7 +54,7 @@ from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.ToolBar import ToolBar
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
-from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown
+from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown, ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.core.NmrChain import NmrChain
 from ccpn.util.Common import makeIterableList, greekKey, PrintFormatter, _compareDict
@@ -93,7 +93,7 @@ class GuiNmrAtom(QtWidgets.QGraphicsSimpleTextItem):
         br = self.boundingRect()
         self.setPos(pos[0] - br.x(), pos[1] - br.y())
 
-        # self.mainWindow = mainWindow
+        self.mainWindow = mainWindow
         # self.application = mainWindow.application
         # self.project = mainWindow.application.project
         self.current = mainWindow.application.current
@@ -126,17 +126,19 @@ class GuiNmrAtom(QtWidgets.QGraphicsSimpleTextItem):
             self.current.nmrResidue = self.nmrAtom.nmrResidue
             event.accept()
 
-    def _raiseContextMenu(self, event: QtGui.QMouseEvent):
+    def _raiseContextMenu(self, obj, pos):  #, event: QtGui.QMouseEvent):
         """Creates and raises a context menu enabling items to be disconnected
         """
         from ccpn.ui.gui.widgets.Menu import Menu
         from functools import partial
 
-        contextMenu = Menu('', event.widget(), isFloatWidget=True)
+        # print('>>> deassign peak menu')
+        # widg = event.widget()
+        contextMenu = Menu('', self.mainWindow, isFloatWidget=True)
         contextMenu.addAction('deassign all Peaks', partial(self._deassignAllPeaksFromNmrAtom))
-        cursor = QtGui.QCursor()
-        contextMenu.move(cursor.pos().x(), cursor.pos().y() + 10)
-        contextMenu.exec()
+        # cursor = QtGui.QCursor()
+        contextMenu.move(pos.x(), pos.y() + 10)
+        contextMenu.exec_()
 
     def addConnectedList(self, connectedAtom):
         """maintain number of links between adjacent nmrAtoms.
@@ -207,7 +209,7 @@ class GuiNmrResidue(QtWidgets.QGraphicsSimpleTextItem):
         # self.setDefaultTextColor(QtGui.QColor(self.colours[GUINMRRESIDUE]))
         self.setBrush(QtGui.QColor(self.colours[GUINMRRESIDUE]))
 
-        self.setPos(caAtom.x() - caAtom.boundingRect().width() / 2, caAtom.y() + (2 * lineSpacing))
+        self.setPos(caAtom.x() - caAtom.boundingRect().width(), caAtom.y() + (2 * lineSpacing))
 
         self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable)
         self._parent = parent
@@ -222,7 +224,7 @@ class GuiNmrResidue(QtWidgets.QGraphicsSimpleTextItem):
     def _mouseMoveEvent(self, event):
         """create a drag item if left button pressed
         """
-        if (event.buttons() == QtCore.Qt.LeftButton):
+        if (event.buttons() == QtCore.Qt.LeftButton) and (event.pos() - self._pressPos).manhattanLength() > QtWidgets.QApplication.startDragDistance():
 
             nmrItem = self
 
@@ -233,6 +235,7 @@ class GuiNmrResidue(QtWidgets.QGraphicsSimpleTextItem):
     def _mousePressEvent(self, event):
         self.current.nmrResidue = self.nmrResidue
         self.setSelected(True)
+        self._pressPos = event.pos()
 
     def _mouseDoubleClickEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -412,6 +415,115 @@ class GuiNmrResidueGroup(QtWidgets.QGraphicsItemGroup):
         self.nmrResidueLabel._mouseDoubleClickEvent(event)
 
 
+class GuiSelectionBoxes(QtWidgets.QGraphicsItemGroup):
+    """
+    Group item to group all selection boxes
+    """
+
+    def __init__(self, scene):
+        super().__init__()
+
+        self._scene = scene
+        self.selectionBoxes = {}
+        # self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+
+    def addSelection(self, nmrResidue, guiRes, colour, width, style, spacing):
+        self._addItem(nmrResidue, guiRes, colour, width, style, spacing, 'selected')
+
+    def addSelectionLeftBracket(self, nmrResidue, guiRes, colour, width, style, spacing):
+        self._addItem(nmrResidue, guiRes, colour, width, style, spacing, 'left')
+
+    def addSelectionRightBracket(self, nmrResidue, guiRes, colour, width, style, spacing):
+        self._addItem(nmrResidue, guiRes, colour, width, style, spacing, 'right')
+
+    def _addItem(self, nmrResidue, guiRes, colour, width, style, spacing, type):
+        _name = nmrResidue.pid + type
+        if _name in self.selectionBoxes:
+            self._scene.removeItem(self.selectionBoxes[_name])
+
+        # add the new selection lines, and push to the back
+        _newGroup = GuiSelection(guiRes, colour, width, style, spacing, type)
+        _newGroup.setParentItem(guiRes)
+        _newGroup.setZValue(-2)
+
+        self.selectionBoxes[_name] = _newGroup
+
+    def clear(self):
+        for item in self.selectionBoxes.values():
+            self._scene.removeItem(item)
+        self.selectionBoxes = {}
+
+
+class GuiSelection(QtWidgets.QGraphicsItemGroup):
+    """
+    Item to hold the lines for a selection
+    """
+
+    def __init__(self, guiRes, colour, width, style, spacing, type):
+        super().__init__()
+
+        self._colour = colour
+        self._width = width
+        self._style = style
+        self._spacing = spacing
+
+        # set the pen colour and style
+        self.pen = QtGui.QPen()
+        self.pen.setColor(QtGui.QColor(colour))
+        self.pen.setCosmetic(True)
+        self.pen.setWidth(width)
+
+        if style == 'dash':
+            self.pen.setStyle(QtCore.Qt.DotLine)
+
+        _scale = spacing * 2.9
+        _xOffset = spacing * 0.4
+        _yOffset = spacing * 0.45
+
+        if type == 'selected':
+            # lines for a box
+            # coords = ((0, 0), (1, 0), (1, 0), (1, 1), (1, 1), (0, 1), (0, 1), (0, 0))
+            # _scale = spacing * 2.8
+            # _xOffset = spacing * 0.35
+            # _yOffset = spacing * 0.4
+
+            # add a box around the selected nmrResidue label
+            _xOffset = guiRes.nmrResidueLabel.pos().x()
+            _yOffset = guiRes.nmrResidueLabel.pos().y()
+            _rect = guiRes.nmrResidueLabel.boundingRect().adjusted(-10 + _xOffset,
+                                                                   -10 + _yOffset,
+                                                                   10 + _xOffset,
+                                                                   10 + _yOffset)
+
+            # _rect = guiRes.boundingRect().adjusted(-10, -10, 10, 10)
+
+            _lineGroup = QtWidgets.QGraphicsItemGroup()
+            self.addToGroup(_lineGroup)
+
+            _line = QtWidgets.QGraphicsRectItem(_rect)
+            _line.setPen(self.pen)
+            _lineGroup.addToGroup(_line)
+            return
+
+        elif type in ['left', 'right']:
+            if type == 'left':
+                # lines for a left square bracket
+                coords = ((0.125, 0), (0, 0), (0, 0), (0, 1), (0, 1), (0.125, 1))
+
+            else:
+                # lines for a right square bracket
+                coords = ((0.875, 0), (1, 0), (1, 0), (1, 1), (1, 1), (0.875, 1))
+
+            _lineGroup = QtWidgets.QGraphicsItemGroup()
+            self.addToGroup(_lineGroup)
+
+            # add the lines here
+            for p0, p1 in zip(coords[::2], coords[1::2]):
+                _line = QtWidgets.QGraphicsLineItem(p0[0] * _scale - _xOffset, -p0[1] * _scale + _yOffset, p1[0] * _scale - _xOffset, -p1[1] * _scale + _yOffset)
+                _line.setPen(self.pen)
+                _lineGroup.addToGroup(_line)
+
+
 #==========================================================================================
 # NmrResidueList
 #==========================================================================================
@@ -429,7 +541,7 @@ class NmrResidueList():
         self.project = mainWindow.project
         self.current = mainWindow.application.current
 
-        self.reset()
+        self._scene = scene
         self._SGwidget = settingsWidget
         self._lineColour = lineColour
         self._textColour = textColour
@@ -437,12 +549,13 @@ class NmrResidueList():
         self._lineSpacing = lineSpacing
         self._lineWidth = lineWidth
         self._lineConnectWidth = lineConnectWidth
-        self._scene = scene
         self._module = module
         self.nmrChain = None
 
         self._defaultResidueAtoms = defaultResidueAtoms
         self._atomPositionDict = atomPositionDict
+
+        self.reset()
 
     def reset(self):
         self.residueCount = 0
@@ -464,6 +577,8 @@ class NmrResidueList():
 
         self.connectingLines = {}  # referenced by peak?
         self.assignmentLines = {}
+
+        self.guiSelectionBoxes = GuiSelectionBoxes(self._scene)
 
         self._nmrPredictions = {}
         self.nmrChain = None  # current active nmrChain
@@ -793,6 +908,15 @@ class NmrResidueList():
 
         return guiResidueGroup
 
+    def setNmrResidueSelection(self, nmrResidues):
+        # clear previous selection
+        self.guiSelectionBoxes.clear()
+
+        for nmrResidue in nmrResidues:
+            if nmrResidue in self.guiNmrResidues:
+                guiRes = self.guiNmrResidues[nmrResidue]
+                self.guiSelectionBoxes.addSelection(nmrResidue, guiRes, getColours()[BORDERFOCUS], self._lineWidth, None, self._atomSpacing)
+
     #==========================================================================================
 
     def _addConnectingLineToGroup(self, group: GuiNmrResidueGroup, guiAtom1: GuiNmrAtom, guiAtom2: GuiNmrAtom,
@@ -815,6 +939,7 @@ class NmrResidueList():
                                      guiAtom1=guiAtom1, guiAtom2=guiAtom2, displacement=displacement)
 
             newLine.setParentItem(group)
+            newLine.setZValue(-1)
 
             lineList[itemKey].append(newLine)
             return newLine
@@ -851,24 +976,36 @@ class NmrResidueList():
         """Gets predictions for residue type based on BMRB statistics and determines label positions
         based on caAtom position.
         """
-        # predictions = list(set(map(tuple, getNmrResiduePrediction(nmrResidue, self.project.chemicalShiftLists[0]))))
-        predictions = list(set(getNmrResiduePrediction(nmrResidue, self.project.chemicalShiftLists[0])))
-        predictions.sort(key=lambda a: float(a[1][:-1]), reverse=True)
+        label = guiResidueGroup.nmrResidue.id
+        if self._module._chemicalShiftList:
+            predictions = list(set(getNmrResiduePrediction(nmrResidue, self._module._chemicalShiftList)))
+            predictions.sort(key=lambda a: float(a[1][:-1]), reverse=True)
 
-        if predictions:
-            self._nmrPredictions[nmrResidue] = predictions
+            if predictions:
+                label += '\n\n' + '\n'.join([(prediction[0] + ' ' + prediction[1]) for prediction in predictions])
 
-            label = '\n'.join([(prediction[0] + ' ' + prediction[1]) for prediction in predictions])
-            predictionLabel = QtWidgets.QGraphicsSimpleTextItem(label)
-            predictionLabel.setBrush(QtGui.QColor(self._textColour))
+        guiResidueGroup.nmrResidueLabel.setText(label)
 
-            # predictionLabel.setFont(self.mainWindow.application._fontSettings.textFontSmallBold)
-            setWidgetFont(predictionLabel, name=SEQUENCEGRAPHFONT, bold=True)
+    def _updateGroupResiduePredictions(self):
+        """Update predictions for residue type based on BMRB statistics and determines label positions
+        based on caAtom position.
+        """
+        for guiRes in self.guiNmrResidues.values():
+            self._updateGroupResiduePrediction(guiRes)
 
-            predictionLabel.setPos(caAtom.x() - caAtom.boundingRect().width() / 2,
-                                   caAtom.y() + (self._lineSpacing * 3.5))
+    def _updateGroupResiduePrediction(self, guiResidue):
+        """Update predictions for residue type based on BMRB statistics and determines label positions
+        based on caAtom position.
+        """
+        label = guiResidue.nmrResidue.id
+        if self._module._chemicalShiftList:
+            predictions = list(set(getNmrResiduePrediction(guiResidue.nmrResidue, self._module._chemicalShiftList)))
+            predictions.sort(key=lambda a: float(a[1][:-1]), reverse=True)
 
-            guiResidueGroup.addToGroup(predictionLabel)
+            if predictions:
+                label += '\n\n' + '\n'.join([(prediction[0] + ' ' + prediction[1]) for prediction in predictions])
+
+        guiResidue.nmrResidueLabel.setText(label)
 
     #==========================================================================================
 
@@ -906,7 +1043,7 @@ class NmrResidueList():
                 newPosx = link.x()
                 newPosy = link.y()
                 res.setPos(newPosx + (count * 0.5 - 1.0) * self.atomSpacing,
-                                          newPosy + (count * 2.5 + 5.0) * self.atomSpacing)
+                           newPosy + (count * 2.5 + 5.0) * self.atomSpacing)
 
     #==========================================================================================
 
@@ -1558,7 +1695,8 @@ class SequenceGraphModule(CcpnModule):
 
         self.thisSequenceModule = SequenceModule(moduleParent=self,
                                                  parent=self._sequenceModuleFrame,
-                                                 mainWindow=mainWindow)
+                                                 mainWindow=mainWindow,
+                                                 chains=None)
 
         self.colours = getColours()
         self._lineColour = self.colours[SEQUENCEGRAPHMODULE_LINE]
@@ -1631,6 +1769,7 @@ class SequenceGraphModule(CcpnModule):
         self._SGwidget = SequenceGraphSettings(parent=self.settingsWidget, mainWindow=self.mainWindow,
                                                settingsDict=settingsDict,
                                                grid=(0, 0))
+        self._SGwidget.chainsWidget.listWidget.changed.connect(self.showChainsChanged)
 
         self.initialiseScene()
         self.residueCount = 0
@@ -1696,26 +1835,34 @@ class SequenceGraphModule(CcpnModule):
         _col += 1
         _minSize = max(24, _height * 1.25)
 
-        # put next to _MWidget so height can stretch
-        self._editingToolbarFrame = Frame(self._MWwidgetFrame, setLayout=True,
-                                          grid=(0, 1), vAlign='top', hAlign='left',
-                                          hPolicy='expanding', vPolicy='ignored')
-        self.editingToolbar = ToolBar(self._editingToolbarFrame, grid=(0, 0), gridSpan=(1, 1), hAlign='right',
-                                      iconSizes=(_minSize, _minSize),
-                                      )
+        # # put next to _MWidget so height can stretch
+        # self._editingToolbarFrame = Frame(self._MWwidgetFrame, setLayout=True,
+        #                                   grid=(0, 1), vAlign='top', hAlign='left',
+        #                                   hPolicy='expanding', vPolicy='ignored')
+        # self.editingToolbar = ToolBar(self._editingToolbarFrame, grid=(0, 0), gridSpan=(1, 1), hAlign='right',
+        #                               iconSizes=(_minSize, _minSize),
+        #                               )
 
         self._MWwidget.setContentsMargins(5, 5, 5, 5)
         self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
 
-        self.disconnectPreviousAction = self.editingToolbar.addAction("disconnectPrevious", self.disconnectPreviousNmrResidue)
+        # self.disconnectPreviousAction = self.editingToolbar.addAction("disconnectPrevious", self.disconnectPreviousNmrResidue)
         self.disconnectPreviousIcon = Icon('icons/disconnectPrevious')
-        self.disconnectPreviousAction.setIcon(self.disconnectPreviousIcon)
-        self.disconnectAction = self.editingToolbar.addAction("disconnect", self.disconnectNmrResidue)
+        # self.disconnectPreviousAction.setIcon(self.disconnectPreviousIcon)
+        # self.disconnectAction = self.editingToolbar.addAction("disconnect", self.disconnectNmrResidue)
         self.disconnectIcon = Icon('icons/disconnect')
-        self.disconnectAction.setIcon(self.disconnectIcon)
-        self.disconnectNextAction = self.editingToolbar.addAction("disconnectNext", self.disconnectNextNmrResidue)
+        # self.disconnectAction.setIcon(self.disconnectIcon)
+        # self.disconnectNextAction = self.editingToolbar.addAction("disconnectNext", self.disconnectNextNmrResidue)
         self.disconnectNextIcon = Icon('icons/disconnectNext')
-        self.disconnectNextAction.setIcon(self.disconnectNextIcon)
+        # self.disconnectNextAction.setIcon(self.disconnectNextIcon)
+
+        self.shiftListPulldown = ChemicalShiftListPulldown(self._MWwidget, self.mainWindow, grid=(1, 0), gridSpan=(1, 1),
+                                                           showSelectName=True,
+                                                           # fixedWidths=(colwidth, colwidth, colwidth),
+                                                           callback=self.showShiftListPulldown)
+
+        self._chains = []
+        self._chemicalShiftList = None
 
         # add mouse handler for the QGraphicsLineItems
         self._preMouserelease = self.scene.mouseReleaseEvent
@@ -1734,9 +1881,9 @@ class SequenceGraphModule(CcpnModule):
         """
         if event.button() == QtCore.Qt.RightButton:
             obj = self.scene.mouseGrabberItem()
-            # print('>>>grab', obj)
             if obj:
-                self._raiseContextMenu(obj, event)
+                pos = QtGui.QCursor().pos()
+                self._raiseContextMenu(obj, pos)
         self._preMouserelease(event)
 
     # def _checkLayoutInit(self):
@@ -1792,7 +1939,7 @@ class SequenceGraphModule(CcpnModule):
             self._unblockEvents()
 
             # resize to the new items and spawns a repaint
-            self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-20, -20, 20, 20))
+            self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-30, -50, 30, 30))
 
     def _updateSpectra(self, data=None):
         """Update list of current spectra and generate new magnetisationTransfer list
@@ -2038,12 +2185,15 @@ class SequenceGraphModule(CcpnModule):
         """
         objList = data[CallBack.OBJECT]
 
+        nmrResidue = objList.nmrResidue
         if not self.nmrResiduesCheckBox.isChecked():
-            nmrResidue = objList.nmrResidue
-
             # redraw the nmrResidues if current is in the displayed chain and not already visible
             if nmrResidue.nmrChain == self.nmrChain and nmrResidue not in self.nmrResidueList.guiNmrResidues:
+                # print('>>> change current.nmrResidue')
                 self.showNmrChainFromPulldown(nmrResidue)
+
+        # clear selections and reset selection boxes
+        self.nmrResidueList.setNmrResidueSelection([nmrResidue])
 
     def _updateNmrResidues(self, data):
         """Update the nmrResidues in the display.
@@ -2132,9 +2282,13 @@ class SequenceGraphModule(CcpnModule):
 
         with self.sceneBlocking():
             if nmrResidue in self.nmrResidueList.guiNmrResidues:
-                self.nmrResidueList.guiNmrResidues[nmrResidue].nmrResidueLabel._update()
+                # self.nmrResidueList.guiNmrResidues[nmrResidue].nmrResidueLabel._update()
+                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiNmrResidues[nmrResidue])
             if nmrResidue in self.nmrResidueList.guiGhostNmrResidues:
-                self.nmrResidueList.guiGhostNmrResidues[nmrResidue].nmrResidueLabel._update()
+                # self.nmrResidueList.guiGhostNmrResidues[nmrResidue].nmrResidueLabel._update()
+                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiGhostNmrResidues[nmrResidue])
+
+            self.nmrResidueList.setNmrResidueSelection([self.current.nmrResidue])
 
             # nmrChainPid = self.nmrChainPulldown.getText()
             # if self.project.getByPid(nmrChainPid):
@@ -2328,22 +2482,6 @@ class SequenceGraphModule(CcpnModule):
 
         return True
 
-    def removeNmrChainNotifiers(self):
-        """Remove notifiers that are set on nmrChains.
-        """
-        nmrChains = tuple(self.project.nmrChains)
-        foundNotifiers = self.searchNotifiers(objects=nmrChains, triggers=[Notifier.OBSERVE], targetName='nmrResidues')
-        for notifier in foundNotifiers:
-            # print('>>>deleting notifier', notifier)
-            self.deleteNotifier(notifier)
-
-    def addNmrChainNotifiers(self):
-        """Add new notifiers for all nmrChains in the project.
-        """
-        for nmrChain in self.project.nmrChains:
-            self.setNotifier(nmrChain, triggers=[Notifier.OBSERVE], targetName='nmrResidues',
-                             callback=self._changeNmrResidues)
-
     def resetScene(self):
         """Reset all gui items and data in the scene.
         """
@@ -2424,10 +2562,44 @@ class SequenceGraphModule(CcpnModule):
             self.nmrResidueList.updateGuiResiduePositions(thisChainId, updateMainChain=True, updateConnectedChains=True)
 
             # update the prediction in the sequenceModule
-            if thisChainId in self.nmrResidueList.nmrChains:
-                self.predictSequencePosition(self.nmrResidueList.nmrChains[thisChainId])
+            for thisChainId in self.nmrResidueList.nmrChains.values():
+                self.predictSequencePosition(thisChainId)
 
             # self.mainWidget.setVisible(True)
+
+    def showChainsChanged(self, data=None):
+        """Respond to a change in the chains list
+        """
+        objs = self._SGwidget.chainsWidget._getObjects()
+        # print('>>> chains changed {}'.format('\n'.join([str(obj) for obj in objs])))
+
+        self._chains = objs
+        self.thisSequenceModule.setChains(objs)
+
+        # update the prediction in the sequenceModule
+        for thisChainId in self.nmrResidueList.nmrChains.values():
+            self.predictSequencePosition(thisChainId)
+
+    def showShiftListPulldown(self, data=None):
+        """Clear and redraw the nmrChain selected from the pulldown.
+        """
+        # recalculate probabilities/predicted sequences if needed
+
+        shiftListPid = self.shiftListPulldown.getText()
+        if shiftListPid:
+            objs = self._SGwidget.chainsWidget._getObjects()
+            # print('>>> chains {}'.format('\n'.join([str(obj) for obj in objs])))
+
+            self._chemicalShiftList = self.project.getByPid(shiftListPid)
+
+            # update sequence graph predictions
+            self.nmrResidueList._updateGroupResiduePredictions()
+
+            # update the prediction in the sequenceModule
+            for thisChainId in self.nmrResidueList.nmrChains.values():
+                self.predictSequencePosition(thisChainId)
+
+            self.nmrResidueList.setNmrResidueSelection([self.current.nmrResidue])
 
     def showNmrChainFromPulldown(self, data=None):
         """Clear and redraw the nmrChain selected from the pulldown.
@@ -2438,6 +2610,7 @@ class SequenceGraphModule(CcpnModule):
         if nmrChainPid:
             with self.sceneBlocking():
                 self.setNmrChainDisplay(nmrChainPid)
+                self.nmrResidueList.setNmrResidueSelection([self.current.nmrResidue])
 
             # check whether to update self.current.nmrChain
             self._setCurrentNmrChain(nmrChainPid)
@@ -2638,47 +2811,27 @@ class SequenceGraphModule(CcpnModule):
             self.thisSequenceModule._initialiseChainLabels()
             return
 
-        if self.project.chains and self.project.chemicalShiftLists:
+        if self._chains:
+            if self._chemicalShiftList:
 
-            nmrResidues = nmrResidueList  # [item[0] for item in nmrResidueList]
+                nmrResidues = nmrResidueList  # [item[0] for item in nmrResidueList]
 
-            # _preds = [val for val in product(*self.nmrResidueList._nmrPredictions.values())]
-            # if _preds:
-            #     for chainNum, chain in enumerate(self.project.chains):
-            #         ress = [rr.residueType for rr in chain.residues]
+                checkDict = getAllSpinSystems(self.project, nmrResidues, self._chains, [self._chemicalShiftList])
 
-            # matchesDict = {}
-            # for chainNum, chain in enumerate(self.project.chains):
-            #     matchesDict[chainNum] = []
-            #     for chemList in self.project.chemicalShiftLists:
-            #         match = getSpinSystemsLocation(self.project, nmrResidues,
-            #                                        chain, chemList)
-            #         if match:
-            #             matchesDict[chainNum].append(match)
+                for chainNum in checkDict.keys():
 
-            checkDict = getAllSpinSystems(self.project, nmrResidues, self.project.chains, self.project.chemicalShiftLists)
+                    self.thisSequenceModule._clearStretches(chainNum)
+                    possibleMatches = checkDict[chainNum]
 
-            # if matchesDict != spins:
-            #     print('>>> DIFFERENT')
-            #     print('spins: \n{}'.format(spins))
+                    if possibleMatches:
+                        for chemList in possibleMatches:
+                            for possibleMatch in chemList:
+                                if possibleMatch[0] > 1 and not len(possibleMatch[1]) < len(nmrResidues):
+                                    self.thisSequenceModule._highlightPossibleStretches(chainNum, possibleMatch[1])
 
-            # checkDict = spins
-            for chainNum in checkDict.keys():
-
-                # possibleMatches = getSpinSystemsLocation(self.project, nmrResidues,
-                #                   self.project.chains[0], self.project.chemicalShiftLists[0])
-
-                self.thisSequenceModule._clearStretches(chainNum)
-                possibleMatches = checkDict[chainNum]
-
-                if possibleMatches:
-                    for chemList in possibleMatches:
-                        for possibleMatch in chemList:
-                            if possibleMatch[0] > 1 and not len(possibleMatch[1]) < len(nmrResidues):
-                                # if hasattr(self.application, 'sequenceModule'):
-                                # self.application.sequenceModule._highlightPossibleStretches(possibleMatch[1])
-
-                                self.thisSequenceModule._highlightPossibleStretches(chainNum, possibleMatch[1])
+            else:
+                for chNum, chain in enumerate(self._chains):
+                    self.thisSequenceModule._clearStretches(chNum)
 
     def _toggleSequence(self):
         if not self.sequenceCheckBox.isChecked():
@@ -2737,15 +2890,14 @@ class SequenceGraphModule(CcpnModule):
                                                   markPositions=self._SGwidget.checkBoxes['markPositions']['checkBox'].isChecked()
                                                   )
 
-    def _raiseContextMenu(self, obj, event: QtGui.QMouseEvent):
+    def _raiseContextMenu(self, obj, pos):
         """Creates and raises a context menu enabling items to be disconnected
         """
-        cursor = QtGui.QCursor()
-        contextMenu = Menu('', self, isFloatWidget=True)
+        contextMenu = Menu('', self.mainWindow, isFloatWidget=True)
 
-        pressed = self.scene.mouseGrabberItem()
+        pressed = obj  #.scene.mouseGrabberItem()
 
-        if isinstance(obj, AssignmentLine):  # self.selectedLine:
+        if isinstance(pressed, AssignmentLine):  # self.selectedLine:
             thisLine = pressed  #self.selectedLine
 
             if thisLine._peak and thisLine._peak.assignedNmrAtoms:
@@ -2764,41 +2916,44 @@ class SequenceGraphModule(CcpnModule):
                             else:
                                 contextMenu.addAction('(' + nmrAtom.id + ')', partial(self.deassignPeak, thisLine._peak, nmrAtom))
 
-                contextMenu.move(cursor.pos().x(), cursor.pos().y() + 10)
-                contextMenu.exec()
-                # contextMenu = None
+                contextMenu.move(pos.x(), pos.y() + 10)
+                contextMenu.exec_()
 
         elif isinstance(pressed, GuiNmrResidue):
 
-            # create the nmrResidue menu
-            self._disconnectPreviousActionMenu = contextMenu.addAction(self.disconnectPreviousIcon, 'disconnect Previous nmrResidue',
-                                                                       partial(self.disconnectPreviousNmrResidue))
-            self._disconnectActionMenu = contextMenu.addAction(self.disconnectIcon, 'disconnect nmrResidue', partial(self.disconnectNmrResidue))
-            self._disconnectNextActionMenu = contextMenu.addAction(self.disconnectNextIcon, 'disconnect Next nmrResidue',
-                                                                   partial(self.disconnectNextNmrResidue))
-            contextMenu.addSeparator()
-            self._disconnectAllActionMenu = contextMenu.addAction('disconnect all nmrResidues', partial(self.disconnectAllNmrResidues))
-            if obj.nmrResidue.residue:
+            try:
+                # create the nmrResidue menu
+                self._disconnectPreviousActionMenu = contextMenu.addAction(self.disconnectPreviousIcon, 'disconnect Previous nmrResidue',
+                                                                           partial(self.disconnectPreviousNmrResidue))
+                self._disconnectActionMenu = contextMenu.addAction(self.disconnectIcon, 'disconnect nmrResidue', partial(self.disconnectNmrResidue))
+                self._disconnectNextActionMenu = contextMenu.addAction(self.disconnectNextIcon, 'disconnect Next nmrResidue',
+                                                                       partial(self.disconnectNextNmrResidue))
                 contextMenu.addSeparator()
-                self._deassignNmrChainActionMenu = contextMenu.addAction('deassign nmrChain', partial(self.deassignNmrChain))
+                self._disconnectAllActionMenu = contextMenu.addAction('disconnect all nmrResidues', partial(self.disconnectAllNmrResidues))
+                if obj.nmrResidue.residue:
+                    contextMenu.addSeparator()
+                    self._deassignNmrChainActionMenu = contextMenu.addAction('deassign nmrChain', partial(self.deassignNmrChain))
 
-                assign = pressed.nmrResidue.residue is not None
-                self._deassignNmrChainActionMenu.setEnabled(assign)
+                    assign = pressed.nmrResidue.residue is not None
+                    self._deassignNmrChainActionMenu.setEnabled(assign)
 
-            contextMenu.addSeparator()
-            self._showActionMenu = contextMenu.addAction('Show nmrResidue', partial(self.showNmrResidue, obj))
+                contextMenu.addSeparator()
+                self._showActionMenu = contextMenu.addAction('Show nmrResidue', partial(self.showNmrResidue, obj))
 
-            prev = pressed.nmrResidue.previousNmrResidue is not None
-            nxt = pressed.nmrResidue.nextNmrResidue is not None
+                prev = pressed.nmrResidue.previousNmrResidue is not None
+                nxt = pressed.nmrResidue.nextNmrResidue is not None
 
-            self._disconnectPreviousActionMenu.setEnabled(prev)
-            self._disconnectActionMenu.setEnabled(prev or nxt)
-            self._disconnectNextActionMenu.setEnabled(nxt)
-            self._disconnectAllActionMenu.setEnabled(prev or nxt)
+                self._disconnectPreviousActionMenu.setEnabled(prev)
+                self._disconnectActionMenu.setEnabled(prev or nxt)
+                self._disconnectNextActionMenu.setEnabled(nxt)
+                self._disconnectAllActionMenu.setEnabled(prev or nxt)
 
-            contextMenu.move(cursor.pos().x(), cursor.pos().y() + 10)
-            contextMenu.exec()
-            # contextMenu = None
+                contextMenu.move(pos.x(), pos.y() + 10)
+                contextMenu.exec_()
+
+            except Exception as es:
+                print(str(es))
+
 
         elif isinstance(pressed, GuiNmrAtom):
 
@@ -2852,9 +3007,8 @@ class SequenceGraphModule(CcpnModule):
 
                 self._addPeaksToMenu(allAdjacentPeaks, contextMenu)
 
-                contextMenu.move(cursor.pos().x(), cursor.pos().y() + 10)
-                contextMenu.exec()
-                # contextMenu = None
+                contextMenu.move(pos.x(), pos.y() + 10)
+                contextMenu.exec_()
 
     def _addPeaksToMenu(self, allPeaks, contextMenu):
         for peak in allPeaks:
