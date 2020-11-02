@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-10-27 09:43:01 +0000 (Tue, October 27, 2020) $"
+__dateModified__ = "$dateModified: 2020-11-02 17:47:49 +0000 (Mon, November 02, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -229,8 +229,9 @@ class GuiNmrResidue(QtWidgets.QGraphicsSimpleTextItem):
             nmrItem = self
 
             if nmrItem:
-                makeDragEvent(event.widget(), {'pids': [nmrItem.nmrResidue.pid]}, [self.text()], self.text(), action=QtCore.Qt.MoveAction)
-                # makeDragEvent(event.widget(), {'pids': [nmrItem.nmrResidue.pid]}, [self.toPlainText()], self.toPlainText(), action=QtCore.Qt.MoveAction)
+                # align to the top-left corner so you can see the drop to the sequence module
+                makeDragEvent(event.widget(), {'pids': [nmrItem.nmrResidue.pid]}, [self.text()], self.text(),
+                              action=QtCore.Qt.MoveAction, alignCentre=False)
 
     def _mousePressEvent(self, event):
         self.current.nmrResidue = self.nmrResidue
@@ -667,12 +668,12 @@ class NmrResidueList():
 
     #==========================================================================================
 
-    def addNmrResidue(self, nmrChainId, nmrResidue, index=0, _insertNmrRes=True, spacing=66, residueAtoms=None):
+    def addNmrResidue(self, nmrChainId, nmrResidue, index=0, _insertNmrRes=True, spacing=66, residueAtoms=None, showPredictions=True, showSideChain=False):
         """Add a new nmrResidue at the required position.
         """
-        self._addNmrResidue(nmrChainId, nmrResidue, nmrResidueIndex=index, _insertNmrRes=_insertNmrRes, spacing=spacing, residueAtoms=residueAtoms)
+        self._addNmrResidue(nmrChainId, nmrResidue, nmrResidueIndex=index, _insertNmrRes=_insertNmrRes, spacing=spacing, residueAtoms=residueAtoms, showPredictions=showPredictions, showSideChain=showSideChain)
 
-    def _addNmrResidue(self, nmrChainId, nmrResidue, nmrResidueIndex=0, _insertNmrRes=True, spacing=66, residueAtoms=None):
+    def _addNmrResidue(self, nmrChainId, nmrResidue, nmrResidueIndex=0, _insertNmrRes=True, spacing=66, residueAtoms=None, showPredictions=True, showSideChain=False):
         """Takes an Nmr Residue, and adds a residue to the sequence graph
         corresponding to the Nmr Residue at the required index.
         Nmr Residue name displayed beneath CA of residue drawn and residue type predictions displayed
@@ -699,7 +700,7 @@ class NmrResidueList():
         self.addBackboneAtoms(nmrResidue, backboneAtoms, nmrAtomNames, guiAtoms)
 
         # add the sideChain atoms to self.guiNmrAtomDict[nmrAtoms]
-        if self._SGwidget.checkBoxes['showSideChain']['checkBox'].isChecked():
+        if showSideChain:
             if 'CB' in backboneAtoms and nmrResidue.residueType:
                 cbAtom = guiAtoms['CB']
                 self.addSideChainAtoms(nmrResidue, cbAtom, nmrAtomNames, guiAtoms)
@@ -727,7 +728,7 @@ class NmrResidueList():
         # self.allNmrResidues[nmrResidue][index] = (nmrResidue, guiAtoms)
 
         # compile a gui group for this nmrResidue - self.guiNmrResidues[nmrResidue
-        newGuiResidueGroup = self._assembleGroupResidue(nmrResidue, guiAtoms)
+        newGuiResidueGroup = self._assembleGroupResidue(nmrResidue, guiAtoms, showPredictions=showPredictions)
 
         return newGuiResidueGroup
 
@@ -838,7 +839,7 @@ class NmrResidueList():
 
     #==========================================================================================
 
-    def _assembleGroupResidue(self, nmrResidue: NmrResidue, guiAtoms: typing.Dict[str, GuiNmrAtom]):
+    def _assembleGroupResidue(self, nmrResidue: NmrResidue, guiAtoms: typing.Dict[str, GuiNmrAtom], showPredictions: bool = True):
         """Takes an Nmr Residue and a dictionary of atom names and GuiNmrAtoms and
         creates a graphical representation of a residue in the assigner
         """
@@ -871,7 +872,8 @@ class NmrResidueList():
                                        self._lineColour, self._lineConnectWidth,
                                        lineList=self.connectingLines, lineId=nmrResidue)
 
-        self._addGroupResiduePredictions(guiResidueGroup, nmrResidue, guiAtoms['CA'])
+        if showPredictions:
+            self._addGroupResiduePredictions(guiResidueGroup, nmrResidue, guiAtoms['CA'])
 
         return guiResidueGroup
 
@@ -986,19 +988,19 @@ class NmrResidueList():
 
         guiResidueGroup.nmrResidueLabel.setText(label)
 
-    def _updateGroupResiduePredictions(self):
+    def _updateGroupResiduePredictions(self, showPredictions):
         """Update predictions for residue type based on BMRB statistics and determines label positions
         based on caAtom position.
         """
         for guiRes in self.guiNmrResidues.values():
-            self._updateGroupResiduePrediction(guiRes)
+            self._updateGroupResiduePrediction(guiRes, showPredictions)
 
-    def _updateGroupResiduePrediction(self, guiResidue):
+    def _updateGroupResiduePrediction(self, guiResidue, showPredictions):
         """Update predictions for residue type based on BMRB statistics and determines label positions
         based on caAtom position.
         """
         label = guiResidue.nmrResidue.id
-        if self._module._chemicalShiftList:
+        if self._module._chemicalShiftList and showPredictions:
             predictions = list(set(getNmrResiduePrediction(guiResidue.nmrResidue, self._module._chemicalShiftList)))
             predictions.sort(key=lambda a: float(a[1][:-1]), reverse=True)
 
@@ -1696,7 +1698,7 @@ class SequenceGraphModule(CcpnModule):
         self.thisSequenceModule = SequenceModule(moduleParent=self,
                                                  parent=self._sequenceModuleFrame,
                                                  mainWindow=mainWindow,
-                                                 chains=None)
+                                                 chains=self.project.chains)  # must match the chin selection below
 
         self.colours = getColours()
         self._lineColour = self.colours[SEQUENCEGRAPHMODULE_LINE]
@@ -1713,42 +1715,56 @@ class SequenceGraphModule(CcpnModule):
         self.splitter.setChildrenCollapsible(False)
 
         # add the settings widgets defined from the following orderedDict - test for refactored
-        settingsDict = OrderedDict((('peakAssignments', {'label'   : 'Show peak assignments:',
+        settingsDict = OrderedDict((('chains', {'label'   : '',
+                                                'tipText' : '',
+                                                'callBack': self.showShiftListPulldown,
+                                                'enabled' : True,
+                                                '_init'   : None,
+                                                'type'    : ChemicalShiftListPulldown
+                                                }),
+                                    ('showPredictions', {'label'   : 'Show Predictions',
+                                                         'tipText' : 'Show predictions and calculate predicted sequences.',
+                                                         'callBack': self.showPredictions,
+                                                         'enabled' : True,
+                                                         'checked' : True,
+                                                         '_init'   : None,
+                                                         }),
+                                    ('peakAssignments', {'label'   : 'Show peak assignments',
                                                          'tipText' : 'Show peak assignments on display coloured by positiveContourColour.',
                                                          'callBack': self.showNmrChainFromPulldown,
                                                          'enabled' : True,
                                                          'checked' : True,
                                                          '_init'   : None,
                                                          }),
-                                    ('treeView', {'label'   : 'Tree view:',
+                                    ('treeView', {'label'   : 'Tree view',
                                                   'tipText' : 'Show peak assignments as a tree below the main backbone.',
                                                   'callBack': None,  #self._updateShowTreeAssignments,
                                                   'enabled' : False,
                                                   'checked' : False,
                                                   '_init'   : None,  #self._updateShowTreeAssignments,
                                                   }),
-                                    ('showSideChain', {'label'   : 'Show side chain:',
+                                    ('showSideChain', {'label'   : 'Show side chain',
                                                        'tipText' : 'Show side chain atoms and connections above the main chain.',
                                                        'callBack': None,  #self.showNmrChainFromPulldown,
                                                        'enabled' : False,
                                                        'checked' : False,
                                                        '_init'   : None,
                                                        }),
-                                    ('sequentialStrips', {'label'   : 'Show sequential strips:',
+                                    ('sequentialStrips', {'label'   : 'Show sequential strips',
                                                           'tipText' : 'Show nmrResidue in all strips.',
                                                           'callBack': None,  #self.showNmrChainFromPulldown,
                                                           'enabled' : True,
                                                           'checked' : False,
                                                           '_init'   : None,
                                                           }),
-                                    ('markPositions', {'label'   : 'Mark positions:',
+                                    ('markPositions', {'label'   : 'Mark positions',
                                                        'tipText' : 'Mark positions in all strips.',
                                                        'callBack': None,  #self.showNmrChainFromPulldown,
                                                        'enabled' : True,
                                                        'checked' : True,
                                                        '_init'   : None,
                                                        }),
-                                    ('autoClearMarks', {'label'   : 'Auto clear marks:',
+                                    ('autoClearMarks', {'label'   : 'Auto clear marks',
                                                         'tipText' : 'Auto clear all previous marks',
                                                         'callBack': None,
                                                         'enabled' : True,
@@ -1856,13 +1872,15 @@ class SequenceGraphModule(CcpnModule):
         self.disconnectNextIcon = Icon('icons/disconnectNext')
         # self.disconnectNextAction.setIcon(self.disconnectNextIcon)
 
-        self.shiftListPulldown = ChemicalShiftListPulldown(self._MWwidget, self.mainWindow, grid=(1, 0), gridSpan=(1, 1),
-                                                           showSelectName=True,
-                                                           # fixedWidths=(colwidth, colwidth, colwidth),
-                                                           callback=self.showShiftListPulldown)
+        # self.shiftListPulldown = ChemicalShiftListPulldown(self._MWwidget, self.mainWindow, grid=(1, 0), gridSpan=(1, 1),
+        #                                                    showSelectName=True,
+        #                                                    # fixedWidths=(colwidth, colwidth, colwidth),
+        #                                                    callback=self.showShiftListPulldown)
 
-        self._chains = []
-        self._chemicalShiftList = None
+        self.shiftListPulldown = self._SGwidget.checkBoxes['chains']['pulldownList']
+
+        self._chains = self.project.chains  # this must match the sequence module init and the chains pulldown init
+        self._chemicalShiftList = self.project.chemicalShiftLists[0] if self.project.chemicalShiftLists else None
 
         # add mouse handler for the QGraphicsLineItems
         self._preMouserelease = self.scene.mouseReleaseEvent
@@ -2202,6 +2220,8 @@ class SequenceGraphModule(CcpnModule):
 
         # print('>>>_updateNmrResidues', nmrResidue)
         trigger = data[Notifier.TRIGGER]
+        showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
+        showSideChain = self._SGwidget.checkBoxes['showSideChain']['checkBox'].isChecked()
 
         with self.sceneBlocking():
             if trigger == Notifier.DELETE:
@@ -2209,15 +2229,16 @@ class SequenceGraphModule(CcpnModule):
                 self._deleteNmrResidues(nmrResidue)
 
             elif trigger == Notifier.CREATE:
+
                 # print('>>>create nmrResidue', nmrResidue)
-                if not self._createNmrResidues(nmrResidue):
+                if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
                     # print('>>>error? redraw list')
                     # self.setNmrChainDisplay(self.nmrChain)
                     pass
 
             elif trigger == Notifier.RENAME:
                 oldPid = data[Notifier.OLDPID]
-                self._renameNmrResidue(nmrResidue, oldPid)
+                self._renameNmrResidue(nmrResidue, oldPid, showPredictions)
 
             # elif trigger == Notifier.CHANGE:
             #     print('>>>change nmrResidue - no action', nmrResidue)
@@ -2231,16 +2252,19 @@ class SequenceGraphModule(CcpnModule):
         nmrResidue = data[Notifier.OBJECT]
         try:
             with self.sceneBlocking():
+                showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
+                showSideChain = self._SGwidget.checkBoxes['showSideChain']['checkBox'].isChecked()
+
                 if nmrResidue in self.nmrChain.nmrResidues and nmrResidue not in self.nmrResidueList.guiNmrResidues:
                     # print('>>>change nmrResidue - create', nmrResidue)
-                    if not self._createNmrResidues(nmrResidue):
+                    if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
                         # print('>>>error? redraw list')
                         # self.setNmrChainDisplay(self.nmrChain)
                         pass
 
                 elif nmrResidue in self.nmrResidueList.guiNmrResidues and nmrResidue not in self.nmrChain.nmrResidues:
                     # not in chain, but in residues as other chain
-                    self._deleteGuiNmrResidues(nmrResidue)
+                    self._deleteGuiNmrResidues(nmrResidue, showPredictions)
                     # self._deleteNmrResidues(nmrResidue)
 
                 else:
@@ -2248,8 +2272,8 @@ class SequenceGraphModule(CcpnModule):
 
                     # this is the event that fires on a name change
                     # self._deleteBadNmrResidues(nmrResidue)
-                    self._deleteNmrResidues(nmrResidue)
-                    if not self._createNmrResidues(nmrResidue):
+                    self._deleteNmrResidues(nmrResidue, showPredictions)
+                    if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
                         # print('>>>error? redraw list')
                         # self.setNmrChainDisplay(self.nmrChain)
                         pass
@@ -2276,17 +2300,17 @@ class SequenceGraphModule(CcpnModule):
                 # print('>>>create nmrAtom', nmrAtom)
                 self.nmrResidueList.createNmrAtoms(nmrAtom)
 
-    def _renameNmrResidue(self, nmrResidue, oldPid: str):
+    def _renameNmrResidue(self, nmrResidue, oldPid: str, showPredictions):
         """Reset pid for NmrResidue and all offset NmrResidues
         """
 
         with self.sceneBlocking():
             if nmrResidue in self.nmrResidueList.guiNmrResidues:
                 # self.nmrResidueList.guiNmrResidues[nmrResidue].nmrResidueLabel._update()
-                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiNmrResidues[nmrResidue])
+                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiNmrResidues[nmrResidue], showPredictions)
             if nmrResidue in self.nmrResidueList.guiGhostNmrResidues:
                 # self.nmrResidueList.guiGhostNmrResidues[nmrResidue].nmrResidueLabel._update()
-                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiGhostNmrResidues[nmrResidue])
+                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiGhostNmrResidues[nmrResidue], showPredictions)
 
             self.nmrResidueList.setNmrResidueSelection([self.current.nmrResidue])
 
@@ -2298,7 +2322,7 @@ class SequenceGraphModule(CcpnModule):
             #             if guiNmrResidueGroup.nmrResidue is nr:
             #                 guiNmrResidueGroup.nmrResidueLabel._update()
 
-    def _createNmrResidues(self, nmrResidues):
+    def _createNmrResidues(self, nmrResidues, showPredictions=True, showSideChain=False):
         """Create new nmrResidues in the scene
         """
         # print('>>>_createNmrResidues')
@@ -2309,7 +2333,7 @@ class SequenceGraphModule(CcpnModule):
         for nmrChainId in self.nmrResidueList.nmrChains.keys():
             thisResList = [nmrResidue for nmrResidue in nmrResidues if nmrResidue.nmrChain.pid == nmrChainId]
             if thisResList:
-                self._buildNmrResidues(nmrChainId, thisResList)
+                self._buildNmrResidues(nmrChainId, thisResList, showPredictions=showPredictions, showSideChain=showSideChain)
 
         return True
 
@@ -2398,7 +2422,7 @@ class SequenceGraphModule(CcpnModule):
             if nmrAtom in self.nmrResidueList.guiNmrAtoms:
                 del self.nmrResidueList.guiNmrAtoms[nmrAtom]
 
-    def _deleteGuiNmrResidues(self, nmrResidues):
+    def _deleteGuiNmrResidues(self, nmrResidues, showPredictions):
         """Delete items from an old nmrResidue.
         """
         # print('>>>_deleteGuiNmrResidues')
@@ -2413,7 +2437,7 @@ class SequenceGraphModule(CcpnModule):
             thisResList = [nmrResidue for nmrResidue in nmrList if nmrResidue.nmrChain.pid == nmrChainId]
             if thisResList:
                 # update the prediction in the sequenceModule
-                self.predictSequencePosition(thisResList)
+                self.predictSequencePosition(thisResList, showPredictions)
 
             # put all the guiResidueGroups in the correct positions
             self.nmrResidueList.updateGuiResiduePositions(nmrChainId, updateMainChain=True, updateConnectedChains=True)
@@ -2428,7 +2452,7 @@ class SequenceGraphModule(CcpnModule):
                 except:
                     pass
 
-    def _buildNmrResidues(self, nmrChainId, nmrResidueList):
+    def _buildNmrResidues(self, nmrChainId, nmrResidueList, showPredictions=True, showSideChain=False):
         """Build the new residues in the list, inserting into the predicted stretch at the correct index.
         """
         # print('>>>  _buildNmrResidues')
@@ -2467,7 +2491,8 @@ class SequenceGraphModule(CcpnModule):
                 for ii, nmrRes in enumerate(newResSet):
                     # do not _insertNmrRes as the list is built
                     self.nmrResidueList.addNmrResidue(nmrChainId, nmrRes, ii, _insertNmrRes=False,
-                                                      spacing=self.atomSpacing, residueAtoms=self.DEFAULT_RESIDUE_ATOMS)
+                                                      spacing=self.atomSpacing, residueAtoms=self.DEFAULT_RESIDUE_ATOMS,
+                                                      showPredictions=showPredictions, showSideChain=showSideChain)
 
         # add the connecting lines
         # guiNmrResidues = [self.guiNmrResidues[nmrResidue] for nmrResidue in nmrResidueList if nmrResidue is nmrResidue.mainNmrResidue]
@@ -2478,7 +2503,7 @@ class SequenceGraphModule(CcpnModule):
         self.nmrResidueList.rebuildNmrResidues(nmrResidueList)
 
         # update the prediction in the sequenceModule
-        self.predictSequencePosition(self.nmrResidueList.nmrChains[nmrChainId])
+        self.predictSequencePosition(self.nmrResidueList.nmrChains[nmrChainId], showPredictions)
 
         return True
 
@@ -2497,7 +2522,7 @@ class SequenceGraphModule(CcpnModule):
     # from ccpn.util.decorators import profile
     #
     # @profile
-    def setNmrChainDisplay(self, nmrChainOrPid):
+    def setNmrChainDisplay(self, nmrChainOrPid, showPredictions=True, showSideChain=False):
 
         # print('>>>setNmrChainDisplay')
 
@@ -2550,7 +2575,8 @@ class SequenceGraphModule(CcpnModule):
             # add the nmrResidues to the scene
             for ii, nmrRes in enumerate(nmrList):
                 self.nmrResidueList.addNmrResidue(thisChainId, nmrRes, index=ii,
-                                                  spacing=self.atomSpacing, residueAtoms=self.DEFAULT_RESIDUE_ATOMS)
+                                                  spacing=self.atomSpacing, residueAtoms=self.DEFAULT_RESIDUE_ATOMS,
+                                                  showPredictions=showPredictions, showSideChain=showSideChain)
 
             # add the connecting lines
             self.nmrResidueList.addConnectionsBetweenGroups(thisChainId)
@@ -2563,7 +2589,7 @@ class SequenceGraphModule(CcpnModule):
 
             # update the prediction in the sequenceModule
             for thisChainId in self.nmrResidueList.nmrChains.values():
-                self.predictSequencePosition(thisChainId)
+                self.predictSequencePosition(thisChainId, showPredictions)
 
             # self.mainWidget.setVisible(True)
 
@@ -2571,35 +2597,40 @@ class SequenceGraphModule(CcpnModule):
         """Respond to a change in the chains list
         """
         objs = self._SGwidget.chainsWidget._getObjects()
-        # print('>>> chains changed {}'.format('\n'.join([str(obj) for obj in objs])))
+        showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
 
         self._chains = objs
         self.thisSequenceModule.setChains(objs)
 
         # update the prediction in the sequenceModule
         for thisChainId in self.nmrResidueList.nmrChains.values():
-            self.predictSequencePosition(thisChainId)
+            self.predictSequencePosition(thisChainId, showPredictions)
 
-    def showShiftListPulldown(self, data=None):
+    def showShiftListPulldown(self, data=None, chains=None):
         """Clear and redraw the nmrChain selected from the pulldown.
         """
         # recalculate probabilities/predicted sequences if needed
 
         shiftListPid = self.shiftListPulldown.getText()
         if shiftListPid:
-            objs = self._SGwidget.chainsWidget._getObjects()
-            # print('>>> chains {}'.format('\n'.join([str(obj) for obj in objs])))
+            objs = chains or self._SGwidget.chainsWidget._getObjects()
+            showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
 
             self._chemicalShiftList = self.project.getByPid(shiftListPid)
 
             # update sequence graph predictions
-            self.nmrResidueList._updateGroupResiduePredictions()
+            self.nmrResidueList._updateGroupResiduePredictions(showPredictions)
 
             # update the prediction in the sequenceModule
             for thisChainId in self.nmrResidueList.nmrChains.values():
-                self.predictSequencePosition(thisChainId)
+                self.predictSequencePosition(thisChainId, showPredictions)
 
             self.nmrResidueList.setNmrResidueSelection([self.current.nmrResidue])
+
+    def showPredictions(self, data=None):
+        """Show predictions and calculate predicted sequences
+        """
+        self.showNmrChainFromPulldown(data)
 
     def showNmrChainFromPulldown(self, data=None):
         """Clear and redraw the nmrChain selected from the pulldown.
@@ -2608,8 +2639,11 @@ class SequenceGraphModule(CcpnModule):
 
         nmrChainPid = self.nmrChainPulldown.getText()
         if nmrChainPid:
+            showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
+            showSideChain = self._SGwidget.checkBoxes['showSideChain']['checkBox'].isChecked()
+
             with self.sceneBlocking():
-                self.setNmrChainDisplay(nmrChainPid)
+                self.setNmrChainDisplay(nmrChainPid, showPredictions=showPredictions, showSideChain=showSideChain)
                 self.nmrResidueList.setNmrResidueSelection([self.current.nmrResidue])
 
             # check whether to update self.current.nmrChain
@@ -2802,12 +2836,12 @@ class SequenceGraphModule(CcpnModule):
                      "}" % (noFocusColour, focusColour)
         self.scrollContents.setStyleSheet(styleSheet)
 
-    def predictSequencePosition(self, nmrResidueList: list):
+    def predictSequencePosition(self, nmrResidueList: list, showPredictions=True):
         """
         Predicts sequence position for Nmr residues displayed in the Assigner and highlights appropriate
         positions in the Sequence Module if it is displayed.
         """
-        if len(nmrResidueList) < 3:
+        if len(nmrResidueList) < 3 or not showPredictions:
             self.thisSequenceModule._initialiseChainLabels()
             return
 

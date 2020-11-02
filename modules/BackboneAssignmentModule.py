@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-09-22 09:32:48 +0100 (Tue, September 22, 2020) $"
+__dateModified__ = "$dateModified: 2020-11-02 17:47:49 +0000 (Mon, November 02, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -295,6 +295,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
             nr = nmrResidue.mainNmrResidue
             targetDisplays = self._getTargetDisplays()
+            matchDisplays = self._getMatchDisplays()
 
             # navigate the displays
             for display in displays:
@@ -379,6 +380,19 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
             if self.matchCheckBoxWidget.isChecked():
                 self.findAndDisplayMatches(nmrResidue)
+
+            # align the display modules to the match module
+            for display in targetDisplays:
+                # align to the match module
+                for dp in matchDisplays:
+                    if dp.strips:
+                        axisCode = dp.strips[0].axisCodes[1]
+                        posPos = dp.strips[0].getAxisPosition(axisCode=axisCode)
+                        posWidth = dp.strips[0].getAxisWidth(axisCode=axisCode)
+                        for dpStrip in display.strips:
+                            axisCode = dpStrip.axisCodes[1]
+                            dpStrip.setAxisPosition(axisCode=axisCode, position=posPos)
+                            dpStrip.setAxisWidth(axisCode=axisCode, width=posWidth)
 
             # # update current (should trigger SequenceGraph)
             # self.application.current.nmrChain = nmrResidue.nmrChain
@@ -552,7 +566,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                     # assume that it is the only one
                                     nmrResidue.nmrChain.assignSingleResidue(nmrResidue, droppedNmrResidue.residue.nextResidue)
                                 else:
-                                    nmrResidue.nmrChain.assignConnectedResidues(droppedNmrResidue.residue.nexResidue)
+                                    nmrResidue.nmrChain.assignConnectedResidues(droppedNmrResidue.residue.nextResidue)
 
                             matchNmrResidue = droppedNmrResidue.getOffsetNmrResidue(offset=-1)
                             if matchNmrResidue is None:
@@ -616,38 +630,38 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         GLSignals = GLNotifier(parent=self)
         GLSignals.emitEvent(triggers=[GLNotifier.GLMARKS])
 
-    def _centreStripForNmrResidue(self, nmrResidue, strip):
-        """
-        Centre y-axis of strip based on chemical shifts of from NmrResidue.nmrAtoms
-        """
-        if not nmrResidue:
-            getLogger().warning('No NmrResidue specified')
-            return
-
-        if not strip:
-            getLogger().warning('No Strip specified')
-            return
-
-        yShifts = matchAxesAndNmrAtoms(strip, nmrResidue.nmrAtoms)[strip.axisOrder[1]]
-        yShiftValues = [x.value for x in yShifts]
-        if yShiftValues:
-            yPosition = (max(yShiftValues) + min(yShiftValues)) / 2
-            yWidth = max(yShiftValues) - min(yShiftValues) + 10
-            strip.orderedAxes[1].position = yPosition
-            if strip._CcpnGLWidget.aspectRatioMode == 0:
-                strip.orderedAxes[1].width = yWidth
-
-            try:
-                axisCode = strip.axisCodes[1]
-                if strip._CcpnGLWidget.aspectRatioMode == 0:
-                    strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPosition, update=False)
-                    strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yWidth, update=False)
-                    strip._CcpnGLWidget._rescaleAllAxis()
-                else:
-                    strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPosition, update=True)
-
-            except Exception as es:
-                getLogger().debugGL('OpenGL widget not instantiated')
+    # def _centreStripForNmrResidue(self, nmrResidue, strip):
+    #     """
+    #     Centre y-axis of strip based on chemical shifts of from NmrResidue.nmrAtoms
+    #     """
+    #     if not nmrResidue:
+    #         getLogger().warning('No NmrResidue specified')
+    #         return
+    #
+    #     if not strip:
+    #         getLogger().warning('No Strip specified')
+    #         return
+    #
+    #     yShifts = matchAxesAndNmrAtoms(strip, nmrResidue.nmrAtoms)[strip.axisOrder[1]]
+    #     yShiftValues = [x.value for x in yShifts]
+    #     if yShiftValues:
+    #         yPosition = (max(yShiftValues) + min(yShiftValues)) / 2
+    #         yWidth = max(yShiftValues) - min(yShiftValues) + 10
+    #         strip.orderedAxes[1].position = yPosition
+    #         if strip._CcpnGLWidget.aspectRatioMode == 0:
+    #             strip.orderedAxes[1].width = yWidth
+    #
+    #         try:
+    #             axisCode = strip.axisCodes[1]
+    #             if strip._CcpnGLWidget.aspectRatioMode == 0:
+    #                 strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPosition, update=False)
+    #                 strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yWidth, update=False)
+    #                 strip._CcpnGLWidget._rescaleAllAxis()
+    #             else:
+    #                 strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPosition, update=True)
+    #
+    #         except Exception as es:
+    #             getLogger().debugGL('OpenGL widget not instantiated')
 
     def _centreCcpnStripsForNmrResidue(self, nmrResidue, strips):
         """
@@ -673,6 +687,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             # original strips match axes
             strips[0].orderedAxes[1].position = yPosition
             if strips[0]._CcpnGLWidget.aspectRatioMode == 0:
+                # set the width in the api
                 strips[0].orderedAxes[1].width = yWidth
 
             try:
@@ -683,6 +698,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                     # adjust the position of the strip to be clear of the new headers
 
                     if firstStrip is None:
+                        # first letter of axisCode
                         minPpm = 1.0 if axisCode[0] not in _minPpmWidths else _minPpmWidths[axisCode[0]]
 
                         yPixel = max(yWidth, minPpm) / strip._CcpnGLWidget.height()
