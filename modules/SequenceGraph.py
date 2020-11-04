@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-11-02 17:47:49 +0000 (Mon, November 02, 2020) $"
+__dateModified__ = "$dateModified: 2020-11-04 13:35:45 +0000 (Wed, November 04, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -402,6 +402,7 @@ class GuiNmrResidueGroup(QtWidgets.QGraphicsItemGroup):
         self.setPos(pos, 0.0)
         self.crossChainCount = None
         self.crossChainResidue = None
+        self.connected = None
 
         self.nmrResidueLabel = GuiNmrResidue(parent, nmrResidue, caAtom, lineSpacing)
         self.addToGroup(self.nmrResidueLabel)
@@ -872,6 +873,8 @@ class NmrResidueList():
                                        self._lineColour, self._lineConnectWidth,
                                        lineList=self.connectingLines, lineId=nmrResidue)
 
+        self.addConnectionsBetweenAllGroups(nmrResidue.nmrChain.pid)
+
         if showPredictions:
             self._addGroupResiduePredictions(guiResidueGroup, nmrResidue, guiAtoms['CA'])
 
@@ -923,7 +926,7 @@ class NmrResidueList():
 
     def _addConnectingLineToGroup(self, group: GuiNmrResidueGroup, guiAtom1: GuiNmrAtom, guiAtom2: GuiNmrAtom,
                                   colour: str, width: float, displacement: float = None, style: str = None,
-                                  peak: Peak = None, lineList=None, lineId=typing.Any):
+                                  peak: Peak = None, lineList=None, lineId=typing.Any, zValue=-1):
         """Adds a line between two GuiNmrAtoms using the width, colour, displacement and style specified.
         """
         itemKey = id(lineId)
@@ -941,36 +944,67 @@ class NmrResidueList():
                                      guiAtom1=guiAtom1, guiAtom2=guiAtom2, displacement=displacement)
 
             newLine.setParentItem(group)
-            newLine.setZValue(-1)
+            newLine.setZValue(zValue)
 
             lineList[itemKey].append(newLine)
             return newLine
 
-    def addConnectionsBetweenGroups(self, nmrChainId):
+    def addConnectionsBetweenAllGroups(self, nmrChainId):
         """Add the connections between the groups.
         """
-        # connectsNeeded = self._module.nmrResiduesCheckBox.isChecked()     # why was this here?
-
-        # mainNmrResidues = self.nmrChain.mainNmrResidues
         # get the list of nmrResidues in the required nmrChain referenced by nmrChainId
         mainNmrResidues = self.nmrChains[nmrChainId] if nmrChainId in self.nmrChains else []  #[resPair[0] for resPair in self.nmrChains[nmrChainId]]
 
         # iterate through the adjacent pairs
         for prevRes, thisRes in zip(mainNmrResidues[:-1], mainNmrResidues[1:]):
 
-            # add the connection the minus residue and point to the right - may need to change for +1 residues
-            # prevRes, prevGuiAtoms = prev
-            # thisRes, thisGuiAtoms = this
-            prevGuiAtoms = self.guiNmrAtomsFromNmrResidue[prevRes]
-            thisGuiAtoms = self.guiNmrAtomsFromNmrResidue[thisRes]
+            thisGroup = self.guiNmrResidues[prevRes]
+            if thisGroup.connected:
+                continue
 
-            if (prevRes.nextNmrResidue and prevRes.nextNmrResidue is thisRes):  # and connectsNeeded:
-                # connect from this 'N' to the previous 'C'
-                self._addConnectingLineToGroup(self.guiNmrResidues[prevRes],
-                                               prevGuiAtoms['C'], thisGuiAtoms['N'],
-                                               self._lineColour, self._lineConnectWidth,
-                                               lineList=self.connectingLines,
-                                               lineId=thisRes)
+            # add the connection the minus residue and point to the right - may need to change for +1 residues
+            if prevRes in self.guiNmrAtomsFromNmrResidue and thisRes in self.guiNmrAtomsFromNmrResidue:
+                prevGuiAtoms = self.guiNmrAtomsFromNmrResidue[prevRes]
+                thisGuiAtoms = self.guiNmrAtomsFromNmrResidue[thisRes]
+
+                if (prevRes.nextNmrResidue and prevRes.nextNmrResidue is thisRes):  # and connectsNeeded:
+                    # connect from the previous 'C' to this 'N'
+                    thisGroup.connected = self._addConnectingLineToGroup(thisGroup,
+                                                                         prevGuiAtoms['C'], thisGuiAtoms['N'],
+                                                                         self._lineColour, self._lineConnectWidth,
+                                                                         lineList=self.connectingLines,
+                                                                         lineId=thisRes,
+                                                                         zValue=-3)
+
+    # def addConnectionsBetweenGroups(self, nmrResidue):
+    #     """Add a single connection to the right of a group
+    #     """
+    #     # connectsNeeded = self._module.nmrResiduesCheckBox.isChecked()     # why was this here?
+    #
+    #     resList = ((nmrResidue.previousNmrResidue, nmrResidue), (nmrResidue, nmrResidue.nextNmrResidue))
+    #
+    #     for (prevRes, thisRes) in resList:
+    #         if prevRes and thisRes:
+    #             thisGroup = self.guiNmrResidues[prevRes]
+    #             if thisGroup and not thisGroup.connected:
+    #                 # add the connection the minus residue and point to the right - may need to change for +1 residues
+    #                 # prevRes, prevGuiAtoms = prev
+    #                 # thisRes, thisGuiAtoms = this
+    #                 try:
+    #                     prevGuiAtoms = self.guiNmrAtomsFromNmrResidue[prevRes]
+    #                     thisGuiAtoms = self.guiNmrAtomsFromNmrResidue[thisRes]
+    #                     thisGroup = self.guiNmrResidues[prevRes]
+    #
+    #                     if (prevRes.nextNmrResidue and prevRes.nextNmrResidue is thisRes) and not thisGroup.connected:  # and connectsNeeded:
+    #                         # connect from this 'N' to the previous 'C'
+    #                         thisGroup.connected = self._addConnectingLineToGroup(self.guiNmrResidues[prevRes],
+    #                                                        prevGuiAtoms['C'], thisGuiAtoms['N'],
+    #                                                        self._lineColour, self._lineConnectWidth,
+    #                                                        lineList=self.connectingLines,
+    #                                                        lineId=thisRes,
+    #                                                        zValue=-3)
+    #                 except:
+    #                     pass
 
     #==========================================================================================
 
@@ -2578,8 +2612,8 @@ class SequenceGraphModule(CcpnModule):
                                                   spacing=self.atomSpacing, residueAtoms=self.DEFAULT_RESIDUE_ATOMS,
                                                   showPredictions=showPredictions, showSideChain=showSideChain)
 
-            # add the connecting lines
-            self.nmrResidueList.addConnectionsBetweenGroups(thisChainId)
+            # # add the connecting lines
+            # self.nmrResidueList.addConnectionsBetweenAllGroups(thisChainId)
 
             # add the peakAssignment lines
             self.nmrResidueList._addAllPeakAssignments(thisChainId)
