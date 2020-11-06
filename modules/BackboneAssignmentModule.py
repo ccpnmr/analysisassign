@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-11-06 12:03:49 +0000 (Fri, November 06, 2020) $"
+__dateModified__ = "$dateModified: 2020-11-06 14:12:04 +0000 (Fri, November 06, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -216,7 +216,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             if len(dGids) == 0: return displays
 
             matchGids = self.matchWidget.getText()  # gid of the match module
-            targetGids = self.targetWidget.getText()         # gid of the targets module - don't discard for the minute
+            targetGids = self.targetWidget.getText()  # gid of the targets module - don't discard for the minute
 
             if ALL in dGids:
                 displays = [dp for dp in self.application.ui.mainWindow.spectrumDisplays if dp.pid not in (matchGids, targetGids)]
@@ -301,8 +301,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             targetDisplays = self._getTargetDisplays()
             matchDisplays = self._getMatchDisplays()
 
-            # navigate to the other displays - not matchDisplay or targetDisplay
-            for display in displays:
+            # navigate to the other displays - not matchDisplay
+            for display in (displays + targetDisplays):
 
                 display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
 
@@ -670,50 +670,31 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         yShifts = matchAxesAndNmrAtoms(strips[0], nmrResidue.nmrAtoms)[strips[0].axisOrder[1]]
         yShiftValues = [x.value for x in yShifts]
-        if yShiftValues:
 
+        if yShiftValues:
             _minPpmWidths = {'H': 0.5, 'C': 8.0, 'N': 2.0}  # based on standard ratios
 
             yPosition = (max(yShiftValues) + min(yShiftValues)) / 2
             yWidth = max(yShiftValues) - min(yShiftValues)
 
-            # original strips match axes
-            strips[0].orderedAxes[1].position = yPosition
-            if strips[0]._CcpnGLWidget.aspectRatioMode == 0:
-                # set the width in the api
-                strips[0].orderedAxes[1].width = yWidth
+            EXTRAWIDTH = 130
+            EXTRAOFFSET = 90
 
-            try:
-                axisCode = strips[0].axisCodes[1]
+            axisCode = strips[0].axisCodes[1]
+            yHeight = strips[0]._CcpnGLWidget.mainViewHeight() or 1
 
-                firstStrip = None
-                for strip in strips:
-                    # adjust the position of the strip to be clear of the new headers
+            minPpm = 1.0 if axisCode[0] not in _minPpmWidths else _minPpmWidths[axisCode[0]]
 
-                    if firstStrip is None:
-                        # first letter of axisCode
-                        minPpm = 1.0 if axisCode[0] not in _minPpmWidths else _minPpmWidths[axisCode[0]]
+            # add increase of 100 pixels
+            dY = max(yWidth, minPpm) / max(1, (yHeight - EXTRAWIDTH))
 
-                        yPixel = max(yWidth, minPpm) / strip._CcpnGLWidget.height()
-                        yPos = yPosition - (40 * yPixel)
-                        yW = max(yWidth, minPpm) + (140 * yPixel)
-                        # firstStrip = yPos, yW
-                    else:
-                        yPos, yW = firstStrip
+            # add offset for the top, and extra height
+            yPos = yPosition - (EXTRAOFFSET - (EXTRAWIDTH / 2)) * dY
+            yW = max(yWidth, minPpm) + EXTRAWIDTH * dY
 
-                    strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, rescale=False, update=False)
-                    strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yW, rescale=True, update=True)
-
-                # strip[0].spectrumDisplay.rightGLAxis.setAxisPosition(axisCode=axisCode, position=yPos, update=False)
-                # strip[0].spectrumDisplay.rightGLAxis.setAxisWidth(axisCode=axisCode, width=yW, update=False)
-
-                # from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
-                #
-                # GLSignals = GLNotifier(parent=self)
-                # GLSignals.emitPaintEvent()
-
-            except Exception as es:
-                getLogger().debugGL('OpenGL widget not instantiated')
+            # this should rescale all in spectrumDisplay
+            strips[0]._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, rescale=False, update=False)
+            strips[0]._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yW, rescale=True, update=True)
 
     def _setupShiftDicts(self, *args):
         """
