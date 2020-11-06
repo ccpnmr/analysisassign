@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-11-06 15:09:00 +0000 (Fri, November 06, 2020) $"
+__dateModified__ = "$dateModified: 2020-11-06 16:01:07 +0000 (Fri, November 06, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -58,6 +58,8 @@ MAXMATCHES = 7
 DEFAULTMATCHES = 2
 STRIPBACKBONE = 'backboneAssignment'
 MARKCONNECTED = False
+EXTRAWIDTH = 150
+EXTRAOFFSET = 100
 
 
 class BackboneAssignmentModule(NmrResidueTableModule):
@@ -331,6 +333,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                     #         strip.header.handle = STRIPBACKBONE
                     #         strip.header.headerVisible = True
                     strips[0].spectrumDisplay.setColumnStretches(True)
+                    # need better way to make sure that the floating axis updates
                     strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
             # navigate to the targetDisplays
@@ -339,6 +342,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
 
                 if len(display.strips) > 0:
+
+                    ignoreAxes = [False, True, False, False, False]
 
                     newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
                     strips = navigateToNmrResidueInDisplay(nr, display, stripIndex=0,
@@ -405,16 +410,16 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if matchDisplays and matchDisplays[0].strips:
             # get the current position/width of the first match display
             matchAxisCode = matchDisplays[0].strips[0].axisCodes[1]
-            matchPosPos = matchDisplays[0].strips[0].getAxisPosition(axisCode=matchAxisCode)
-            matchPosWidth = matchDisplays[0].strips[0].getAxisWidth(axisCode=matchAxisCode)
+            matchPos = matchDisplays[0].strips[0].getAxisPosition(axisCode=matchAxisCode)
+            matchWidth = matchDisplays[0].strips[0].getAxisWidth(axisCode=matchAxisCode)
 
             for target in targetDisplays:
                 # align to the match module
                 for tgStrip in target.strips:
                     axisCode = tgStrip.axisCodes[1]
-                    tgStrip.setAxisPosition(axisCode=axisCode, position=matchPosPos, rescale=False, update=False)
-                    tgStrip.setAxisWidth(axisCode=axisCode, width=matchPosWidth, rescale=True, update=(tgStrip == target.strips[-1]))
-                # target.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
+                    tgStrip.setAxisPosition(axisCode=axisCode, position=matchPos, rescale=False, update=False)
+                    tgStrip.setAxisWidth(axisCode=axisCode, width=matchWidth, rescale=True, update=True)     #(tgStrip == target.strips[-1]))
+                target.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
     def findAndDisplayMatches(self, nmrResidue):
         "Find and displays the matches to nmrResidue"
@@ -699,15 +704,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             yPosition = (max(yShiftValues) + min(yShiftValues)) / 2
             yWidth = max(yShiftValues) - min(yShiftValues)
 
-            EXTRAWIDTH = 150
-            EXTRAOFFSET = 100
-
             axisCode = strips[0].axisCodes[1]
             yHeight = strips[0]._CcpnGLWidget.mainViewHeight() or 1
 
             minPpm = 1.0 if axisCode[0] not in _minPpmWidths else _minPpmWidths[axisCode[0]]
 
-            # add increase of 100 pixels
+            # add increase of EXTRAWIDTH pixels
             dY = max(yWidth, minPpm) / max(1, (yHeight - EXTRAWIDTH))
 
             # add offset for the top, and extra height
