@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-11-06 14:12:04 +0000 (Fri, November 06, 2020) $"
+__dateModified__ = "$dateModified: 2020-11-06 15:09:00 +0000 (Fri, November 06, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -302,9 +302,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             matchDisplays = self._getMatchDisplays()
 
             # navigate to the other displays - not matchDisplay
-            for display in (displays + targetDisplays):
+            for display in displays:
 
-                display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
+                # display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
 
                 if len(display.strips) > 0:
 
@@ -326,6 +326,28 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                            showDropHeaders=display in targetDisplays,
                                                            )
 
+                    # for st, strip in enumerate(strips):
+                    #     if strip is not None:
+                    #         strip.header.handle = STRIPBACKBONE
+                    #         strip.header.headerVisible = True
+                    strips[0].spectrumDisplay.setColumnStretches(True)
+                    strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
+
+            # navigate to the targetDisplays
+            for display in targetDisplays:
+
+                display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
+
+                if len(display.strips) > 0:
+
+                    newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
+                    strips = navigateToNmrResidueInDisplay(nr, display, stripIndex=0,
+                                                           widths=newWidths,
+                                                           showSequentialResidues=(len(display.axisCodes) > 2) and
+                                                                                  self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.isChecked(),
+                                                           markPositions=False,  #self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
+                                                           showDropHeaders=True,
+                                                           )
                     for st, strip in enumerate(strips):
                         if strip is not None:
                             strip.header.handle = STRIPBACKBONE
@@ -391,8 +413,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 for tgStrip in target.strips:
                     axisCode = tgStrip.axisCodes[1]
                     tgStrip.setAxisPosition(axisCode=axisCode, position=matchPosPos, rescale=False, update=False)
-                    tgStrip.setAxisWidth(axisCode=axisCode, width=matchPosWidth, rescale=True, update=False)
-                target.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
+                    tgStrip.setAxisWidth(axisCode=axisCode, width=matchPosWidth, rescale=True, update=(tgStrip == target.strips[-1]))
+                # target.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
     def findAndDisplayMatches(self, nmrResidue):
         "Find and displays the matches to nmrResidue"
@@ -677,8 +699,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             yPosition = (max(yShiftValues) + min(yShiftValues)) / 2
             yWidth = max(yShiftValues) - min(yShiftValues)
 
-            EXTRAWIDTH = 130
-            EXTRAOFFSET = 90
+            EXTRAWIDTH = 150
+            EXTRAOFFSET = 100
 
             axisCode = strips[0].axisCodes[1]
             yHeight = strips[0]._CcpnGLWidget.mainViewHeight() or 1
