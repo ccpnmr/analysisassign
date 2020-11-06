@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-11-02 17:47:49 +0000 (Mon, November 02, 2020) $"
+__dateModified__ = "$dateModified: 2020-11-06 12:03:49 +0000 (Fri, November 06, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -37,7 +37,7 @@ from ccpn.ui.gui.lib.Strip import matchAxesAndNmrAtoms
 from ccpn.ui.gui.lib.Strip import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, PulldownListCompoundWidget
+from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, PulldownListCompoundWidget, CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, showYesNo
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.Spacer import Spacer
@@ -160,6 +160,14 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self._fillTargetWidget()
         self.targetWidget.pulldownList.setIndex(0)
 
+        row += 1
+        self.focusYAxis = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
+                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                                 fixedWidths=(colWidth0, None),
+                                                 orientation='left',
+                                                 labelText='Focus Y-Axis',
+                                                 checked=True
+                                                 )
         # Chemical shift list selection
         row += 1
         self.shiftListWidget = ChemicalShiftListPulldown(self.nmrResidueTableSettings, self.mainWindow,
@@ -179,7 +187,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self._stripNotifiers = []  # list to store GuiNotifiers for strips
         self.nmrResidueTable.multiSelect = True
         self.nmrResidueTable.setSelectionMode(self.nmrResidueTable.SingleSelection)
-
 
         #self.nmrResidueTable._setWidgetHeight(48)
 
@@ -209,7 +216,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             if len(dGids) == 0: return displays
 
             matchGids = self.matchWidget.getText()  # gid of the match module
-            targetGids = None  #.targetWidget.getText()         # gid of the targets module - don't discard for the minute
+            targetGids = self.targetWidget.getText()         # gid of the targets module - don't discard for the minute
 
             if ALL in dGids:
                 displays = [dp for dp in self.application.ui.mainWindow.spectrumDisplays if dp.pid not in (matchGids, targetGids)]
@@ -256,10 +263,10 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         If matchCheckbox is checked, also call findAndDisplayMatches
         """
         displays = self._getDisplays()
-        if len(displays) == 0 and self.nmrResidueTableSettings.displaysWidget:
-            getLogger().warning('Undefined display module(s); select in settings first')
-            showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
-            return
+        # if len(displays) == 0 and self.nmrResidueTableSettings.displaysWidget:
+        #     getLogger().warning('Undefined display module(s); select in settings first')
+        #     showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
+        #     return
 
         matchIndex = self.matchWidget.getIndex()
         targetIndex = self.targetWidget.getIndex()
@@ -279,9 +286,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             return
 
         with undoBlock():
-            # self.application._startCommandBlock(
-            #         'BackboneAssignmentModule.navigateToNmrResidue(project.getByPid(%r))' % nmrResidue.pid)
-            # try:
 
             # optionally clear the marks
             if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
@@ -297,7 +301,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             targetDisplays = self._getTargetDisplays()
             matchDisplays = self._getMatchDisplays()
 
-            # navigate the displays
+            # navigate to the other displays - not matchDisplay or targetDisplay
             for display in displays:
 
                 display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
@@ -322,34 +326,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                            showDropHeaders=display in targetDisplays,
                                                            )
 
-                    # activate a callback notifiers; allow dropping onto the NmrResidueLabel
                     for st, strip in enumerate(strips):
                         if strip is not None:
-                            # NB connections are made as connectPrevious / connectNext to passed-in NmrResidue
-                            # It follows that it IS the mainNMr Residue that should be passed in here
-                            # Note, though, that you get the same connections WHICHEVER strip you drop on
-                            # label = strip.header.getLabel(position='l')
-                            # notifier = GuiNotifier(label,  #getStripLabel(),
-                            #                        [GuiNotifier.DROPEVENT], [DropBase.TEXT],
-                            #                        self._processDroppedNmrResidueLabel,
-                            #                        toLabel=strip.header.getLabel(position='c'),
-                            #                        plusChain=False)
-                            # self._stripNotifiers.append(notifier)
-                            # label = strip.header.getLabel(position='r')
-                            # notifier = GuiNotifier(label,  #getStripLabel(),
-                            #                        [GuiNotifier.DROPEVENT], [DropBase.TEXT],
-                            #                        self._processDroppedNmrResidueLabel,
-                            #                        toLabel=strip.header.getLabel(position='c'),
-                            #                        plusChain=True)
-                            # self._stripNotifiers.append(notifier)
-
                             strip.header.handle = STRIPBACKBONE
                             strip.header.headerVisible = True
-
-                        strip.spectrumDisplay.setColumnStretches(True)
-
-                    # layout.setColumnStretch(col, colStr
-                    # strips[0].spectrumDisplay.stripFrame.setStretch(1,1)
+                    strips[0].spectrumDisplay.setColumnStretches(True)
+                    strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
             # ejb
             # if 'i-1' residue, take CA CB, and take H, N from the 'i' residue (.mainNmrResidue)
@@ -381,18 +363,13 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             if self.matchCheckBoxWidget.isChecked():
                 self.findAndDisplayMatches(nmrResidue)
 
-            # align the display modules to the match module
-            for display in targetDisplays:
-                # align to the match module
-                for dp in matchDisplays:
-                    if dp.strips:
-                        axisCode = dp.strips[0].axisCodes[1]
-                        posPos = dp.strips[0].getAxisPosition(axisCode=axisCode)
-                        posWidth = dp.strips[0].getAxisWidth(axisCode=axisCode)
-                        for dpStrip in display.strips:
-                            axisCode = dpStrip.axisCodes[1]
-                            dpStrip.setAxisPosition(axisCode=axisCode, position=posPos)
-                            dpStrip.setAxisWidth(axisCode=axisCode, width=posWidth)
+            # select the order for copying YAxis values
+            if self.focusYAxis.isChecked():
+                # align the target modules to the display module
+                self._setDisplayPosWidth(matchDisplays, targetDisplays)
+            else:
+                # align the display modules to the target module
+                self._setDisplayPosWidth(targetDisplays, matchDisplays)
 
             # # update current (should trigger SequenceGraph)
             # self.application.current.nmrChain = nmrResidue.nmrChain
@@ -400,6 +377,22 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # finally:
         #     self.application._endCommandBlock()
+
+    def _setDisplayPosWidth(self, matchDisplays, targetDisplays):
+
+        if matchDisplays and matchDisplays[0].strips:
+            # get the current position/width of the first match display
+            matchAxisCode = matchDisplays[0].strips[0].axisCodes[1]
+            matchPosPos = matchDisplays[0].strips[0].getAxisPosition(axisCode=matchAxisCode)
+            matchPosWidth = matchDisplays[0].strips[0].getAxisWidth(axisCode=matchAxisCode)
+
+            for target in targetDisplays:
+                # align to the match module
+                for tgStrip in target.strips:
+                    axisCode = tgStrip.axisCodes[1]
+                    tgStrip.setAxisPosition(axisCode=axisCode, position=matchPosPos, rescale=False, update=False)
+                    tgStrip.setAxisWidth(axisCode=axisCode, width=matchPosWidth, rescale=True, update=False)
+                target.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
     def findAndDisplayMatches(self, nmrResidue):
         "Find and displays the matches to nmrResidue"
@@ -679,7 +672,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         yShiftValues = [x.value for x in yShifts]
         if yShiftValues:
 
-            _minPpmWidths = {'H': 0.5, 'C': 8.0, 'N': 2.0}              # based on standard ratios
+            _minPpmWidths = {'H': 0.5, 'C': 8.0, 'N': 2.0}  # based on standard ratios
 
             yPosition = (max(yShiftValues) + min(yShiftValues)) / 2
             yWidth = max(yShiftValues) - min(yShiftValues)
@@ -708,17 +701,16 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                     else:
                         yPos, yW = firstStrip
 
-                    if strip._CcpnGLWidget.aspectRatioMode == 0:
-                        strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, update=False)
-                        strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yW, update=False)
-                        strip._CcpnGLWidget._scaleToYAxis()
-                    else:
-                        strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, update=True)
+                    strip._CcpnGLWidget.setAxisPosition(axisCode=axisCode, position=yPos, rescale=False, update=False)
+                    strip._CcpnGLWidget.setAxisWidth(axisCode=axisCode, width=yW, rescale=True, update=True)
 
-                from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
+                # strip[0].spectrumDisplay.rightGLAxis.setAxisPosition(axisCode=axisCode, position=yPos, update=False)
+                # strip[0].spectrumDisplay.rightGLAxis.setAxisWidth(axisCode=axisCode, width=yW, update=False)
 
-                GLSignals = GLNotifier(parent=self)
-                GLSignals.emitPaintEvent()
+                # from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
+                #
+                # GLSignals = GLNotifier(parent=self)
+                # GLSignals.emitPaintEvent()
 
             except Exception as es:
                 getLogger().debugGL('OpenGL widget not instantiated')
@@ -826,6 +818,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             # self._centreStripForNmrResidue(assignMatrix[assignmentScores[0]], module.strips[0])
             self._centreCcpnStripsForNmrResidue(assignMatrix[assignmentScores[0]], module.strips)
             module.setColumnStretches(stretchValue=True)
+
+            # this forces a refresh/rescale of all strips in the spectrumDisplay
+            module.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
     def _closeModule(self):
         """
