@@ -427,7 +427,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # If NmrResidue is a -1 offset NmrResidue, set queryShifts as value from self.interShifts dictionary
         # Set matchShifts as self.intraShifts
-        # if nmrResidue.sequenceCode.endswith('-1'):
         if nmrResidue.relativeOffset == -1:
             # direction = '-1'
             # iNmrResidue = nmrResidue.mainNmrResidue
@@ -439,19 +438,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                if shift.nmrAtom.isotopeCode == '13C']
             matchShifts = self.intraShifts
 
-        elif nmrResidue.relativeOffset:
-            getLogger().warning(
-                    "Assignment matching not supported for NmrResidue offset %s. Matching display skipped"
-                    % nmrResidue.relativeOffset
-                    )
 
         # If NmrResidue is not an offset NmrResidue, set queryShifts as value from self.intraShifts dictionary
         # Set matchShifts as self.interShifts
-        else:
-            # relative offset is None or 0
+        elif nmrResidue.relativeOffset == 0 or nmrResidue.relativeOffset is None:
             # direction = '+1'
             # iNmrResidue = nmrResidue
-
             if nmrResidue not in self.intraShifts:
                 queryShifts = []
             else:
@@ -459,13 +451,19 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                if shift.nmrAtom.isotopeCode == '13C']
             matchShifts = self.interShifts
 
-        if True:
-            queryShifts = [shift for shift in self.allShifts[nmrResidue]
-                           if shift.nmrAtom.isotopeCode == '13C']
-            assignMatrix = getNmrResidueMatches(queryShifts, self.allShifts, 'averageQScore')
-            # print('assignMatrix',assignMatrix)
+
         else:
-            assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
+            getLogger().warning(
+                    "Assignment matching not supported for NmrResidue offset %s. Matching display skipped"
+                    % nmrResidue.relativeOffset
+                    )
+
+        assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
+
+        # some code which will match the query shifts against ALL shifts
+        #    queryShifts = [shift for shift in self.allShifts[nmrResidue]
+        #                   if shift.nmrAtom.isotopeCode == '13C']
+        #    assignMatrix = getNmrResidueMatches(queryShifts, self.allShifts, 'averageQScore')
 
         if not assignMatrix.values():
             getLogger().info('No matches found for NmrResidue: %s' % nmrResidue.pid)
@@ -723,8 +721,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
     def _setupShiftDicts(self, *args):
         """
-        Creates two ordered dictionaries for the inter residue and intra residue CA and CB shifts for
-        all NmrResidues in the project.
+        Creates three ordered dictionaries containing a) intra-residue, b) -1 offset (inter) and c) all
+        shifts for all NmrResidues in the project.
         """
         self.intraShifts = OrderedDict()
         self.interShifts = OrderedDict()
@@ -735,9 +733,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             for nmrResidue in self.application.project.nmrResidues:
                 nmrAtoms = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms]
                 shifts = [chemicalShiftList.getChemicalShift(atom.id) for atom in nmrAtoms]
-                if nmrResidue.sequenceCode.endswith('-1'):
+                if nmrResidue.relativeOffset == -1:
                     self.interShifts[nmrResidue] = shifts
-                else:
+                elif nmrResidue.relativeOffset == 0 or nmrResidue.relativeOffset is None:
                     self.intraShifts[nmrResidue] = shifts
                 self.allShifts[nmrResidue] = shifts
 
