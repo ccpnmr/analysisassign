@@ -100,6 +100,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                  'i+1 Matches to show:',
                  'Match module',
                  'Search module',
+                 'Match CA NmrAtoms',
+                 'Match CB NmrAtoms',
+                 'Match C NmrAtoms',
                  'ChemicalShiftList']
         _, maxDim = getTextDimensionsFromFont(textList=texts)
         colWidth0 = maxDim.width()
@@ -170,6 +173,39 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                  labelText='Focus Y-Axis',
                                                  checked=True
                                                  )
+
+        # Select which NmrAtoms to match
+        # VAH: This could probably be improved by putting the check boxes into a group "NmrAtoms to Match"
+        # and then automatically using the label text 'CA', 'CB' etc. in the _setNmrAtomsToMatch function.
+        row += 1
+        self.matchCA = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
+                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                                 fixedWidths=(colWidth0, None),
+                                                 orientation='left',
+                                                 labelText='Match CA NmrAtoms',
+                                                 callback=self._setNmrAtomsToMatch,
+                                                 checked=True
+                                                 )
+        row += 1
+        self.matchCB = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
+                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                                 fixedWidths=(colWidth0, None),
+                                                 orientation='left',
+                                                 labelText='Match CB NmrAtoms',
+                                                 callback=self._setNmrAtomsToMatch,
+                                                 checked=True
+                                                 )
+        row += 1
+        self.matchC = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
+                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                                 fixedWidths=(colWidth0, None),
+                                                 orientation='left',
+                                                 labelText='Match C NmrAtoms',
+                                                 callback=self._setNmrAtomsToMatch,
+                                                 checked=False
+                                                 )
+        self._setNmrAtomsToMatch()
+
         # Chemical shift list selection
         row += 1
         self.shiftListWidget = ChemicalShiftListPulldown(self.nmrResidueTableSettings, self.mainWindow,
@@ -366,28 +402,37 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             # ejb
             # if 'i-1' residue, take CA CB, and take H, N from the 'i' residue (.mainNmrResidue)
             # check if contains '-1' in pid, is this robust? no :)
-
+            #
+            # VAH:
+            # Changed, so marks are drawn for the C atoms that are being matched and the base
+            # atoms specified here. Relies on use of NEF atom names, but makes it easier to
+            # make more generic at a later stage.
+            baseNmrAtoms = ['H', 'N']
             if self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked():
                 if nmrResidue.relativeOffset is not None and nmrResidue.relativeOffset != 0:
-                    # -1, +1 residue so need to split the CA, CB from the N, H
+                    # offset residue (not necessarily i-1!) so need to split the match nmrAtoms
+                    # (e.g. CA/CB) from the base nmrAtoms (e.g. N, H)
                     nmrAtomsOffset = nmrAtomsFromResidue(nmrResidue)
                     nmrAtomsCentre = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
 
                     nmrAtoms = []
-                    # this should check the experiment type and choose the correct atoms from there
                     for naOffset in nmrAtomsOffset:
-                        if naOffset.name.startswith('CA') or naOffset.name.startswith('CB'):
+                        if naOffset.name in self.nmrAtomsToMatch:
                             nmrAtoms.append(naOffset)
                     for naCentre in nmrAtomsCentre:
-                        if naCentre.name.startswith('N') or naCentre.name.startswith('H'):
+                        if naCentre.name in baseNmrAtoms:
                             nmrAtoms.append(naCentre)
 
                     markNmrAtoms(mainWindow=self.mainWindow, nmrAtoms=nmrAtoms)
                 else:
                     if MARKCONNECTED:
-                        nmrAtoms = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
+                        nmrAtoms = [na for na in nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
+                                    if na.name in self.nmrAtomsToMatch
+                                    or na.name in baseNmrAtoms]
                     else:
-                        nmrAtoms = nmrResidue.mainNmrResidue.nmrAtoms
+                        nmrAtoms = [na for na in nmrResidue.mainNmrResidue.nmrAtoms
+                                    if na.name in self.nmrAtomsToMatch
+                                    or na.name in baseNmrAtoms]
                     markNmrAtoms(mainWindow=self.mainWindow, nmrAtoms=nmrAtoms)
 
             if self.matchCheckBoxWidget.isChecked():
@@ -428,30 +473,24 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # If NmrResidue is a -1 offset NmrResidue, set queryShifts as value from self.interShifts dictionary
         # Set matchShifts as self.intraShifts
         if nmrResidue.relativeOffset == -1:
-            # direction = '-1'
-            # iNmrResidue = nmrResidue.mainNmrResidue
-
             if nmrResidue not in self.interShifts:
                 queryShifts = []
             else:
                 queryShifts = [shift for shift in self.interShifts[nmrResidue]
-                               if shift.nmrAtom.isotopeCode == '13C']
+                               if shift.nmrAtom.name in self.nmrAtomsToMatch]
             matchShifts = self.intraShifts
-
 
         # If NmrResidue is not an offset NmrResidue, set queryShifts as value from self.intraShifts dictionary
         # Set matchShifts as self.interShifts
         elif nmrResidue.relativeOffset == 0 or nmrResidue.relativeOffset is None:
-            # direction = '+1'
-            # iNmrResidue = nmrResidue
             if nmrResidue not in self.intraShifts:
                 queryShifts = []
             else:
                 queryShifts = [shift for shift in self.intraShifts[nmrResidue]
-                               if shift.nmrAtom.isotopeCode == '13C']
-            matchShifts = self.interShifts
+                              if shift.nmrAtom.name in self.nmrAtomsToMatch]
+                matchShifts = self.interShifts
 
-
+        # If NmrResidue has offset other than -1 or 0/None, tell user that we are not able to match
         else:
             getLogger().warning(
                     "Assignment matching not supported for NmrResidue offset %s. Matching display skipped"
@@ -460,7 +499,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
 
-        # some code which will match the query shifts against ALL shifts
+        # some old code which will match the query shifts against ALL shifts
         #    queryShifts = [shift for shift in self.allShifts[nmrResidue]
         #                   if shift.nmrAtom.isotopeCode == '13C']
         #    assignMatrix = getNmrResidueMatches(queryShifts, self.allShifts, 'averageQScore')
@@ -738,6 +777,15 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 elif nmrResidue.relativeOffset == 0 or nmrResidue.relativeOffset is None:
                     self.intraShifts[nmrResidue] = shifts
                 self.allShifts[nmrResidue] = shifts
+
+    def _setNmrAtomsToMatch(self):
+        self.nmrAtomsToMatch = []
+        if self.matchCA.isChecked():
+            self.nmrAtomsToMatch.append('CA')
+        if self.matchCB.isChecked():
+            self.nmrAtomsToMatch.append('CB')
+        if self.matchC.isChecked():
+            self.nmrAtomsToMatch.append('C')
 
     def _createMatchStrips(self, assignMatrix: typing.Tuple[typing.Dict[NmrResidue, typing.List[ChemicalShift]], typing.List[float]]):
         """
