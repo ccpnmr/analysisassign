@@ -4,7 +4,7 @@ AnalysisAssign Program
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
 __credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-10 01:08:28 +0000 (Tue, March 10, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__dateModified__ = "$dateModified: 2021-01-12 18:04:57 +0000 (Tue, January 12, 2021) $"
+__version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,6 +29,7 @@ from ccpn.framework.Framework import Framework
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.util.Logging import getLogger
+from ccpn.util.decorators import logCommand
 
 
 class Assign(Framework):
@@ -79,114 +80,88 @@ class Assign(Framework):
             popup = SetupNmrResiduesPopup(parent=self.ui.mainWindow, mainWindow=self.ui.mainWindow)
             popup.exec_()
 
+    @logCommand('application.')
     def showPickAndAssignModule(self, position: str = 'bottom', relativeTo: CcpnModule = None):
-        """
-        Displays Pick and Assign module.
+        """Display the Pick and Assign module.
         """
         from ccpn.AnalysisAssign.modules.PickAndAssignModule import PickAndAssignModule
 
         mainWindow = self.ui.mainWindow
 
         if not relativeTo:
-            relativeTo = mainWindow.moduleArea  # ejb
-        self.pickAndAssignModule = PickAndAssignModule(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(self.pickAndAssignModule, position=position, relativeTo=relativeTo)
-        mainWindow.pythonConsole.writeConsoleCommand("application.showPickAndAssignModule()")
-        getLogger().info("application.showPickAndAssignModule()")
-        return self.pickAndAssignModule
+            relativeTo = mainWindow.moduleArea
+        pickAndAssignModule = PickAndAssignModule(mainWindow=mainWindow)
+        mainWindow.moduleArea.addModule(pickAndAssignModule, position=position, relativeTo=relativeTo)
 
+    @logCommand('application.')
     def showBackboneAssignmentModule(self, position: str = 'bottom', relativeTo: CcpnModule = None):
-        """
-        Displays Backbone Assignment module.
+        """Display the Backbone Assignment module.
         """
         from ccpn.AnalysisAssign.modules.BackboneAssignmentModule import BackboneAssignmentModule
 
         mainWindow = self.ui.mainWindow
 
         if not relativeTo:
-            relativeTo = mainWindow.moduleArea  # ejb
-        self.backboneModule = BackboneAssignmentModule(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(self.backboneModule, position=position, relativeTo=relativeTo)
-        mainWindow.pythonConsole.writeConsoleCommand("application.showBackboneAssignmentModule()")
-        getLogger().info("application.showBackboneAssignmentModule()")
-        return self.backboneModule
+            relativeTo = mainWindow.moduleArea
+        backboneModule = BackboneAssignmentModule(mainWindow=mainWindow)
+        mainWindow.moduleArea.addModule(backboneModule, position=position, relativeTo=relativeTo)
 
+    @logCommand('application.')
     def showSidechainAssignmentModule(self, position: str = 'bottom', relativeTo: CcpnModule = None):
-        """
-        Displays Backbone Assignment module.
+        """Display the SideChain module.
         """
         MessageDialog.showWarning('Not implemented',
                                   'Sidechain Assignment Module\n'
                                   'is not implemented yet')
-        return
 
-        # from ccpn.AnalysisAssign.modules.SideChainAssignmentModule import SideChainAssignmentModule
-        #
-        # if hasattr(self, 'sidechainAssignmentModule'):
-        #     return
-        #
-        # mainWindow = self.ui.mainWindow
-        #
-        # if not relativeTo:
-        #     relativeTo = mainWindow.moduleArea  # ejb
-        # self.sidechainAssignmentModule = SideChainAssignmentModule(mainWindow=mainWindow)  # ejb self, self.project)
-        # mainWindow.moduleArea.addModule(self.sidechainAssignmentModule, position=position, relativeTo=relativeTo)
-        # mainWindow.pythonConsole.writeConsoleCommand("application.showSidechainAssignmentModule()")
-        # getLogger().info("application.showSidechainAssignmentModule()")
-        #
-        # return self.sidechainAssignmentModule
-
+    @logCommand('application.')
     def showPeakAssigner(self, position='bottom', relativeTo=None):
-        """Displays peak assignment module."""
+        """Display the Peak Assigner module.
+        """
         from ccpn.AnalysisAssign.modules.PeakAssigner import PeakAssigner
 
         mainWindow = self.ui.mainWindow
 
         if not relativeTo:
-            relativeTo = mainWindow.moduleArea  # ejb
-        self.assignmentModule = PeakAssigner(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(self.assignmentModule, position=position, relativeTo=relativeTo)
-        mainWindow.pythonConsole.writeConsoleCommand("application.showAssignmentModule()")
-        getLogger().info("application.showAssignmentModule()")
+            relativeTo = mainWindow.moduleArea
+        assignmentModule = PeakAssigner(mainWindow=mainWindow)
+        mainWindow.moduleArea.addModule(assignmentModule, position=position, relativeTo=relativeTo)
 
+    @logCommand('application.')
     def showAssignmentInspectorModule(self, nmrAtom=None, position: str = 'bottom', relativeTo: CcpnModule = None):
+        """Display the Assignment Inspector module.
+        """
         from ccpn.AnalysisAssign.modules.AssignmentInspectorModule import AssignmentInspectorModule
 
         mainWindow = self.ui.mainWindow
 
         if not relativeTo:
-            relativeTo = mainWindow.moduleArea  # ejb
-        self.assignmentInspectorModule = AssignmentInspectorModule(mainWindow=mainWindow,selectFirstItem=True)
-        mainWindow.moduleArea.addModule(self.assignmentInspectorModule, position=position, relativeTo=relativeTo)
-        mainWindow.pythonConsole.writeConsoleCommand("application.showAssignmentInspectorModule()")
-        getLogger().info("application.showAssignmentInspectorModule()")
+            relativeTo = mainWindow.moduleArea
+        assignmentInspectorModule = AssignmentInspectorModule(mainWindow=mainWindow, selectFirstItem=True)
+        mainWindow.moduleArea.addModule(assignmentInspectorModule, position=position, relativeTo=relativeTo)
 
+    @logCommand('application.')
     def showSequenceGraph(self, position: str = 'bottom', relativeTo: CcpnModule = None, nmrChain=None):
-        """
-        Displays sequence graph at the bottom of the screen, relative to another module if nextTo is specified.
+        """Displays Sequence Graph at the bottom of the screen, relative to another module if nextTo is specified.
         """
         from ccpn.AnalysisAssign.modules.SequenceGraph import SequenceGraphModule
 
         mainWindow = self.ui.mainWindow
 
         if not relativeTo:
-            relativeTo = mainWindow.moduleArea  # ejb
-        self.sequenceGraphModule = SequenceGraphModule(mainWindow=mainWindow, nmrChain=nmrChain)
-        mainWindow.moduleArea.addModule(self.sequenceGraphModule, position=position, relativeTo=relativeTo)
-        mainWindow.pythonConsole.writeConsoleCommand("application.showSequenceGraph()")
-        getLogger().info("application.showSequenceGraph()")
-        return self.sequenceGraphModule
+            relativeTo = mainWindow.moduleArea
+        sequenceGraphModule = SequenceGraphModule(mainWindow=mainWindow, nmrChain=nmrChain)
+        mainWindow.moduleArea.addModule(sequenceGraphModule, position=position, relativeTo=relativeTo)
 
+    @logCommand('application.')
     def showAtomSelector(self, position: str = 'bottom', relativeTo: CcpnModule = None, nmrAtom=None):
-        """Displays Atom Selector."""
+        """Displays Atom Selector module.
+        """
         from ccpn.AnalysisAssign.modules.NmrAtomAssigner import NmrAtomAssignerModule
 
         mainWindow = self.ui.mainWindow
 
         if not relativeTo:
-            relativeTo = mainWindow.moduleArea  # ejb
-        self.nmrAtomAssigner = NmrAtomAssignerModule(mainWindow=mainWindow, nmrAtom=nmrAtom)
-        mainWindow.moduleArea.addModule(self.nmrAtomAssigner, position=position, relativeTo=relativeTo)
-        mainWindow.pythonConsole.writeConsoleCommand("application.showAtomSelector()")
-        getLogger().info("application.showAtomSelector()")
-        return self.nmrAtomAssigner
+            relativeTo = mainWindow.moduleArea
+        nmrAtomAssigner = NmrAtomAssignerModule(mainWindow=mainWindow, nmrAtom=nmrAtom)
+        mainWindow.moduleArea.addModule(nmrAtomAssigner, position=position, relativeTo=relativeTo)
