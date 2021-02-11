@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
 __credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-11-04 13:35:45 +0000 (Wed, November 04, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__dateModified__ = "$dateModified: 2021-02-11 13:37:57 +0000 (Thu, February 11, 2021) $"
+__version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1964,34 +1964,16 @@ class SequenceGraphModule(CcpnModule):
                                        for spec in self.project.spectra if not (spec.isDeleted or spec._flaggedForDelete)
                                        }
 
-    def _blockEvents(self):
-        """Block all updates/signals/notifiers in the scene.
-        """
-        self.setUpdatesEnabled(False)
-        self.scene.blockSignals(True)
-        # self.setBlankingAllNotifiers(True)
-
-    def _unblockEvents(self):
-        """Unblock all updates/signals/notifiers in the scene.
-        """
-        # self.setBlankingAllNotifiers(False)
-        self.scene.blockSignals(False)
-        self.setUpdatesEnabled(True)
-
     @contextmanager
     def sceneBlocking(self):
         """Context manager to handle blocking, unblocking, resizing of the scene.
         """
-        self._blockEvents()
-        try:
-            # pass control to the calling function
+        with self.mainWidget.blockWidgetSignals(self.scrollContents, recursive=False, additionalWidgets=[self.scene]):
             yield
 
-        finally:
-            self._unblockEvents()
-
-            # resize to the new items and spawns a repaint
-            self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-30, -50, 30, 30))
+        # resize to the new items and spawns a repaint
+        self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-30, -50, 30, 30))
+        self.scene.update()
 
     def _updateSpectra(self, data=None):
         """Update list of current spectra and generate new magnetisationTransfer list
@@ -2846,7 +2828,7 @@ class SequenceGraphModule(CcpnModule):
         """
         # Only needed to be done the first time, scene is resized at the end of setNmrChainDisplay
         self.scene = QtWidgets.QGraphicsScene(self)
-        self.scrollContents = QtWidgets.QGraphicsView(self.scene, self)
+        self.scrollContents = QtWidgets.QGraphicsView(self.scene)
         self.scrollContents.setRenderHints(QtGui.QPainter.Antialiasing)
         self.scrollContents.setInteractive(True)
         self.scrollContents.setGeometry(QtCore.QRect(0, 0, 300, 400))
