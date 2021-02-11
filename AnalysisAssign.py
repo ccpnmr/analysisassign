@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-01-12 18:04:57 +0000 (Tue, January 12, 2021) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2021-02-11 16:56:18 +0000 (Thu, February 11, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -92,6 +92,7 @@ class Assign(Framework):
             relativeTo = mainWindow.moduleArea
         pickAndAssignModule = PickAndAssignModule(mainWindow=mainWindow)
         mainWindow.moduleArea.addModule(pickAndAssignModule, position=position, relativeTo=relativeTo)
+        return pickAndAssignModule
 
     @logCommand('application.')
     def showBackboneAssignmentModule(self, position: str = 'bottom', relativeTo: CcpnModule = None):
@@ -105,6 +106,7 @@ class Assign(Framework):
             relativeTo = mainWindow.moduleArea
         backboneModule = BackboneAssignmentModule(mainWindow=mainWindow)
         mainWindow.moduleArea.addModule(backboneModule, position=position, relativeTo=relativeTo)
+        return backboneModule
 
     @logCommand('application.')
     def showSidechainAssignmentModule(self, position: str = 'bottom', relativeTo: CcpnModule = None):
@@ -126,6 +128,7 @@ class Assign(Framework):
             relativeTo = mainWindow.moduleArea
         assignmentModule = PeakAssigner(mainWindow=mainWindow)
         mainWindow.moduleArea.addModule(assignmentModule, position=position, relativeTo=relativeTo)
+        return assignmentModule
 
     @logCommand('application.')
     def showAssignmentInspectorModule(self, nmrAtom=None, position: str = 'bottom', relativeTo: CcpnModule = None):
@@ -139,6 +142,7 @@ class Assign(Framework):
             relativeTo = mainWindow.moduleArea
         assignmentInspectorModule = AssignmentInspectorModule(mainWindow=mainWindow, selectFirstItem=True)
         mainWindow.moduleArea.addModule(assignmentInspectorModule, position=position, relativeTo=relativeTo)
+        return assignmentInspectorModule
 
     @logCommand('application.')
     def showSequenceGraph(self, position: str = 'bottom', relativeTo: CcpnModule = None, nmrChain=None):
@@ -152,6 +156,7 @@ class Assign(Framework):
             relativeTo = mainWindow.moduleArea
         sequenceGraphModule = SequenceGraphModule(mainWindow=mainWindow, nmrChain=nmrChain)
         mainWindow.moduleArea.addModule(sequenceGraphModule, position=position, relativeTo=relativeTo)
+        return sequenceGraphModule
 
     @logCommand('application.')
     def showAtomSelector(self, position: str = 'bottom', relativeTo: CcpnModule = None, nmrAtom=None):
@@ -165,3 +170,4 @@ class Assign(Framework):
             relativeTo = mainWindow.moduleArea
         nmrAtomAssigner = NmrAtomAssignerModule(mainWindow=mainWindow, nmrAtom=nmrAtom)
         mainWindow.moduleArea.addModule(nmrAtomAssigner, position=position, relativeTo=relativeTo)
+        return nmrAtomAssigner
