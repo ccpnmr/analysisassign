@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-02-11 13:37:57 +0000 (Thu, February 11, 2021) $"
+__dateModified__ = "$dateModified: 2021-02-11 13:50:35 +0000 (Thu, February 11, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -59,6 +59,7 @@ from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.core.NmrChain import NmrChain
 from ccpn.util.Common import makeIterableList, greekKey, PrintFormatter, _compareDict
 from ccpn.util.Logging import getLogger
+from ccpn.util import Colour
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.Frame import Frame
@@ -288,7 +289,14 @@ class AssignmentLine(QtWidgets.QGraphicsLineItem):
 
         # set the pen colour and style
         self.pen = QtGui.QPen()
-        self.pen.setColor(QtGui.QColor(colour))
+
+        # check whether the colour is a gradient
+        if colour and colour.startswith('#'):
+            self.pen.setColor(QtGui.QColor(colour))
+        elif colour in Colour.colorSchemeTable:
+            _colours = Colour.colorSchemeTable[colour]
+            self.pen.setColor(QtGui.QColor(_colours[0]))
+
         self.pen.setCosmetic(True)
         self.pen.setWidth(width)
         self._width = width
