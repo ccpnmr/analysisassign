@@ -13,9 +13,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: VickyAH $"
-__dateModified__ = "$dateModified: 2021-01-13 17:48:13 +0000 (Wed, January 13, 2021) $"
-__version__ = "$Revision: 3.0.1 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2021-03-11 12:20:56 +0000 (Thu, March 11, 2021) $"
+__version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -179,31 +179,31 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # and then automatically using the label text 'CA', 'CB' etc. in the _setNmrAtomsToMatch function.
         row += 1
         self.matchCA = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
-                                                 fixedWidths=(colWidth0, None),
-                                                 orientation='left',
-                                                 labelText='Match CA NmrAtoms',
-                                                 callback=self._setNmrAtomsToMatch,
-                                                 checked=True
-                                                 )
+                                              grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                              fixedWidths=(colWidth0, None),
+                                              orientation='left',
+                                              labelText='Match CA NmrAtoms',
+                                              callback=self._setNmrAtomsToMatch,
+                                              checked=True
+                                              )
         row += 1
         self.matchCB = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
-                                                 fixedWidths=(colWidth0, None),
-                                                 orientation='left',
-                                                 labelText='Match CB NmrAtoms',
-                                                 callback=self._setNmrAtomsToMatch,
-                                                 checked=True
-                                                 )
+                                              grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                              fixedWidths=(colWidth0, None),
+                                              orientation='left',
+                                              labelText='Match CB NmrAtoms',
+                                              callback=self._setNmrAtomsToMatch,
+                                              checked=True
+                                              )
         row += 1
         self.matchC = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
-                                                 fixedWidths=(colWidth0, None),
-                                                 orientation='left',
-                                                 labelText='Match C NmrAtoms',
-                                                 callback=self._setNmrAtomsToMatch,
-                                                 checked=False
-                                                 )
+                                             grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                             fixedWidths=(colWidth0, None),
+                                             orientation='left',
+                                             labelText='Match C NmrAtoms',
+                                             callback=self._setNmrAtomsToMatch,
+                                             checked=False
+                                             )
         self._setNmrAtomsToMatch()
 
         # Chemical shift list selection
@@ -246,7 +246,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             self.targetWidget.select(thisText, True)
 
     def _getDisplays(self):
-        "return list of displays to navigate"
+        """return list of displays to navigate"""
         displays = []
 
         if self.nmrResidueTableSettings.displaysWidget:
@@ -260,6 +260,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 displays = [dp for dp in self.application.ui.mainWindow.spectrumDisplays if dp.pid not in (matchGids, targetGids)]
             else:
                 displays = [self.application.getByGid(gid) for gid in dGids if (gid != ALL and gid not in (matchGids, targetGids))]
+            displays = [display for display in displays if display is not None]
 
         return displays
 
@@ -268,6 +269,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """
         mGids = self.matchWidget.getText()  # gid of the match displays
         displays = [self.application.getByGid(gid) for gid in (mGids,)]
+        displays = [display for display in displays if display is not None]
         return displays
 
     def _getTargetDisplays(self):
@@ -275,6 +277,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """
         mGids = self.targetWidget.getText()  # gid of the match displays
         displays = [self.application.getByGid(gid) for gid in (mGids,)]
+        displays = [display for display in displays if display is not None]
         return displays
 
     def navigateToNmrResidueCallBack(self, data):
@@ -464,11 +467,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 # align to the match module
                 for tgStrip in target.strips:
                     tgStrip.setAxisPosition(axisIndex=1, position=matchPos, rescale=False, update=False)
-                    tgStrip.setAxisWidth(axisIndex=1, width=matchWidth, rescale=True, update=True)     #(tgStrip == target.strips[-1]))
+                    tgStrip.setAxisWidth(axisIndex=1, width=matchWidth, rescale=True, update=True)  #(tgStrip == target.strips[-1]))
                 target.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
     def findAndDisplayMatches(self, nmrResidue):
-        "Find and displays the matches to nmrResidue"
+        """Find and displays the matches to nmrResidue"""
 
         # If NmrResidue is a -1 offset NmrResidue, set queryShifts as value from self.interShifts dictionary
         # Set matchShifts as self.intraShifts
@@ -487,7 +490,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 queryShifts = []
             else:
                 queryShifts = [shift for shift in self.intraShifts[nmrResidue]
-                              if shift.nmrAtom.name in self.nmrAtomsToMatch]
+                               if shift.nmrAtom.name in self.nmrAtomsToMatch]
                 matchShifts = self.interShifts
 
         # If NmrResidue has offset other than -1 or 0/None, tell user that we are not able to match
@@ -919,8 +922,7 @@ def nmrAtomsFromOffsets(nmrResidue):
     Retrieve a list of nmrAtoms from nmrResidue
     """
     # nmrResidue = nmrResidue.mainNmrResidue
-    nmrResidues = []
-    nmrResidues.append(nmrResidue)
+    nmrResidues = [nmrResidue]
     if nmrResidue.offsetNmrResidues:
         nmrResidues.extend(nmrResidue.offsetNmrResidues)
 
