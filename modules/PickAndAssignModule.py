@@ -22,7 +22,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-01-18 14:31:29 +0000 (Mon, January 18, 2021) $"
+__dateModified__ = "$dateModified: 2021-03-15 16:22:31 +0000 (Mon, March 15, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -33,7 +33,6 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtCore
 from ccpn.ui.gui.lib import PeakList
 from ccpn.ui.gui.lib import Strip
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
@@ -153,7 +152,7 @@ class PickAndAssignModule(NmrResidueTableModule):
         super()._closeModule()
 
     def assignSelected(self):
-        "Assign current.peaks on the bases of nmrAtoms of current.nmrResidue"
+        """Assign current.peaks on the bases of nmrAtoms of current.nmrResidue"""
 
         if self.application.current.nmrResidue is None:
             logger.error('Undefined nmrResidue; select one first before proceeding')
@@ -320,7 +319,7 @@ class PickAndAssignModule(NmrResidueTableModule):
                 nmrResidue._finaliseAction('change')
 
     def goToPositionInModules(self, nmrResidue=None, row=None, col=None):
-        "Go to the positions defined my NmrAtoms of nmrResidue in the active displays"
+        """Go to the positions defined my NmrAtoms of nmrResidue in the active displays"""
 
         nmrResidue = self.project.getByPid(nmrResidue) if isinstance(nmrResidue, str) else nmrResidue
 

@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-01-14 18:56:44 +0000 (Thu, January 14, 2021) $"
+__dateModified__ = "$dateModified: 2021-03-15 16:22:31 +0000 (Mon, March 15, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -624,6 +624,7 @@ class AssignmentInspectorTable(GuiTable):
                                                )
         self.attachedNmrAtomsList.itemSelectionChanged.connect(self._updatePeakTableCallback)
         self.attachedNmrAtomsList.setDragEnabled(False)
+        self.attachedNmrAtomsList.setSortingEnabled(True)
 
         self.attachedNmrAtomsList.setFixedWidth(self.nmrAtomLabel.sizeHint().width())
         self.attachedNmrAtomsList.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.MinimumExpanding)
