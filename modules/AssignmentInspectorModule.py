@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-15 16:22:31 +0000 (Mon, March 15, 2021) $"
+__dateModified__ = "$dateModified: 2021-03-18 13:10:44 +0000 (Thu, March 18, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -36,13 +36,11 @@ from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
-# from ccpn.ui.gui.widgets.Table import ObjectTable, Column
 from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget
-from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.core.lib.peakUtils import getPeakPosition, getPeakAnnotation
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.NmrAtom import NmrAtom, NmrResidue
@@ -88,7 +86,7 @@ class AssignmentInspectorModule(CcpnModule):
     LARGE_STRETCH = 100000
     SETTING_PADDING = 4
 
-    def __init__(self, mainWindow, name='Assignment Inspector', chemicalShiftList=None, selectFirstItem = False):
+    def __init__(self, mainWindow, name='Assignment Inspector', chemicalShiftList=None, selectFirstItem=False):
         super().__init__(mainWindow=mainWindow, name=name, settingsScrollBarPolicies=('asNeeded', 'never'))  # gwv
 
         # Derive application, project, and current from mainWindow
@@ -97,19 +95,11 @@ class AssignmentInspectorModule(CcpnModule):
         self.project = mainWindow.application.project
         self.current = mainWindow.application.current
 
-        # self.sampledDims = {} #GWV: not sure what this is supposed to do
-        # self.ids = []  # list of currently displayed NmrAtom ids + <all>
-        #
-        # policies = dict(vAlign='top')
-
         # settings window
 
-        # self.splitter = Splitter(self.mainWidget, QtCore.Qt.Vertical)
         self.splitter = Splitter(self.mainWidget, horizontal=False)
         self._chemicalShiftFrame = Frame(self.splitter, setLayout=True)
         self._assignmentFrame = Frame(self.splitter, setLayout=True)
-        # self._chemicalShiftFrame = Frame(self.mainWidget, setLayout=True, grid=(0,0))
-        # self._assignmentFrame = Frame(self.mainWidget, setLayout=True, grid=(1,0))
         self.mainWidget.getLayout().addWidget(self.splitter)
 
         self.splitter.setStretchFactor(0, 3)
@@ -117,13 +107,9 @@ class AssignmentInspectorModule(CcpnModule):
         self.splitter.setChildrenCollapsible(False)
         self._assignmentFrame.setMinimumHeight(100)
 
-
         # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
         # underpinning the addNotifier call do not allow for it either
         colwidth = 140
-
-
-
 
         self.settingsWidget.layout().setColumnStretch(2, self.LARGE_STRETCH)
 
@@ -131,15 +117,13 @@ class AssignmentInspectorModule(CcpnModule):
         self._settingsScrollArea.setStyleSheet(".ScrollArea {padding: %ipx}" % self.SETTING_PADDING)
         self._settingsScrollArea.setScrollBarPolicies(('asNeeded', 'never'))
 
-        self._splitWidget = Frame(self.settingsWidget,grid=(0, 0),setLayout=True, vPolicy='minimumExpanding')
+        self._splitWidget = Frame(self.settingsWidget, grid=(0, 0), setLayout=True, vPolicy='minimumExpanding')
 
-        self._tickLisWidget = Frame(self._splitWidget,grid=(0, 1),setLayout=True, vPolicy='minimum')
+        self._tickLisWidget = Frame(self._splitWidget, grid=(0, 1), setLayout=True, vPolicy='minimum')
 
         self.displaysWidget = ListCompoundWidget(self._splitWidget,
                                                  grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
                                                  vPolicy='maximum',
-                                                 #minimumWidths=(colwidth, 0, 0),
-
                                                  orientation='left',
                                                  labelText='Display(s):',
                                                  tipText='SpectrumDisplay modules to respond to double-click',
@@ -187,13 +171,14 @@ class AssignmentInspectorModule(CcpnModule):
                 callback=self._setNmrAtomListVisible,
                 )
 
-        self._tickLisWidget.layout().setRowStretch(4,self.LARGE_STRETCH)
+        self._tickLisWidget.layout().setRowStretch(4, self.LARGE_STRETCH)
 
         minHeight = self._calculateMinHeight()
         self._settingsScrollArea.setMinimumSizes((self._settingsScrollArea.minimumWidth(), minHeight))
+        self.nmrAtomBlocking = True
 
         # main window
-        # AssignedPeaksTable need to be intialised before chemicalShiftTable, as the callback of the latter requires
+        # AssignedPeaksTable need to be initialised before chemicalShiftTable, as the callback of the latter requires
         # the former to be present
         self.assignedPeaksTable = AssignmentInspectorTable(parent=self._assignmentFrame,
                                                            mainWindow=self.mainWindow,
@@ -212,6 +197,11 @@ class AssignmentInspectorModule(CcpnModule):
                                                      grid=(0, 0),
                                                      hiddenColumns=['Pid', 'Shift list peaks', 'All peaks'])
 
+        # disable current callback - not required for assignmentInspector
+        self.chemicalShiftTable.clearCurrentCallback()
+        # notifier to handle deleting items
+        self.chemicalShiftTable._tableSelectionChanged.connect(self._tableSelectionCallback)
+
         # settingsWidget
         if chemicalShiftList is not None:
             self.chemicalShiftTable.selectChemicalShiftList(chemicalShiftList)
@@ -222,26 +212,31 @@ class AssignmentInspectorModule(CcpnModule):
                 chemicalShiftList = self.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
                 self.chemicalShiftTable._update(chemicalShiftList)
 
-                dataFrameObject  = self.chemicalShiftTable._dataFrameObject
+                dataFrameObject = self.chemicalShiftTable._dataFrameObject
                 if len(dataFrameObject.objects) > 0:
                     self._selectByChemicalShifts([dataFrameObject.objects[0]])
-
-
 
         # install the event filter to handle maximising from floated dock
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
         self._setNmrAtomListVisible(True)
-
         self._registerNotifiers()
 
+    @QtCore.pyqtSlot(list)
+    def _tableSelectionCallback(self, shifts):
 
-        # self.settingsWidget.dumpObjectTree()
+        from ccpn.util.AttrDict import AttrDict
+
+        nmrResidues = list(set(cs.nmrAtom.nmrResidue for cs in shifts))
+        _temp = AttrDict()
+        _temp.nmrResidues = nmrResidues
+
+        self._highlightNmrResidues({CallBack.OBJECT: _temp})
 
     def _calculateMinHeight(self):
         contentsMargins = self._settingsScrollArea.contentsMargins()
-        marginsTotalVertical =  contentsMargins.top() + contentsMargins.bottom()
+        marginsTotalVertical = contentsMargins.top() + contentsMargins.bottom()
         minHeight = max(self._tickLisWidget.sizeHint().height(), self.displaysWidget.minimumSizeHint().height()) + (
-                    self.SETTING_PADDING * 2) + marginsTotalVertical
+                self.SETTING_PADDING * 2) + marginsTotalVertical
         return minHeight
 
     def _fillDisplayWidget(self):
@@ -277,6 +272,8 @@ class AssignmentInspectorModule(CcpnModule):
                          callback=self._highlightNmrAtoms)
         self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
                          NmrAtom.__name__, self._updateNmrAtoms, onceOnly=True)
+
+        self.nmrAtomBlocking = False
 
     def _closeModule(self):
         """
@@ -373,43 +370,7 @@ class AssignmentInspectorModule(CcpnModule):
                                                   markPositions=self.markPositionsWidget.checkBox.isChecked()
                                                   )
 
-    def _actionCallback(self, data):
-        # def _selectionCallback(self, data):
-        """
-        Notifier single-click action on item in table
-        Highlight nmrAtoms from chemicalShifts
-        """
-        # multiselection table will return a list of objects
-        objs = data[CallBack.OBJECT]
-        if not objs:
-            return
-        if isinstance(objs, (tuple, list)):
-            objList = objs
-        else:
-            objList = (objs,)
-
-        if objList:
-            getLogger().debug('AssignmentInspector_ChemicalShift>>> action', objList)
-            nmrResidues = [cs.nmrAtom.nmrResidue for cs in objList]
-
-            if nmrResidues:
-                # navigate to nmrResidues in displays
-
-                pass
-
-                # with self._notifierBlanking():
-                #     # SHOULD be only 1, but multi-selection may give more
-                #     self.current.nmrAtoms = [cs.nmrAtom for cs in objList]
-                #     self.current.nmrResidues = nmrResidues
-                #
-                #     # don't need to update the selection on the chemicalShiftTable
-                #
-                #     self.assignedPeaksTable._updateModuleCallback({NMRRESIDUES: nmrResidues,
-                #                                                    NMRATOMS   : self.current.nmrAtoms},
-                #                                                   updateFromNmrResidues=False)
-
     def _selectionCallback(self, data):
-        # def _actionCallback(self, data):
         """
         Notifier Callback for double-clicking a row in the table
         Highlight all nmrAtoms belonging to the same nmrResidue as nmrAtom in checmicalShifts
@@ -418,7 +379,7 @@ class AssignmentInspectorModule(CcpnModule):
         objList = data[CallBack.OBJECT]
 
         if objList:
-            getLogger().debug('AssignmentInspector_ChemicalShift>>> action', objList)
+            getLogger().debug('AssignmentInspector_ChemicalShift>>> selection', objList)
 
         self._selectByChemicalShifts(objList)
 
@@ -426,27 +387,35 @@ class AssignmentInspectorModule(CcpnModule):
         """
         Notifier Callback for nmrAtom change - to update assignment table and list
         """
+        if self.nmrAtomBlocking:
+            return
+
+        data[CallBack.OBJECT] = []
+        self._refreshNmrAtoms(data)
+
+    def _updateChemicalShifts(self, data):
+        """
+        Notifier Callback for chemcialShift change - to update assignment table and list
+        """
         data[CallBack.OBJECT] = []
         self._refreshNmrAtoms(data)
 
     def _selectByChemicalShifts(self, chemicalShifts):
-        nmrResidues = [cs.nmrAtom.nmrResidue for cs in chemicalShifts]
+        if chemicalShifts:
+            nmrResidues = tuple(set(cs.nmrAtom.nmrResidue for cs in chemicalShifts))
+        else:
+            nmrResidues = []
 
         if nmrResidues:
             with self._notifierBlanking():
+                nmrAtoms = tuple(set(nmrAtom for nmrRes in nmrResidues for nmrAtom in nmrRes.nmrAtoms))
 
-                nmrAtoms = OrderedSet()
-                for nmrRes in nmrResidues:
-                    for nmrAtom in nmrRes.nmrAtoms:
-                        nmrAtoms.add(nmrAtom)
-
-                self.current.nmrAtoms = tuple(nmrAtoms)
+                self.current.nmrAtoms = nmrAtoms
                 self.current.nmrResidues = nmrResidues
 
                 self._highlightChemicalShifts(nmrResidues)
-
                 self.assignedPeaksTable._updateModuleCallback({NMRRESIDUES: nmrResidues,
-                                                               NMRATOMS   : tuple(nmrAtoms)},
+                                                               NMRATOMS   : nmrAtoms},
                                                               updateFromNmrResidues=True)
 
     def _highlightChemicalShifts(self, nmrResidues):
@@ -459,8 +428,8 @@ class AssignmentInspectorModule(CcpnModule):
             chemicalShifts = self.chemicalShiftTable._dataFrameObject._objects
 
             residues = set(nmrResidues)
-            # highlightList = [cs for cs in chemicalShifts if cs.nmrAtom.nmrResidue in residues]
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in residues]
+
             self.chemicalShiftTable._highLightObjs(highlightList)
 
     def _navigateToPeak(self, data):
@@ -513,14 +482,15 @@ class AssignmentInspectorModule(CcpnModule):
         """
         Notifier Callback for highlighting all NmrAtoms in the table
         """
+        if self.nmrAtomBlocking:
+            return
+
         objList = data[CallBack.OBJECT]
 
         if self.chemicalShiftTable._dataFrameObject:
             getLogger().debug('_highlightNmrResidues ', objList)
 
             chemicalShifts = self.chemicalShiftTable._dataFrameObject._objects
-            # peaks = self.assignedPeaksTable._dataFrameObject._objects
-
             nmrResidues = set(objList.nmrResidues)  #        set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
@@ -534,17 +504,17 @@ class AssignmentInspectorModule(CcpnModule):
         """
         Notifier Callback for highlighting all NmrAtoms in the table
         """
+        if self.nmrAtomBlocking:
+            return
+
         objList = data[CallBack.OBJECT]
 
         if self.chemicalShiftTable._dataFrameObject:
             getLogger().debug('_highlightNmrAtoms ', objList)
 
             chemicalShifts = self.chemicalShiftTable._dataFrameObject._objects
-            # peaks = self.assignedPeaksTable._dataFrameObject._objects
-
             nmrResidues = set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
-            # print ('>>>', highlightList)
 
             self.chemicalShiftTable._highLightObjs(highlightList)
 
@@ -564,23 +534,10 @@ class AssignmentInspectorModule(CcpnModule):
 
             self.assignedPeaksTable._updateModuleCallback(None, updateFromNmrResidues=False)
 
-        return
-
-        # if objList:
-        #     residues = [cs.nmrAtom.nmrResidue for cs in objList]
-        #
-        #     if residues:
-        #         self.current.nmrAtoms = [cs.nmrAtom for cs in objList]
-        #         self.current.nmrResidues = [cs.nmrAtom.nmrResidue for cs in objList]
-        #
-        #         self.assignedPeaksTable._updateModuleCallback({'value': residues})
-        #
-        # getLogger().debug('AssignmentInspector>>> highlight nmrAtoms', objList)
-
 
 class AssignmentInspectorTable(GuiTable):
     """
-    Class to present a NmrResidue Table and a NmrChain pulldown list, wrapped in a Widget
+    Class to present a NmrResidue Table and a NmrChain pulldown list, wrapped in a widget
     """
     className = 'AssignmentInspectorTable'
     attributeName = 'chemicalShifts'
@@ -588,9 +545,7 @@ class AssignmentInspectorTable(GuiTable):
     OBJECT = 'object'
     TABLE = 'table'
 
-    def __init__(self, parent=None, mainWindow=None, moduleParent=None, actionCallback=None, selectionCallback=None,
-                 checkBoxCallback=None, nmrChain=None, multiSelect=False,
-                 **kwds):
+    def __init__(self, parent=None, mainWindow=None, moduleParent=None, actionCallback=None, selectionCallback=None, **kwds):
         """
         Initialise the widgets for the module.
         """
@@ -675,7 +630,7 @@ class AssignmentInspectorTable(GuiTable):
                                className=self.attributeName,
                                updateFunc=self._refreshTable,
                                tableSelection='_peakList',
-                               pullDownWidget=None,  #self.ncWidget
+                               pullDownWidget=None,
                                callBackClass=Peak,
                                selectCurrentCallBack=self._selectOnTableCurrentPeaksNotifierCallback,
                                moduleParent=moduleParent)
@@ -704,10 +659,13 @@ class AssignmentInspectorTable(GuiTable):
             self._nmrResidues = nmrResidues
             self._nmrAtoms = nmrAtoms
 
+            _select = self.attachedNmrAtomsList.getSelectedTexts()
             # there is currently a hidden list widget containing the nmrAtom ids
-            self.attachedNmrAtomsList.clear()
-            self.ids = [atm.id for atm in nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
-            self.attachedNmrAtomsList.addItems(self.ids)
+            with self.blockWidgetSignals(self.attachedNmrAtomsList):
+                self.attachedNmrAtomsList.clear()
+                self.ids = [atm.id for atm in nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
+                self.attachedNmrAtomsList.addItems(self.ids)
+                self.attachedNmrAtomsList.selectItems(_select)
 
             # populate peak table with the correct peaks
             self._updatePeakTable(nmrAtoms, messageAll=updateFromNmrResidues)
@@ -715,38 +673,17 @@ class AssignmentInspectorTable(GuiTable):
         else:
             # data is None, so update from current settings - should only be called from _refreshNmrAtoms
 
+            _select = self.attachedNmrAtomsList.getSelectedTexts()
             # there is currently a hidden list widget containing the nmrAtom ids
-            self.attachedNmrAtomsList.clear()
-            _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not (_nmrRes.isDeleted or _nmrRes._flaggedForDelete) for atm in _nmrRes.nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
-            self.ids = [atm.id for atm in _nmrAtoms]
-            self.attachedNmrAtomsList.addItems(self.ids)
+            with self.blockWidgetSignals(self.attachedNmrAtomsList):
+                self.attachedNmrAtomsList.clear()
+                _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not (_nmrRes.isDeleted or _nmrRes._flaggedForDelete) for atm in _nmrRes.nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
+                self.ids = [atm.id for atm in _nmrAtoms]
+                self.attachedNmrAtomsList.addItems(self.ids)
+                self.attachedNmrAtomsList.selectItems(_select)
 
             # populate peak table with the correct peaks
             self._updatePeakTable(_nmrAtoms, messageAll=updateFromNmrResidues)
-
-            # self.attachedNmrAtomsList.clear()
-            #
-            # if nmrResidues is not None and len(nmrResidues) > 0 \
-            #         and nmrResidues[-1] and len(nmrResidues[-1].nmrAtoms) > 0:
-            #
-            #     # get the pids and append <all>
-            #     self.ids = [atm.id for atm in nmrResidues[-1].nmrAtoms] + [ALL]
-            #     self.attachedNmrAtomsList.addItems(self.ids)
-            #
-            #     # # clear and fill the peak table
-            #     # self.assignedPeaksTable.setObjects([])
-            #     if self.application.current.nmrAtom is not None and self.application.current.nmrAtom.id in self.ids:
-            #         logger.debug('UPDATING selection')
-            #
-            #         self._updatePeakTable(self.application.current.nmrAtom.id)
-            #     else:
-            #         logger.debug('UPDATING All')
-            #
-            #         self._updatePeakTable(ALL)
-            #
-            #     # new to populate table
-            # else:
-            #     logger.debug('No valid nmrAtom/nmrResidue defined')
 
     def _selectOnTableCurrentPeaksNotifierCallback(self, data):
         """
@@ -762,12 +699,7 @@ class AssignmentInspectorTable(GuiTable):
         Highlight the list of peaks on the table
         :param currentPeaks:
         """
-
         self.highlightObjects(currentPeaks)
-        # if len(currentPeaks) > 0:
-        #     self._highLightObjs(currentPeaks)
-        # else:
-        #     self.clearSelection()
 
     def _updatePeakTableCallback(self, data=None):
         """
@@ -781,25 +713,6 @@ class AssignmentInspectorTable(GuiTable):
         # populate the table with valid nmrAtoms
         self._updatePeakTable([atm for atm in nmrAtoms if atm is not None],
                               messageAll=True if numTexts == len(nmrAtoms) else False)
-
-    # @contextmanager
-    # def _projectBlanking(self):
-    #
-    #     self.project.blankNotification()
-    #     objs = self.getSelectedObjects()
-    #
-    #     try:
-    #         # transfer control to the calling function
-    #         yield
-    #
-    #     except Exception as es:
-    #         getLogger().warning('Error in AssignmentInspectorModule', str(es))
-    #
-    #     finally:
-    #         # populate from the Pandas dataFrame inside the dataFrameObject
-    #         self.setTableFromDataFrameObject(dataFrameObject=self._dataFrameObject)
-    #         self._highLightObjs(objs)
-    #         self.project.unblankNotification()
 
     def _updatePeakTable(self, nmrAtoms, messageAll=True):
         """
@@ -815,12 +728,6 @@ class AssignmentInspectorTable(GuiTable):
 
         self._peakList = _emptyObject()
         self._peakList.peaks = list(set([pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks]))
-
-        # with self._projectBlanking():
-        #     self._dataFrameObject = self.getDataFrameFromList(table=self,
-        #                                                       buildList=self._peakList.peaks,
-        #                                                       colDefs=self.getColumns(),
-        #                                                       hiddenColumns=self._hiddenColumns)
 
         self.populateTable(rowObjects=self._peakList.peaks,
                            columnDefs=self.getColumns())
@@ -867,7 +774,7 @@ class AssignmentInspectorTable(GuiTable):
         #         self.peaksLabel.setText('Peaks assigned to NmrAtom: %s' % id)  # nmrAtom.id)
 
     def getColumns(self):
-        "get columns for initialisation of table"
+        """get columns for initialisation of table"""
         columns = ColumnClass([('Peak', lambda pk: pk.id, '', None, None),
                                ('Pid', lambda pk: pk.pid, 'Pid of peak', None, None),
                                ('_object', lambda pk: pk, 'Object', None, None),
@@ -912,62 +819,6 @@ class AssignmentInspectorTable(GuiTable):
         columns._columns.append(Column('volume', lambda pk: pk.volume, '', None, None))
         return columns
 
-    # def _setCurrentPeak(self, data):
-    #   """
-    #   PeakTable select callback
-    #   """
-    #   from ccpn.core.lib.CallBack import CallBack
-    #
-    #   peak = data[CallBack.OBJECT]
-    #   # multiselection not allowed, sot only return the first object in list
-    #   if peak:
-    #     self.application.current.peaks = peak
-
-    # def _navigateToPeak(self, data):
-    #   """
-    #   PeakTable double-click callback; navigate in to peak in current.strip
-    #   """
-    #   displays = self._getDisplays()
-    #   if len(displays) == 0:
-    #     logger.warning('Undefined display module(s); select in settings first')
-    #     showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
-    #     return
-    #
-    #   peak = data[CallBack.OBJECT]
-    #   if peak:
-    #     self.current.peak = peak
-    #
-    #     self.application._startCommandBlock('%s.navigateToPositionInStrip(project.getByPid(%r))' %
-    #         (self.className, peak.position))
-    #     try:
-    #       # optionally clear the marks
-    #       if self.autoClearMarksWidget.checkBox.isChecked():
-    #           self.application.ui.mainWindow.clearMarks()
-    #
-    #       # navigate the displays
-    #       for display in displays:
-    #         for strip in display.strips:
-    #
-    #           validPeakListViews = [pp.peakList for pp in strip.peakListViews if isinstance(pp.peakList, PeakList)]
-    #
-    #           if peak.peakList in validPeakListViews:
-    #             widths = None
-    #             if peak.peakList.spectrum.dimensionCount <= 2:
-    #               widths = _getCurrentZoomRatio(strip.viewRange())
-    #
-    #             navigateToPositionInStrip(strip=strip, positions=peak.position, widths=widths)
-    #
-    #     finally:
-    #         self.application._endCommandBlock()
-
-    # peak = data[CallBack.OBJECT]
-    #
-    # from ccpn.ui.gui.lib.Strip import navigateToPositionInStrip
-    # #print('>peakTableDoubleClick>', peak)
-    # if peak is not None and self.application.current.strip is not None:
-    #   self.application.current.peak = peak
-    #   navigateToPositionInStrip(strip=self.application.current.strip, positions=peak.position)
-
     def _getPeakHeight(self, peak):
         """
         Returns the height of the specified peak as formatted string or 'None' if undefined
@@ -976,18 +827,6 @@ class AssignmentInspectorTable(GuiTable):
             return '%7.2E' % float(peak.height)
         else:
             return '%s' % None
-
-    # def _getSearchWidget(self):
-    #   """
-    #   CCPN-INTERNAL: used to get searchWidget
-    #   """
-    #   return self.searchWidget
-
-    # def _close(self):
-    #     """
-    #     Cleanup the notifiers when the window is closed
-    #     """
-    #     self.clearTableNotifiers()
 
     def _refreshTable(self, *args):
         self.update()

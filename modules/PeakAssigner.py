@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-15 16:53:54 +0000 (Mon, March 15, 2021) $"
+__dateModified__ = "$dateModified: 2021-03-18 13:10:44 +0000 (Thu, March 18, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -198,41 +198,32 @@ class PeakAssigner(CcpnModule):
     def _registerNotifiers(self):
         # without a tableSelection specified in the table callback, this nmrAtom callback is needed
         # to update the table
-        self._peakNotifier = Notifier(self.current,
-                                      [Notifier.CURRENT],
-                                      targetName=Peak._pluralLinkName,
-                                      callback=self._updateInterface)
-        self._nmrAtomNotifier = Notifier(self.project,
-                                         [Notifier.CHANGE, Notifier.RENAME, Notifier.CREATE],
-                                         targetName=NmrAtom.__name__,
-                                         callback=self._updateNmrAtom)
-        self._peakChangeNotifier = Notifier(self.project,
-                                            [Notifier.CHANGE],
-                                            targetName=Peak.__name__,
-                                            callback=self._updateNmrResidue)
-        self._nmrResidueNotifier = Notifier(self.project,
-                                            [Notifier.DELETE, Notifier.CREATE],
-                                            targetName=NmrResidue.__name__,
-                                            callback=self._updateNmrResidue)
-
-    def _unRegisterNotifiers(self):
-        if self._peakNotifier:
-            self._peakNotifier.unRegister()
-        if self._nmrAtomNotifier:
-            self._nmrAtomNotifier.unRegister()
-        if self._peakChangeNotifier:
-            self._peakChangeNotifier.unRegister()
-        if self._nmrResidueNotifier:
-            self._nmrResidueNotifier.unRegister()
+        self.setNotifier(self.current, [Notifier.CURRENT],
+                         targetName=Peak._pluralLinkName,
+                         callback=self._updateInterface,
+                         onceOnly=True)
+        self.setNotifier(self.project, [Notifier.DELETE, Notifier.CREATE],
+                         targetName=Peak.__name__,
+                         callback=self._updateInterface,
+                         onceOnly=True)
+        self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.CREATE],
+                         targetName=NmrAtom.__name__,
+                         callback=self._updateNmrAtom,
+                         onceOnly=True)
+        self.setNotifier(self.project, [Notifier.CHANGE],
+                         targetName=Peak.__name__,
+                         callback=self._updateNmrResidue,
+                         onceOnly=True)
+        self.setNotifier(self.project, [Notifier.DELETE, Notifier.CREATE],
+                         targetName=NmrResidue.__name__,
+                         callback=self._updateNmrResidue,
+                         onceOnly=True)
 
     def _updateNmrAtom(self, data):
         self._updateInterface(action=data[Notifier.TRIGGER])
 
     def _updateNmrResidue(self, data):
         self._updateInterface(action=data[Notifier.TRIGGER])
-
-    def __del__(self):
-        self._unRegisterNotifiers()
 
     def _updateInterface(self, peaks: typing.List[Peak] = None,
                          enableDeleteButton=False, enableDeassignButton=False, enableAssignButton=False,
@@ -483,7 +474,7 @@ class PeakAssigner(CcpnModule):
         """
         CCPN-INTERNAL: used to close the module
         """
-        self._unRegisterNotifiers()
+        # self._unRegisterNotifiers()
         for axisTable in self.axisTables:
             axisTable._close()
         self.axisTables = None
@@ -713,12 +704,10 @@ class AxisAssignmentObject(Frame):
         self.tables[1]._close()
         self.tables = None
 
-    def _clearClicked(self, val):
-        pass
-
-        # self._clickedNmrAtom = None
-        # self._clickedLabel.setText('Current NmrAtom: <None>')
-        # self._clickedClear.setVisible(False)
+    # def _clearClicked(self, val):
+    #     self._clickedNmrAtom = None
+    #     self._clickedLabel.setText('Current NmrAtom: <None>')
+    #     self._clickedClear.setVisible(False)
 
     def _assignDeassignNmrAtom(self, tableNum: int, data):
         """
@@ -742,13 +731,13 @@ class AxisAssignmentObject(Frame):
             # self._clickedClear.setVisible(True)
             if tableNum == 0:
                 self._updateAssignmentWidget(tableNum, obj[0])
-                self.tables[1].clearSelection()
+                # self.tables[1].clearSelection()
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', True)
                 self.buttonList.setButtonEnabled('Assign', False)
             elif tableNum == 1:
                 self._updateAssignmentWidget(tableNum, obj[0])
-                self.tables[0].clearSelection()
+                # self.tables[0].clearSelection()
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', False)
                 self.buttonList.setButtonEnabled('Assign', True)
@@ -907,41 +896,6 @@ class AxisAssignmentObject(Frame):
 
         except Exception as es:
             showWarning('Rename NmrAtom', str(es))
-            # self._updateAssignmentWidget(self.lastTableSelected, None)
-            # self.buttonList.setButtonEnabled('Assign', False)
-
-        # if not self._clickedNmrAtom:
-        #     return
-        #
-        # nmrChainName = self.chainPulldown.currentText()
-        # seqCode = self.seqCodePulldown.currentText()
-        # newResType = self.resTypePulldown.currentText()
-        # nmrAtomName = self.atomTypePulldown.currentText()
-        #
-        # _chainPid = 'NC:{}'.format(nmrChainName)
-        # # find the existing nmrChain
-        # _nmrChain = self.project.getByPid(_chainPid)
-        # if not _nmrChain:
-        #     # raise error to notify popup
-        #     raise ValueError("NmrChain doesn't exists")
-        #
-        # nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
-        #
-        # if nmrResidue != self._clickedNmrAtom.nmrResidue:
-        #     raise ValueError("Wrong nmrResidue")
-        #
-        # # rename the residueType
-        # if nmrResidue.residueType != newResType:
-        #     nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-        #
-        # # change the atomName
-        # nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-        # if nmrAtom and self._clickedNmrAtom.name != nmrAtomName:
-        #     raise ValueError("NmrAtom already exists")
-        #
-        # self._clickedNmrAtom.rename(nmrAtomName)
-        #
-        # self._parent._updateInterface()
 
     def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True):
         """
@@ -995,7 +949,7 @@ class AxisAssignmentObject(Frame):
                             if self._clickedNmrAtom and self._clickedNmrAtom.nmrResidue == nmrResidue and nmrResidue.residueType != newResType:
                                 if len(nmrResidue.nmrAtoms) > 1:
                                     yes = showYesNoWarning('Assigning nmrAtoms',
-                                                        'This will change all nmrAtoms to the residueType {}, continue?'.format(newResType))
+                                                           'This will change all nmrAtoms to the residueType {}, continue?'.format(newResType))
                                     if yes:
                                         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
                                 else:
@@ -1073,9 +1027,6 @@ class AxisAssignmentObject(Frame):
                 except Exception as es:
                     showWarning(str(self.windowTitle()), str(es))
 
-            # notifier to update other tables
-            # nmrResidue._finaliseAction('change')
-
             self._parent._updateInterface()
 
             self.tables[0].selectObjects([nmrAtom], setUpdatesEnabled=False)
@@ -1101,8 +1052,6 @@ class AxisAssignmentObject(Frame):
 
         except Exception as es:
             showWarning('Assign NmrAtom', str(es))
-            # self._updateAssignmentWidget(self.lastTableSelected, None)
-            # self.buttonList.setButtonEnabled('Assign', False)
 
     def _deassignNmrAtom(self, dim: int):
         """
@@ -1120,15 +1069,6 @@ class AxisAssignmentObject(Frame):
                 try:
                     with undoBlock():
                         for peak in self.current.peaks:
-                            # newList = []
-                            # for atomList in peak.assignedNmrAtoms:
-                            #     atoms = [atom for atom in list(atomList) if atom != currentObject[0]]
-                            #     newList.append(tuple(atoms))
-                            #
-                            #     peak.assignedNmrAtoms = tuple(newList)
-
-                            # dimNmrAtoms = peak.dimensionNmrAtoms[dim]
-
                             peakDimNmrAtoms = peak.dimensionNmrAtoms
                             dimNmrAtoms = list(peakDimNmrAtoms[dim])  # ejb - changed to list
                             dimNmrAtoms.remove(currentObject[0])
@@ -1139,9 +1079,6 @@ class AxisAssignmentObject(Frame):
 
                 except Exception as es:
                     showWarning(str(self.windowTitle()), str(es))
-
-                    # notifier to update other tables
-                    # nmrResidue._finaliseAction('change')
 
                 self._parent._updateInterface()
                 self.tables[1].selectObjects([currentObject[0]], setUpdatesEnabled=False)
