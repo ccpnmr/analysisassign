@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-18 13:10:44 +0000 (Thu, March 18, 2021) $"
+__dateModified__ = "$dateModified: 2021-03-19 10:09:29 +0000 (Fri, March 19, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -663,7 +663,10 @@ class AssignmentInspectorTable(GuiTable):
             # there is currently a hidden list widget containing the nmrAtom ids
             with self.blockWidgetSignals(self.attachedNmrAtomsList):
                 self.attachedNmrAtomsList.clear()
+
+                # NOTE:ED - should we only display those nmrAtoms that are in the chemicalShift table? - similarly for peaks
                 self.ids = [atm.id for atm in nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
+
                 self.attachedNmrAtomsList.addItems(self.ids)
                 self.attachedNmrAtomsList.selectItems(_select)
 
