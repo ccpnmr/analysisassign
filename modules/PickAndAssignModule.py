@@ -21,8 +21,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-15 16:22:31 +0000 (Mon, March 15, 2021) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2021-03-23 12:51:33 +0000 (Tue, March 23, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -41,7 +41,7 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.Font import getFontHeight
-from ccpn.core.lib.ContextManagers import undoBlock
+from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
 
 logger = getLogger()
 
@@ -162,7 +162,7 @@ class PickAndAssignModule(NmrResidueTableModule):
             logger.error('Undefined peak(s); select one or more before proceeding')
             return
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
             lastNmrResidue = self.application.current.nmrResidue
 
             shiftDict = {}
@@ -224,7 +224,7 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
 
             peaks = []
             # displays = self._getDisplays()
@@ -307,7 +307,7 @@ class PickAndAssignModule(NmrResidueTableModule):
             print('No current nmrResidue')
             return
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
 
             self.restrictedPick(nmrResidue)
 
@@ -325,7 +325,7 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         activeDisplays = self.spectrumSelectionWidget.getActiveDisplays()
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
 
             if nmrResidue is not None:
                 mainWindow = self.application.ui.mainWindow

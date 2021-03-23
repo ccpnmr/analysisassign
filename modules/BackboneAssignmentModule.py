@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-11 12:20:56 +0000 (Thu, March 11, 2021) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2021-03-23 12:51:33 +0000 (Tue, March 23, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -824,7 +824,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
             scoreAssignment.append('[ %i' % int(100 - min(1000 * assignmentScore, 100)) + '% ]')
 
-            nmrAtomPairs.append((iNmrResidue.fetchNmrAtom(name='N'), iNmrResidue.fetchNmrAtom(name='H')))
+            nmrAtomPairs.append((iNmrResidue.fetchNmrAtom(name='N', isotopeCode='N'),
+                                 iNmrResidue.fetchNmrAtom(name='H', isotopeCode='H')))
 
         if matchDirection == 1:
             numberOfMatches = int(self.numberOfPlusMatchesWidget.getText())
