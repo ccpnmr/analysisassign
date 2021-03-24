@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-24 13:08:40 +0000 (Wed, March 24, 2021) $"
+__dateModified__ = "$dateModified: 2021-03-24 13:20:52 +0000 (Wed, March 24, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -731,13 +731,13 @@ class AxisAssignmentObject(Frame):
             # self._clickedClear.setVisible(True)
             if tableNum == 0:
                 self._updateAssignmentWidget(tableNum, obj[0])
-                # self.tables[1].clearSelection()
+                self.tables[1].clearSelection()
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', True)
                 self.buttonList.setButtonEnabled('Assign', True) #False)
             elif tableNum == 1:
                 self._updateAssignmentWidget(tableNum, obj[0])
-                # self.tables[0].clearSelection()
+                self.tables[0].clearSelection()
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', False)
                 self.buttonList.setButtonEnabled('Assign', True)
