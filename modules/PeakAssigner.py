@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-18 13:10:44 +0000 (Thu, March 18, 2021) $"
+__dateModified__ = "$dateModified: 2021-03-24 13:08:40 +0000 (Wed, March 24, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -391,7 +391,7 @@ class PeakAssigner(CcpnModule):
                 item = (nmrChain, sequenceCode, residueType, atomType)
                 enable = enable or (False not in self.axisTables[dim]._atomCompare(item, currentNmrAtomSelected))
 
-            self.axisTables[dim].buttonList.setButtonEnabled('Assign', enable)
+            self.axisTables[dim].buttonList.setButtonEnabled('Assign', True) #enable)
 
         return _sizes
 
@@ -734,7 +734,7 @@ class AxisAssignmentObject(Frame):
                 # self.tables[1].clearSelection()
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', True)
-                self.buttonList.setButtonEnabled('Assign', False)
+                self.buttonList.setButtonEnabled('Assign', True) #False)
             elif tableNum == 1:
                 self._updateAssignmentWidget(tableNum, obj[0])
                 # self.tables[0].clearSelection()
@@ -803,7 +803,7 @@ class AxisAssignmentObject(Frame):
                 self.lastTableSelected = 0
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', True)
-                self.buttonList.setButtonEnabled('Assign', False)
+                self.buttonList.setButtonEnabled('Assign', True) #False)
 
             except Exception as es:
                 showWarning(str(self.windowTitle()), str(es))
@@ -1037,7 +1037,7 @@ class AxisAssignmentObject(Frame):
                 self.lastTableSelected = 0
                 self.buttonList.setButtonEnabled('Delete', True)
                 self.buttonList.setButtonEnabled('Deassign', True)
-                self.buttonList.setButtonEnabled('Assign', False)
+                self.buttonList.setButtonEnabled('Assign', True) #False)
 
             else:
                 self._updateAssignmentWidget(0, None)
@@ -1045,7 +1045,7 @@ class AxisAssignmentObject(Frame):
                 self.lastTableSelected = 0
                 self.buttonList.setButtonEnabled('Delete', False)
                 self.buttonList.setButtonEnabled('Deassign', False)
-                self.buttonList.setButtonEnabled('Assign', False)
+                self.buttonList.setButtonEnabled('Assign', True) #False)
 
             # update the module
             self.update()
@@ -1097,7 +1097,7 @@ class AxisAssignmentObject(Frame):
                     self.lastTableSelected = 1
                     self.buttonList.setButtonEnabled('Delete', False)
                     self.buttonList.setButtonEnabled('Deassign', False)
-                    self.buttonList.setButtonEnabled('Assign', False)
+                    self.buttonList.setButtonEnabled('Assign', True) #False)
 
         except Exception as es:
             showWarning('Deassign NmrAtom', str(es))
@@ -1275,7 +1275,7 @@ class AxisAssignmentObject(Frame):
 
                     self.buttonList.setButtonEnabled('Delete', False)
                     self.buttonList.setButtonEnabled('Deassign', False)
-                    self.buttonList.setButtonEnabled('Assign', False)
+                    self.buttonList.setButtonEnabled('Assign', True) #False)
 
                     self._updateAssignmentWidget(self.lastTableSelected, None)
                 else:
@@ -1290,7 +1290,7 @@ class AxisAssignmentObject(Frame):
                                   self.resTypePulldown.currentText(),
                                   self.atomTypePulldown.currentText())
         enable = False in self._atomCompare(self.lastNmrAtomSelected, currentNmrAtomSelected)
-        self.buttonList.setButtonEnabled('Assign', enable)
+        self.buttonList.setButtonEnabled('Assign', True) #enable)
 
     def _atomCompare(self, atom1: tuple, atom2: tuple):
         """
