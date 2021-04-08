@@ -14,7 +14,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2021-03-23 12:51:33 +0000 (Tue, March 23, 2021) $"
+__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -49,7 +49,7 @@ from ccpn.util.Logging import getLogger
 from ccpn.core.NmrAtom import NmrAtom
 from ccpn.ui.gui.widgets.PlaneToolbar import STRIPLABEL_CONNECTDIR, STRIPLABEL_CONNECTNONE, \
     STRIPCONNECT_LEFT, STRIPCONNECT_RIGHT
-from ccpn.core.lib.ContextManagers import undoBlock, notificationEchoBlocking
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, notificationEchoBlocking
 
 
 ALL = '<all>'
@@ -326,7 +326,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             showWarning('startAssignment', 'Match module and Search module cannot be the same')
             return
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
 
             # optionally clear the marks
             if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
@@ -596,7 +596,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         else:
             progressText = "connecting  %s  <  %s" % (nmrResidue.pid, droppedNmrResidue.pid)
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
             with progressManager(self.mainWindow, progressText):
 
                 try:

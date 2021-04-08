@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-02-11 13:50:35 +0000 (Thu, February 11, 2021) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -67,7 +67,7 @@ from ccpn.ui.gui.modules.SequenceModule import SequenceModule
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, SEQUENCEGRAPHFONT
 from ccpn.ui.gui.widgets.SettingsWidgets import SequenceGraphSettings
 from ccpn.core.lib.AssignmentLib import getSpinSystemsLocation, getAllSpinSystems
-from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlock
+from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlockWithoutSideBar
 from ccpnc.clibrary import Clibrary
 
 
@@ -2816,7 +2816,7 @@ class SequenceGraphModule(CcpnModule):
             raise TypeError('selectedNmrAtom must be of type NmrAtom')
 
         if selectedPeak:
-            with undoBlock():
+            with undoBlockWithoutSideBar():
                 try:
                     newList = []
                     # remove the nmrAtom from the list and replace with None
@@ -2929,7 +2929,7 @@ class SequenceGraphModule(CcpnModule):
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
             return
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
             # optionally clear the marks
             if self._SGwidget.checkBoxes['autoClearMarks']['checkBox'].isChecked():
                 self.mainWindow.clearMarks()

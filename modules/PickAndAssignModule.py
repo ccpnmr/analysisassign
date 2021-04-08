@@ -22,7 +22,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2021-03-23 12:51:33 +0000 (Tue, March 23, 2021) $"
+__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -41,7 +41,7 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.Font import getFontHeight
-from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 
 logger = getLogger()
 

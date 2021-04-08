@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-24 13:20:52 +0000 (Wed, March 24, 2021) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -60,7 +60,7 @@ from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
-from ccpn.core.lib.ContextManagers import undoBlock
+from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
 from ccpn.ui.gui.guiSettings import BORDERNOFOCUS_COLOUR
 
 
@@ -780,7 +780,7 @@ class AxisAssignmentObject(Frame):
         nmrAtom = self.project.fetchNmrChain(shortName=defaultNmrChainCode
                                              ).newNmrResidue().newNmrAtom(isotopeCode=isotopeCode)
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
             try:
 
                 for peak in self.current.peaks:
@@ -833,7 +833,7 @@ class AxisAssignmentObject(Frame):
                 return
 
             # wrap all actions in a single undo block
-            with undoBlock():
+            with undoBlockWithoutSideBar():
 
                 _chainPid = 'NC:{}'.format(nmrChainName)
                 # if create and not action:
@@ -927,7 +927,7 @@ class AxisAssignmentObject(Frame):
             nmrAtom = None
 
             # wrap all actions in a single undo block
-            with undoBlock():
+            with undoBlockWithoutSideBar():
 
                 _chainPid = 'NC:{}'.format(nmrChainName)
                 if create and not action:
@@ -1067,7 +1067,7 @@ class AxisAssignmentObject(Frame):
 
             if currentObject:
                 try:
-                    with undoBlock():
+                    with undoBlockWithoutSideBar():
                         for peak in self.current.peaks:
                             peakDimNmrAtoms = peak.dimensionNmrAtoms
                             dimNmrAtoms = list(peakDimNmrAtoms[dim])  # ejb - changed to list

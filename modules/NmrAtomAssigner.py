@@ -31,8 +31,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-02-03 18:11:36 +0000 (Wed, February 03, 2021) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -355,9 +355,9 @@ class NmrAtomAssignerModule(CcpnModule):
 
         self._togglePressedButton(pressedButton)
 
-        from ccpn.core.lib.ContextManagers import undoBlock
+        from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
             try:
                 if pressedButton.isChecked():
                     self._assignSelected(atomName=pressedButton._atomName, offSet=pressedButton._offSet)

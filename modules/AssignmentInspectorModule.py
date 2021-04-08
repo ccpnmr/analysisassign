@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-03-19 10:09:29 +0000 (Fri, March 19, 2021) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2021-04-08 15:22:16 +0100 (Thu, April 08, 2021) $"
 __version__ = "$Revision: 3.0.3 $"
 #=========================================================================================
 # Created
@@ -352,9 +352,9 @@ class AssignmentInspectorModule(CcpnModule):
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
             return
 
-        from ccpn.core.lib.ContextManagers import undoBlock
+        from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 
-        with undoBlock():
+        with undoBlockWithoutSideBar():
             # optionally clear the marks
             if self.autoClearMarksWidget.checkBox.isChecked():
                 self.mainWindow.clearMarks()
@@ -456,9 +456,9 @@ class AssignmentInspectorModule(CcpnModule):
         if peak:
             self.current.peak = peak
 
-            from ccpn.core.lib.ContextManagers import undoBlock
+            from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 
-            with undoBlock():
+            with undoBlockWithoutSideBar():
                 # optionally clear the marks
                 if self.autoClearMarksWidget.checkBox.isChecked():
                     self.application.ui.mainWindow.clearMarks()
