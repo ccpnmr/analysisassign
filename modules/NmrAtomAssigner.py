@@ -23,7 +23,8 @@ Reworked by EJB
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -31,9 +32,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
-__version__ = "$Revision: 3.0.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2021-04-23 17:18:02 +0100 (Fri, April 23, 2021) $"
+__version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -171,8 +172,8 @@ class NmrAtomAssignerModule(CcpnModule):
             w.hide()
 
         self._residueFrame = ScrollableFrame(parent=self.mainWidget,
-                                       showBorder=False, setLayout=True,
-                                       acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
+                                             showBorder=False, setLayout=True,
+                                             acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
         self._scrollAreaWidget = self._residueFrame._scrollArea
         self._residueFrame.insertCornerWidget()
 
@@ -516,14 +517,14 @@ class NmrAtomAssignerModule(CcpnModule):
     def _blockEvents(self):
         """Block all updates/signals/notifiers in the module.
         """
-        self.setUpdatesEnabled(False)
+        # self.setUpdatesEnabled(False)
         self.blockSignals(True)
 
     def _unblockEvents(self):
         """Unblock all updates/signals/notifiers in the module.
         """
         self.blockSignals(False)
-        self.setUpdatesEnabled(True)
+        # self.setUpdatesEnabled(True)
 
     @contextmanager
     def _moduleBlocking(self):
@@ -547,7 +548,7 @@ class NmrAtomAssignerModule(CcpnModule):
             self._updateWidget()
 
     def _updateWidget(self, dataDict=None):  # also used as notifier callback function
-        "Update the widget to reflect the proper state"
+        """Update the widget to reflect the proper state"""
         # try:
         ii = jj = 0
         with self._moduleBlocking():
@@ -974,8 +975,8 @@ class NmrAtomAssignerModule(CcpnModule):
                     for jj, atom in enumerate(atomList):
                         self.buttons[atom] = []
                         offset = self.offsetSelector.currentText()
-                        btext = self.atomLabel(atom, offset)
-                        button = RadioButton(self._assignWidget, text=btext, grid=(rows, jj), hAlign='t', )
+                        bText = self.atomLabel(atom, offset)
+                        button = RadioButton(self._assignWidget, text=bText, grid=(rows, jj), hAlign='t', )
                         # callback=partial(self.assignSelected, offset, atom))
                         button._atomName = atom
                         button._offSet = offset
@@ -1002,12 +1003,15 @@ class NmrAtomAssignerModule(CcpnModule):
                 for ii, atomList in enumerate(atomButtonList2):
                     for jj, atom in enumerate(atomList):
                         self.buttons[atom] = []
-                        button = RadioButton(self._assignWidget, text=atom, grid=(rows, jj), hAlign='t', )
+
+                        offset = self.offsetSelector.currentText()
+                        bText = self.atomLabel(atom, offset)
+                        button = RadioButton(self._assignWidget, text=bText, grid=(rows, jj), hAlign='t', )
                         # callback=partial(self.assignSelected, self.offsetSelector.currentText(), atom))
                         # button = Button(self._assignWidget, text=atom, grid=(ii, jj), hAlign='t',
                         #         callback=partial(self.assignSelected, self.offsetSelector.currentText(), atom))
                         button._atomName = atom
-                        button._offSet = None
+                        button._offSet = offset
                         self.buttonGroup.addButton(button)
                         button.setMinimumSize(BUTTON_MINX, BUTTON_MINY)
                         # button.setAutoExclusive(True)
