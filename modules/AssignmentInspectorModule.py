@@ -730,7 +730,15 @@ class AssignmentInspectorTable(GuiTable):
             # self._updatePeakTable([atm for atm in nmrAtoms if atm is not None], messageAll=True)
 
         self._peakList = _emptyObject()
-        self._peakList.peaks = list(set([pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks]))
+        allPeaks = list(set([pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks]))
+        chemicalShiftList = self.moduleParent.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
+        if chemicalShiftList:
+            spectra = chemicalShiftList.spectra #show peaks only for spectra currently available for the selected CSL
+            peaks = [peak for peak in allPeaks if peak.peakList.spectrum in spectra]
+        else:
+            peaks = []
+
+        self._peakList.peaks = peaks
 
         self.populateTable(rowObjects=self._peakList.peaks,
                            columnDefs=self.getColumns())
