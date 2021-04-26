@@ -75,6 +75,7 @@ from ccpn.ui.gui.widgets.DropBase import DropBase
 
 from ccpn.util.Common import makeIterableList, _truncateText
 from ccpnmodel.ccpncore.lib.assignment.ChemicalShift import PROTEIN_ATOM_NAMES, ALL_ATOMS_SORTED
+from ccpn.core.lib.AssignmentLib import PROTEIN_NEF_ATOM_NAMES, NEF_ATOM_NAMES_SORTED
 from ccpn.util.Logging import getLogger
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.AssignmentLib import _assignNmrAtomsToPeaks
@@ -810,17 +811,17 @@ class NmrAtomAssignerModule(CcpnModule):
     def _getAtomButtonList(self, residueType=None):
 
         additionalAtoms = list(ADDITIONALBACKBONEATOMS)
-        alphaAtoms = [x for x in ALL_ATOMS_SORTED['alphas']]
-        betaAtoms = [x for x in ALL_ATOMS_SORTED['betas']]
-        gammaAtoms = [x for x in ALL_ATOMS_SORTED['gammas']]
-        moreGammaAtoms = [x for x in ALL_ATOMS_SORTED['moreGammas']]
-        deltaAtoms = [x for x in ALL_ATOMS_SORTED['deltas']]
-        moreDeltaAtoms = [x for x in ALL_ATOMS_SORTED['moreDeltas']]
-        epsilonAtoms = [x for x in ALL_ATOMS_SORTED['epsilons']]
-        moreEpsilonAtoms = [x for x in ALL_ATOMS_SORTED['moreEpsilons']]
-        zetaAtoms = [x for x in ALL_ATOMS_SORTED['zetas']]
-        etaAtoms = [x for x in ALL_ATOMS_SORTED['etas']]
-        moreEtaAtoms = [x for x in ALL_ATOMS_SORTED['moreEtas']]
+        alphaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['alphas']]
+        betaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['betas']]
+        gammaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['gammas']]
+        moreGammaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['moreGammas']]
+        deltaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['deltas']]
+        moreDeltaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['moreDeltas']]
+        epsilonAtoms = [x for x in NEF_ATOM_NAMES_SORTED['epsilons']]
+        moreEpsilonAtoms = [x for x in NEF_ATOM_NAMES_SORTED['moreEpsilons']]
+        zetaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['zetas']]
+        etaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['etas']]
+        moreEtaAtoms = [x for x in NEF_ATOM_NAMES_SORTED['moreEtas']]
 
         atomButtonList = [additionalAtoms,
                           alphaAtoms, betaAtoms, gammaAtoms, moreGammaAtoms, deltaAtoms, moreDeltaAtoms,
@@ -828,8 +829,8 @@ class NmrAtomAssignerModule(CcpnModule):
 
         if residueType and isinstance(residueType, str):
             residueType = residueType.upper()
-            if residueType in PROTEIN_ATOM_NAMES:
-                residueAtoms = PROTEIN_ATOM_NAMES[residueType]
+            if residueType in PROTEIN_NEF_ATOM_NAMES:
+                residueAtoms = PROTEIN_NEF_ATOM_NAMES[residueType]
                 residueAdditional = [atom for atom in additionalAtoms if atom in residueAtoms]
                 residueAlphas = [atom for atom in alphaAtoms if atom in residueAtoms]
                 residueBetas = [atom for atom in betaAtoms if atom in residueAtoms]
@@ -1414,7 +1415,7 @@ class NmrAtomAssignerModule(CcpnModule):
         """
         if moleculeType in MOLECULE_TYPES:
             if moleculeType == 'protein':
-                return [atomName for atomName in PROTEIN_ATOM_NAMES.keys()]
+                return [atomName for atomName in PROTEIN_NEF_ATOM_NAMES.keys()]
         else:
             return None
 
