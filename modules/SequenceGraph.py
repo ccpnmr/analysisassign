@@ -5,7 +5,8 @@
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -13,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
-__version__ = "$Revision: 3.0.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2021-04-28 10:06:23 +0100 (Wed, April 28, 2021) $"
+__version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -65,7 +66,8 @@ from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.modules.SequenceModule import SequenceModule
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, SEQUENCEGRAPHFONT
-from ccpn.ui.gui.widgets.SettingsWidgets import SequenceGraphSettings
+from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget, \
+    ChainSelectionWidget, SpectrumDisplaySelectionWidget
 from ccpn.core.lib.AssignmentLib import getSpinSystemsLocation, getAllSpinSystems
 from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlockWithoutSideBar
 from ccpnc.clibrary import Clibrary
@@ -323,6 +325,9 @@ class AssignmentLine(QtWidgets.QGraphicsLineItem):
         """
         guiAtom1 = self.guiAtom1
         guiAtom2 = self.guiAtom2
+        if guiAtom1 is None or guiAtom2 is None:
+            return
+
         residue1 = guiAtom1.guiNmrResidueGroup
         residue2 = guiAtom2.guiNmrResidueGroup
 
@@ -346,6 +351,9 @@ class AssignmentLine(QtWidgets.QGraphicsLineItem):
         dx = x2 - x1
         dy = y2 - y1
         length = 2.0 * pow(dx * dx + dy * dy, 0.5)
+        if abs(length) < 1e-6:
+            return
+
         if self.displacement is not None:
             count = (guiAtom1.connectedList[guiAtom2] - 1) // 2
             disp = self._width * 3 * (self.displacement - count) / length
@@ -1194,14 +1202,19 @@ class NmrResidueList():
                                       nmrAtomPair[2]
                                       )
 
-                    group = self.guiNmrResidues[nmrAtomPair[1].nmrResidue]
-                    displacement = guiNmrAtomPair[1].getConnectedList(guiNmrAtomPair[0])
-                    self._addConnectingLineToGroup(group,
-                                                   guiNmrAtomPair[1],
-                                                   guiNmrAtomPair[0],
-                                                   spectrum.positiveContourColour,
-                                                   self._lineWidth, displacement=displacement,
-                                                   peak=peak, lineList=peaklineList, lineId=nmrResidue)
+                    if None not in guiNmrAtomPair:
+                        group = self.guiNmrResidues[nmrAtomPair[1].nmrResidue]
+                        displacement = guiNmrAtomPair[1].getConnectedList(guiNmrAtomPair[0])
+                        self._addConnectingLineToGroup(group,
+                                                       guiNmrAtomPair[1],
+                                                       guiNmrAtomPair[0],
+                                                       spectrum.positiveContourColour,
+                                                       self._lineWidth, displacement=displacement,
+                                                       peak=peak, lineList=peaklineList, lineId=nmrResidue)
+
+                        # NOTE:ED - this should be in _addConnectingLineToGroup
+                        guiNmrAtomPair[0].addConnectedList(guiNmrAtomPair[1])
+                        guiNmrAtomPair[1].addConnectedList(guiNmrAtomPair[0])
 
                 elif guiNmrAtomPair[1] is None:
                     if nmrAtomPair[0].nmrResidue.nmrChain is not nmrResidue.nmrChain:
@@ -1220,14 +1233,18 @@ class NmrResidueList():
                                       nmrAtomPair[2]
                                       )
 
-                    group = self.guiNmrResidues[nmrAtomPair[0].nmrResidue]
-                    displacement = guiNmrAtomPair[0].getConnectedList(guiNmrAtomPair[1])
-                    self._addConnectingLineToGroup(group,
-                                                   guiNmrAtomPair[0],
-                                                   guiNmrAtomPair[1],
-                                                   spectrum.positiveContourColour,
-                                                   self._lineWidth, displacement=displacement,
-                                                   peak=peak, lineList=peaklineList, lineId=nmrResidue)
+                    if None not in guiNmrAtomPair:
+                        group = self.guiNmrResidues[nmrAtomPair[0].nmrResidue]
+                        displacement = guiNmrAtomPair[0].getConnectedList(guiNmrAtomPair[1])
+                        self._addConnectingLineToGroup(group,
+                                                       guiNmrAtomPair[0],
+                                                       guiNmrAtomPair[1],
+                                                       spectrum.positiveContourColour,
+                                                       self._lineWidth, displacement=displacement,
+                                                       peak=peak, lineList=peaklineList, lineId=nmrResidue)
+
+                        guiNmrAtomPair[0].addConnectedList(guiNmrAtomPair[1])
+                        guiNmrAtomPair[1].addConnectedList(guiNmrAtomPair[0])
 
                 else:
                     if nmrAtomPair[0].nmrResidue.nmrChain is nmrResidue.nmrChain:
@@ -1252,8 +1269,9 @@ class NmrResidueList():
                     else:
                         continue
 
-                guiNmrAtomPair[0].addConnectedList(guiNmrAtomPair[1])
-                guiNmrAtomPair[1].addConnectedList(guiNmrAtomPair[0])
+                    if None not in guiNmrAtomPair:
+                        guiNmrAtomPair[0].addConnectedList(guiNmrAtomPair[1])
+                        guiNmrAtomPair[1].addConnectedList(guiNmrAtomPair[0])
 
     def _getPeakAssignmentsForResidue(self, nmrResidue, nmrAtomIncludeList=None):
         """Get the list of peak assignments from the nmrAtoms
@@ -1757,12 +1775,33 @@ class SequenceGraphModule(CcpnModule):
         self.splitter.setChildrenCollapsible(False)
 
         # add the settings widgets defined from the following orderedDict - test for refactored
-        settingsDict = OrderedDict((('chains', {'label'   : '',
+        settingsDict = OrderedDict((('SpectrumDisplays', {'label'   : '',
+                                                         'tipText' : '',
+                                                         'callBack': None,  #self.restraintListPulldown,
+                                                         'enabled' : True,
+                                                         '_init'   : None,
+                                                         'type'    : SpectrumDisplaySelectionWidget,
+                                                         'kwds'    : {'texts'      : [],
+                                                                      'displayText': [],
+                                                                      'defaults'   : []},
+                                                         }),
+                                    ('ChainSelection', {'label'   : '',
+                                                        'tipText' : '',
+                                                        'callBack': None,  #self.showChainsChanged,
+                                                        'enabled' : True,
+                                                        '_init'   : None,
+                                                        'type'    : ChainSelectionWidget,
+                                                        'kwds'    : {'texts'         : [ALL],
+                                                                     'displayText'   : [],
+                                                                     'defaults'      : [ALL]},
+                                                        }),
+                                    ('chains', {'label'   : '',
                                                 'tipText' : '',
                                                 'callBack': self.showShiftListPulldown,
                                                 'enabled' : True,
                                                 '_init'   : None,
-                                                'type'    : ChemicalShiftListPulldown
+                                                'type'    : ChemicalShiftListPulldown,
+                                                'kwds'    : {'showSelectName': False},
                                                 }),
                                     ('showPredictions', {'label'   : 'Show Predictions',
                                                          'tipText' : 'Show predictions and calculate predicted sequences.',
@@ -1824,10 +1863,14 @@ class SequenceGraphModule(CcpnModule):
                                                                     }),
                                              )))
 
-        self._SGwidget = SequenceGraphSettings(parent=self.settingsWidget, mainWindow=self.mainWindow,
-                                               settingsDict=settingsDict,
-                                               grid=(0, 0))
+        self._SGwidget = ModuleSettingsWidget(parent=self.settingsWidget, mainWindow=self.mainWindow,
+                                              settingsDict=settingsDict,
+                                              grid=(0, 0))
+
+        # NOTE:ED - need to clean this up
+        self._SGwidget.chainsWidget = self._SGwidget.checkBoxes['ChainSelection']['pulldownList']
         self._SGwidget.chainsWidget.listWidget.changed.connect(self.showChainsChanged)
+        self._SGwidget.displaysWidget = self._SGwidget.checkBoxes['SpectrumDisplays']['pulldownList']
 
         self.initialiseScene()
         self.residueCount = 0
