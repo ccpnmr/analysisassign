@@ -33,7 +33,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-04-23 17:18:02 +0100 (Fri, April 23, 2021) $"
+__dateModified__ = "$dateModified: 2021-04-28 15:54:46 +0100 (Wed, April 28, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -597,8 +597,8 @@ class NmrAtomAssignerModule(CcpnModule):
             return text
 
     def _setCheckedButtonOfAssignedAtoms(self, nmrResidue, offSet='0'):
-        '''setChecked the radioButton Of Assigned Nmr Atoms.
-        This makes sure that if a peak is selected and and assigned to an nmrAtom, the relative button is checked '''
+        """setChecked the radioButton Of Assigned Nmr Atoms.
+        This makes sure that if a peak is selected and and assigned to an nmrAtom, the relative button is checked """
 
         if not self.current.peak: return
         if not nmrResidue: return
