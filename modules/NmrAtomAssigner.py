@@ -584,7 +584,9 @@ class NmrAtomAssignerModule(CcpnModule):
                        grid=(30, 30), gridSpan=(1, 1))
 
                 if self.current.peaks and None not in self.current.peaks:
-                    self._predictHighlight(self.current.peaks)
+                    # temporarily restrict highlighting to backbone only, as the side-chain version needs improving
+                    if self.selectBackboneButton.isChecked():
+                        self._predictHighlight(self.current.peaks)
                     self._assignWidgetShow()
             else:
                 self._assignWidgetHide()
