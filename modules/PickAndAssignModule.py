@@ -175,7 +175,8 @@ class PickAndAssignModule(NmrResidueTableModule):
 
                 for nmrAtom in self.application.current.nmrResidue.nmrAtoms:
                     if nmrAtom.isotopeCode in shiftDict.keys():
-                        shiftDict[nmrAtom.isotopeCode].append((nmrAtom, shiftList.getChemicalShift(nmrAtom.id).value))
+                        if shiftList.getChemicalShift(nmrAtom.id):
+                            shiftDict[nmrAtom.isotopeCode].append((nmrAtom, shiftList.getChemicalShift(nmrAtom.id).value))
 
                 for ii, isotopeCode in enumerate(spectrum.isotopeCodes):
 
