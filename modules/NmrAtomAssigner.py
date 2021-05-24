@@ -33,7 +33,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-04-28 15:54:46 +0100 (Wed, April 28, 2021) $"
+__dateModified__ = "$dateModified: 2021-05-24 19:40:01 +0100 (Mon, May 24, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -435,8 +435,7 @@ class NmrAtomAssignerModule(CcpnModule):
 
     def _setPeakAxisCodes(self, peaks):
 
-        import difflib
-        from ccpn.util.Common import _axisCodeMapIndices, axisCodeMapping
+        from ccpn.util.Common import getAxisCodeMatch
 
         if peaks:
 
@@ -450,28 +449,27 @@ class NmrAtomAssignerModule(CcpnModule):
             if not maxLen:
                 return
 
-            axisCodes = [[] for ii in range(maxLen)]
             axisLabels = [set() for ii in range(maxLen)]
 
             mappings = {}
             for peak in peaks:
                 matchAxisCodes = peak.axisCodes
 
-                mapping = axisCodeMapping(refAxisCodes, matchAxisCodes)
+                mapping = getAxisCodeMatch(refAxisCodes, matchAxisCodes)
                 for k, v in mapping.items():
                     if v not in mappings:
                         mappings[v] = set([k])
                     else:
                         mappings[v].add(k)
 
-                mapping = axisCodeMapping(matchAxisCodes, refAxisCodes)
+                mapping = getAxisCodeMatch(matchAxisCodes, refAxisCodes)
                 for k, v in mapping.items():
                     if v not in mappings:
                         mappings[v] = set([k])
                     else:
                         mappings[v].add(k)
 
-                # example of mappings dict
+                # example of mappings dict - includes mapping from both sides
                 # ('Hn', 'C', 'Nh')
                 # {'Hn': {'Hn'}, 'Nh': {'Nh'}, 'C': {'C'}}
                 # {'Hn': {'H', 'Hn'}, 'Nh': {'Nh'}, 'C': {'C'}}
