@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-04-28 10:06:23 +0100 (Wed, April 28, 2021) $"
+__dateModified__ = "$dateModified: 2021-06-04 15:23:19 +0100 (Fri, June 04, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -2746,14 +2746,8 @@ class SequenceGraphModule(CcpnModule):
     def _closeModule(self):
         """CCPN-INTERNAL: used to close the module
         """
-        # self._unRegisterNotifiers()
         self.thisSequenceModule.close()
         super()._closeModule()
-
-    def close(self):
-        """Close the table from the commandline
-        """
-        self._closeModule()
 
     def unlinkNearestNmrResidue(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
