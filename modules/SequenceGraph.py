@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-04 15:23:19 +0100 (Fri, June 04, 2021) $"
+__dateModified__ = "$dateModified: 2021-06-04 16:43:28 +0100 (Fri, June 04, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -64,12 +64,12 @@ from ccpn.util import Colour
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.Frame import Frame
-from ccpn.ui.gui.modules.SequenceModule import SequenceModule
+from ccpn.ui.gui.widgets.SequenceWidget import SequenceWidget
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, SEQUENCEGRAPHFONT
 from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget, \
     ChainSelectionWidget, SpectrumDisplaySelectionWidget
-from ccpn.core.lib.AssignmentLib import getSpinSystemsLocation, getAllSpinSystems
-from ccpn.core.lib.ContextManagers import notificationEchoBlocking, undoBlockWithoutSideBar
+from ccpn.core.lib.AssignmentLib import getAllSpinSystems
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpnc.clibrary import Clibrary
 
 
@@ -1752,11 +1752,11 @@ class SequenceGraphModule(CcpnModule):
             self.current = None
 
         self.splitter = Splitter(self.mainWidget, horizontal=False)
-        self._sequenceModuleFrame = Frame(None, setLayout=True)
+        self._sequenceWidgetFrame = Frame(None, setLayout=True)
         self.mainWidget.getLayout().addWidget(self.splitter, 1, 0, 1, 1)
 
-        self.thisSequenceModule = SequenceModule(moduleParent=self,
-                                                 parent=self._sequenceModuleFrame,
+        self.thisSequenceWidget = SequenceWidget(moduleParent=self,
+                                                 parent=self._sequenceWidgetFrame,
                                                  mainWindow=mainWindow,
                                                  chains=self.project.chains)  # must match the chin selection below
 
@@ -1770,30 +1770,30 @@ class SequenceGraphModule(CcpnModule):
         self._sequenceGraphScrollArea.setMinimumHeight(80)
 
         self.splitter.addWidget(self._sequenceGraphScrollArea)
-        self.splitter.addWidget(self._sequenceModuleFrame)
+        self.splitter.addWidget(self._sequenceWidgetFrame)
         self.splitter.setStretchFactor(0, 5)
         self.splitter.setChildrenCollapsible(False)
 
         # add the settings widgets defined from the following orderedDict - test for refactored
         settingsDict = OrderedDict((('SpectrumDisplays', {'label'   : '',
-                                                         'tipText' : '',
-                                                         'callBack': None,  #self.restraintListPulldown,
-                                                         'enabled' : True,
-                                                         '_init'   : None,
-                                                         'type'    : SpectrumDisplaySelectionWidget,
-                                                         'kwds'    : {'texts'      : [],
-                                                                      'displayText': [],
-                                                                      'defaults'   : []},
-                                                         }),
+                                                          'tipText' : '',
+                                                          'callBack': None,  #self.restraintListPulldown,
+                                                          'enabled' : True,
+                                                          '_init'   : None,
+                                                          'type'    : SpectrumDisplaySelectionWidget,
+                                                          'kwds'    : {'texts'      : [],
+                                                                       'displayText': [],
+                                                                       'defaults'   : []},
+                                                          }),
                                     ('ChainSelection', {'label'   : '',
                                                         'tipText' : '',
                                                         'callBack': None,  #self.showChainsChanged,
                                                         'enabled' : True,
                                                         '_init'   : None,
                                                         'type'    : ChainSelectionWidget,
-                                                        'kwds'    : {'texts'         : [ALL],
-                                                                     'displayText'   : [],
-                                                                     'defaults'      : [ALL]},
+                                                        'kwds'    : {'texts'      : [ALL],
+                                                                     'displayText': [],
+                                                                     'defaults'   : [ALL]},
                                                         }),
                                     ('chains', {'label'   : '',
                                                 'tipText' : '',
@@ -2581,7 +2581,7 @@ class SequenceGraphModule(CcpnModule):
             self.nmrResidueList.reset()
             self.scene.clear()
             # self.scene.setSceneRect(self.scene.itemsBoundingRect())
-            self.thisSequenceModule._initialiseChainLabels()
+            self.thisSequenceWidget._initialiseChainLabels()
 
     def setNmrChain(self, nmrChain):
         self.nmrResidueList.nmrChain = nmrChain
@@ -2610,7 +2610,6 @@ class SequenceGraphModule(CcpnModule):
         self.nmrChain = nmrChain
         thisChainId = nmrChain.pid
 
-        # with notificationEchoBlocking():
         with self.mainWidget.blockWidgetSignals():
             # self.mainWidget.setVisible(False)
 
@@ -2667,7 +2666,7 @@ class SequenceGraphModule(CcpnModule):
         showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
 
         self._chains = objs
-        self.thisSequenceModule.setChains(objs)
+        self.thisSequenceWidget.setChains(objs)
 
         # update the prediction in the sequenceModule
         for thisChainId in self.nmrResidueList.nmrChains.values():
@@ -2746,7 +2745,7 @@ class SequenceGraphModule(CcpnModule):
     def _closeModule(self):
         """CCPN-INTERNAL: used to close the module
         """
-        self.thisSequenceModule.close()
+        self.thisSequenceWidget.close()
         super()._closeModule()
 
     def unlinkNearestNmrResidue(self, selectedNmrResidue=None):
@@ -2903,7 +2902,7 @@ class SequenceGraphModule(CcpnModule):
         positions in the Sequence Module if it is displayed.
         """
         if len(nmrResidueList) < 3 or not showPredictions:
-            self.thisSequenceModule._initialiseChainLabels()
+            self.thisSequenceWidget._initialiseChainLabels()
             return
 
         if self._chains:
@@ -2915,24 +2914,24 @@ class SequenceGraphModule(CcpnModule):
 
                 for chainNum in checkDict.keys():
 
-                    self.thisSequenceModule._clearStretches(chainNum)
+                    self.thisSequenceWidget._clearStretches(chainNum)
                     possibleMatches = checkDict[chainNum]
 
                     if possibleMatches:
                         for chemList in possibleMatches:
                             for possibleMatch in chemList:
                                 if possibleMatch[0] > 1 and not len(possibleMatch[1]) < len(nmrResidues):
-                                    self.thisSequenceModule._highlightPossibleStretches(chainNum, possibleMatch[1])
+                                    self.thisSequenceWidget._highlightPossibleStretches(chainNum, possibleMatch[1])
 
             else:
                 for chNum, chain in enumerate(self._chains):
-                    self.thisSequenceModule._clearStretches(chNum)
+                    self.thisSequenceWidget._clearStretches(chNum)
 
     def _toggleSequence(self):
         if not self.sequenceCheckBox.isChecked():
-            self._sequenceModuleFrame.hide()
+            self._sequenceWidgetFrame.hide()
         else:
-            self._sequenceModuleFrame.show()
+            self._sequenceWidgetFrame.show()
 
     def _getDisplays(self):
         """Return list of displays to navigate - if needed
