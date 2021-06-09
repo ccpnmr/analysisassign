@@ -1102,7 +1102,7 @@ class NmrResidueList():
     def _addAllPeakAssignments(self, nmrChainId):
         """Add all the peak assignments to the scene.
         """
-        if self._SGwidget.checkBoxes['peakAssignments']['checkBox'].isChecked():
+        if self._SGwidget.checkBoxes['peakAssignments']['widget'].isChecked():
 
             # # create a set of sets ordered by spectra for active lines
             # self.LOCALinterResidueAtomPairing = OrderedDict((spec, set()) for spec in self._module.magnetisationTransfers.keys())
@@ -1535,7 +1535,7 @@ class NmrResidueList():
         if rebuildPeakLines:
             # now rebuild for the new peak values
             # assumes that the peakAssignments have changed - possibly use different notifier
-            if self._SGwidget.checkBoxes['peakAssignments']['checkBox'].isChecked():
+            if self._SGwidget.checkBoxes['peakAssignments']['widget'].isChecked():
 
                 nmrAtomIncludeList = tuple(guiAtom.nmrAtom for
                                            guiAtom in
@@ -1668,7 +1668,7 @@ class NmrResidueList():
             # clear connectivity list of guiNmrAtoms
             guiAtom.clearConnectedList()
 
-        if self._SGwidget.checkBoxes['peakAssignments']['checkBox'].isChecked():
+        if self._SGwidget.checkBoxes['peakAssignments']['widget'].isChecked():
 
             # # create a set of sets ordered by spectra for active lines
             # self.LOCALinterResidueAtomPairing = OrderedDict((spec, set()) for spec in self._module.magnetisationTransfers.keys())
@@ -1868,9 +1868,9 @@ class SequenceGraphModule(CcpnModule):
                                               grid=(0, 0))
 
         # NOTE:ED - need to clean this up
-        self._SGwidget.chainsWidget = self._SGwidget.checkBoxes['ChainSelection']['pulldownList']
+        self._SGwidget.chainsWidget = self._SGwidget.checkBoxes['ChainSelection']['widget']
         self._SGwidget.chainsWidget.listWidget.changed.connect(self.showChainsChanged)
-        self._SGwidget.displaysWidget = self._SGwidget.checkBoxes['SpectrumDisplays']['pulldownList']
+        self._SGwidget.displaysWidget = self._SGwidget.checkBoxes['SpectrumDisplays']['widget']
 
         self.initialiseScene()
         self.residueCount = 0
@@ -1962,7 +1962,7 @@ class SequenceGraphModule(CcpnModule):
         #                                                    # fixedWidths=(colwidth, colwidth, colwidth),
         #                                                    callback=self.showShiftListPulldown)
 
-        self.shiftListPulldown = self._SGwidget.checkBoxes['chains']['pulldownList']
+        self.shiftListPulldown = self._SGwidget.checkBoxes['chains']['widget']
 
         self._chains = self.project.chains  # this must match the sequence module init and the chains pulldown init
         self._chemicalShiftList = self.project.chemicalShiftLists[0] if self.project.chemicalShiftLists else None
@@ -2187,7 +2187,7 @@ class SequenceGraphModule(CcpnModule):
             # clear connectivity list of guiNmrAtoms
             guiAtom.clearConnectedList()
 
-        if self._SGwidget.checkBoxes['peakAssignments']['checkBox'].isChecked():
+        if self._SGwidget.checkBoxes['peakAssignments']['widget'].isChecked():
 
             # # create a set of sets ordered by spectra for active lines
             # self.LOCALinterResidueAtomPairing = OrderedDict((spec, set()) for spec in self._module.magnetisationTransfers.keys())
@@ -2287,8 +2287,8 @@ class SequenceGraphModule(CcpnModule):
 
         # print('>>>_updateNmrResidues', nmrResidue)
         trigger = data[Notifier.TRIGGER]
-        showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
-        showSideChain = self._SGwidget.checkBoxes['showSideChain']['checkBox'].isChecked()
+        showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
+        showSideChain = self._SGwidget.checkBoxes['showSideChain']['widget'].isChecked()
 
         with self.sceneBlocking():
             if trigger == Notifier.DELETE:
@@ -2319,8 +2319,8 @@ class SequenceGraphModule(CcpnModule):
         nmrResidue = data[Notifier.OBJECT]
         try:
             with self.sceneBlocking():
-                showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
-                showSideChain = self._SGwidget.checkBoxes['showSideChain']['checkBox'].isChecked()
+                showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
+                showSideChain = self._SGwidget.checkBoxes['showSideChain']['widget'].isChecked()
 
                 if nmrResidue in self.nmrChain.nmrResidues and nmrResidue not in self.nmrResidueList.guiNmrResidues:
                     # print('>>>change nmrResidue - create', nmrResidue)
@@ -2663,7 +2663,7 @@ class SequenceGraphModule(CcpnModule):
         """Respond to a change in the chains list
         """
         objs = self._SGwidget.chainsWidget._getObjects()
-        showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
+        showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
 
         self._chains = objs
         self.thisSequenceWidget.setChains(objs)
@@ -2680,7 +2680,7 @@ class SequenceGraphModule(CcpnModule):
         shiftListPid = self.shiftListPulldown.getText()
         if shiftListPid:
             objs = chains or self._SGwidget.chainsWidget._getObjects()
-            showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
+            showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
 
             self._chemicalShiftList = self.project.getByPid(shiftListPid)
 
@@ -2705,8 +2705,8 @@ class SequenceGraphModule(CcpnModule):
 
         nmrChainPid = self.nmrChainPulldown.getText()
         if nmrChainPid:
-            showPredictions = self._SGwidget.checkBoxes['showPredictions']['checkBox'].isChecked()
-            showSideChain = self._SGwidget.checkBoxes['showSideChain']['checkBox'].isChecked()
+            showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
+            showSideChain = self._SGwidget.checkBoxes['showSideChain']['widget'].isChecked()
 
             with self.sceneBlocking():
                 self.setNmrChainDisplay(nmrChainPid, showPredictions=showPredictions, showSideChain=showSideChain)
@@ -2967,7 +2967,7 @@ class SequenceGraphModule(CcpnModule):
 
         with undoBlockWithoutSideBar():
             # optionally clear the marks
-            if self._SGwidget.checkBoxes['autoClearMarks']['checkBox'].isChecked():
+            if self._SGwidget.checkBoxes['autoClearMarks']['widget'].isChecked():
                 self.mainWindow.clearMarks()
 
             # navigate the displays
@@ -2980,8 +2980,8 @@ class SequenceGraphModule(CcpnModule):
                     navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
                                                   widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
                                                   showSequentialResidues=(len(display.axisCodes) > 2) and
-                                                                         self._SGwidget.checkBoxes['sequentialStrips']['checkBox'].isChecked(),
-                                                  markPositions=self._SGwidget.checkBoxes['markPositions']['checkBox'].isChecked()
+                                                                         self._SGwidget.checkBoxes['sequentialStrips']['widget'].isChecked(),
+                                                  markPositions=self._SGwidget.checkBoxes['markPositions']['widget'].isChecked()
                                                   )
 
     def _raiseContextMenu(self, obj, pos):
