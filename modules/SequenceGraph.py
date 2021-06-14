@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-04 16:43:28 +0100 (Fri, June 04, 2021) $"
+__dateModified__ = "$dateModified: 2021-06-14 11:30:24 +0100 (Mon, June 14, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -1592,10 +1592,10 @@ class NmrResidueList():
             if fetchedNmrAtom is nmrAtom:
                 guiAtoms[k] = self._createGuiNmrAtom(k, v, nmrAtom)
 
-        ii = self.getIndexNmrResidue(nmrResidue)
-        if ii is not None:
-            res, oldGuiAtoms = self._getNmrResiduePair(ii)
-            self._setNmrResiduePair(ii, res, oldGuiAtoms.update(guiAtoms))
+        # ii = self.getIndexNmrResidue(nmrResidue)
+        # if ii is not None:
+        #     res, oldGuiAtoms = self._getNmrResiduePair(ii)
+        #     self._setNmrResiduePair(ii, res, oldGuiAtoms.update(guiAtoms))
 
         if nmrResidue in self.guiNmrResidues:
             guiResidueGroup = self.guiNmrResidues[nmrResidue]
