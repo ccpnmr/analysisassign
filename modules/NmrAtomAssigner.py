@@ -33,7 +33,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-05-24 19:40:01 +0100 (Mon, May 24, 2021) $"
+__dateModified__ = "$dateModified: 2021-06-28 19:12:25 +0100 (Mon, June 28, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -435,7 +435,7 @@ class NmrAtomAssignerModule(CcpnModule):
 
     def _setPeakAxisCodes(self, peaks):
 
-        from ccpn.util.Common import getAxisCodeMatch
+        from ccpn.core.lib.AxisCodeLib import getAxisCodeMatch
 
         if peaks:
 
