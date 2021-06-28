@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-14 11:30:24 +0100 (Mon, June 14, 2021) $"
+__dateModified__ = "$dateModified: 2021-06-28 19:13:07 +0100 (Mon, June 28, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -58,7 +58,7 @@ from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown, ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.core.NmrChain import NmrChain
-from ccpn.util.Common import makeIterableList, greekKey, PrintFormatter, _compareDict
+from ccpn.util.Common import makeIterableList, greekKey
 from ccpn.util.Logging import getLogger
 from ccpn.util import Colour
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
