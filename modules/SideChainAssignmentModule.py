@@ -3,8 +3,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -12,9 +13,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:21 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2021-06-29 14:27:29 +0100 (Tue, June 29, 2021) $"
+__version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -24,7 +25,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-from ccpn.util import Common
+import ccpn.util.isotopes as Isotopes
 from ccpn.AnalysisAssign.modules.PickAndAssignModule import PickAndAssignModule
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot, makeStripPlotFromSingles
 from ccpn.core.lib.Notifiers import Notifier
@@ -91,7 +92,7 @@ class SideChainAssignmentModule(PickAndAssignModule):
         for display in activeDisplays:
             axisCodes = display.strips[0].axisCodes
             nmrAtomPairs = getBoundNmrAtomPairs(self.current.nmrResidue.nmrAtoms, axisCodes[-1][0])
-            displayIsotopeCodes = [Common.name2IsotopeCode(code) for code in axisCodes]
+            displayIsotopeCodes = [Isotopes.name2IsotopeCode(code) for code in axisCodes]
             pairsToRemove = []
             for nmrAtomPair in nmrAtomPairs:
                 pairIsotopeCodes = [nap.isotopeCode for nap in nmrAtomPair]
@@ -156,7 +157,7 @@ class SideChainAssignmentModule(PickAndAssignModule):
         for display in activeDisplays:
             axisCodes = display.strips[0].axisCodes
             nmrAtoms = set()
-            displayIsotopeCodes = [Common.name2IsotopeCode(code) for code in axisCodes]
+            displayIsotopeCodes = [Isotopes.name2IsotopeCode(code) for code in axisCodes]
 
             for nmrAtom in self.current.nmrResidue.nmrAtoms:
                 if nmrAtom.isotopeCode in displayIsotopeCodes and nmrAtom.isotopeCode == displayIsotopeCodes[2]:
