@@ -241,20 +241,6 @@ class AssignmentInspectorModule(CcpnModule):
         return minHeight
 
 
-    def _getDisplays(self):
-        """
-        Return list of displays to navigate - if needed
-        """
-        displays = []
-        # check for valid displays
-        gids = self.displaysWidget.getTexts()
-        if len(gids) == 0: return displays
-        if ALL in gids:
-            displays = self.mainWindow.spectrumDisplays
-        else:
-            displays = [self.application.getByGid(gid) for gid in gids if gid != ALL]
-        return displays
-
     def _maximise(self):
         """
         refresh the table on a maximise event
@@ -338,7 +324,7 @@ class AssignmentInspectorModule(CcpnModule):
 
         getLogger().debug('nmrResidue=%s' % (nmrResidue.id))
 
-        displays = self._getDisplays()
+        displays = self.displaysWidget.getDisplays()
         if len(displays) == 0:
             logger.warning('Undefined display module(s); select in settings first')
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
