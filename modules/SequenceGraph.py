@@ -2933,21 +2933,6 @@ class SequenceGraphModule(CcpnModule):
         else:
             self._sequenceWidgetFrame.show()
 
-    def _getDisplays(self):
-        """Return list of displays to navigate - if needed
-        """
-        if not self.application:
-            return []
-
-        displays = []
-        # check for valid displays
-        gids = self._SGwidget.displaysWidget.getTexts()
-        if len(gids) == 0: return displays
-        if ALL in gids:
-            displays = self.application.ui.mainWindow.spectrumDisplays
-        else:
-            displays = [self.application.getByGid(gid) for gid in gids if gid != ALL]
-        return displays
 
     def navigateToNmrResidue(self, selectedNmrResidue=None):
         """Navigate in selected displays to nmrResidue; skip if none defined
@@ -2958,7 +2943,7 @@ class SequenceGraphModule(CcpnModule):
 
         logger.debug('nmrResidue=%s' % (nmrResidue.id))
 
-        displays = self._getDisplays()
+        displays = self._SGwidget.displaysWidget.getDisplays()
 
         if len(displays) == 0:
             logger.warning('Undefined display module(s); select in settings first')
