@@ -55,6 +55,7 @@ from ccpn.ui.gui.lib.Strip import navigateToNmrAtomsInStrip, \
 from ccpn.core.PeakList import PeakList
 from ccpn.util.Common import makeIterableList
 from PyQt5.QtWidgets import QAbstractScrollArea
+from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget
 
 
 logger = getLogger()
@@ -122,7 +123,7 @@ class AssignmentInspectorModule(CcpnModule):
 
         self._tickLisWidget = Frame(self._splitWidget, grid=(0, 1), setLayout=True, vPolicy='minimum')
 
-        self.displaysWidget = ListCompoundWidget(self._splitWidget,
+        self.displaysWidget = SpectrumDisplaySelectionWidget(self._splitWidget, mainWindow=self.mainWindow,
                                                  grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
                                                  vPolicy='maximum',
                                                  orientation='left',
@@ -131,7 +132,6 @@ class AssignmentInspectorModule(CcpnModule):
                                                  texts=[ALL] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
                                                  defaults=[ALL]
                                                  )
-        self.displaysWidget.setPreSelect(self._fillDisplayWidget)
 
         self.sequentialStripsWidget = CheckBoxCompoundWidget(
                 self._tickLisWidget,
@@ -240,9 +240,6 @@ class AssignmentInspectorModule(CcpnModule):
                 self.SETTING_PADDING * 2) + marginsTotalVertical
         return minHeight
 
-    def _fillDisplayWidget(self):
-        ll = ['> select-to-add <'] + [ALL] + [display.pid for display in self.mainWindow.spectrumDisplays]
-        self.displaysWidget.pulldownList.setData(texts=ll)
 
     def _getDisplays(self):
         """
