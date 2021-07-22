@@ -148,6 +148,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # new match module pulldown list
         row += 1
+        # TODO replace with SpectrumDisplayPulldown
         self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[2],
                                                       fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2),
                                                       vAlign='top', hAlign='left',
