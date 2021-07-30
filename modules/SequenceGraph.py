@@ -1783,7 +1783,8 @@ class SequenceGraphModule(CcpnModule):
                                                           'type'    : SpectrumDisplaySelectionWidget,
                                                           'kwds'    : {'texts'      : [],
                                                                        'displayText': [],
-                                                                       'defaults'   : []},
+                                                                       'defaults'   : [],
+                                                                       'objectName' : 'SpectrumDisplaysSelection'}, #objectName is used to save to layout
                                                           }),
                                     ('ChainSelection', {'label'   : '',
                                                         'tipText' : '',
@@ -1793,9 +1794,10 @@ class SequenceGraphModule(CcpnModule):
                                                         'type'    : ChainSelectionWidget,
                                                         'kwds'    : {'texts'      : [ALL],
                                                                      'displayText': [],
-                                                                     'defaults'   : [ALL]},
+                                                                     'defaults'   : [ALL],
+                                                                     'objectName' : 'ChainSelection'},
                                                         }),
-                                    ('chains', {'label'   : '',
+                                    ('ChemicalShiftList', {'label'   : 'ChemicalShiftListSelection',
                                                 'tipText' : '',
                                                 'callBack': self.showShiftListPulldown,
                                                 'enabled' : True,
@@ -1962,7 +1964,7 @@ class SequenceGraphModule(CcpnModule):
         #                                                    # fixedWidths=(colwidth, colwidth, colwidth),
         #                                                    callback=self.showShiftListPulldown)
 
-        self.shiftListPulldown = self._SGwidget.checkBoxes['chains']['widget']
+        self.shiftListPulldown = self._SGwidget.checkBoxes['ChemicalShiftList']['widget']
 
         self._chains = self.project.chains  # this must match the sequence module init and the chains pulldown init
         self._chemicalShiftList = self.project.chemicalShiftLists[0] if self.project.chemicalShiftLists else None
