@@ -1800,10 +1800,12 @@ class SequenceGraphModule(CcpnModule):
                                     ('ChemicalShiftList', {'label'   : 'ChemicalShiftListSelection',
                                                 'tipText' : '',
                                                 'callBack': self.showShiftListPulldown,
-                                                'enabled' : True,
-                                                '_init'   : None,
-                                                'type'    : ChemicalShiftListPulldown,
-                                                'kwds'    : {'showSelectName': False},
+                                                'enabled'  : True,
+                                                '_init'    : None,
+                                                'type'     : ChemicalShiftListPulldown,
+                                                'kwds'     : {'showSelectName': False,
+                                                              'labelText'   : 'Select ChemicalShiftList',
+                                                              'hAlign'      :'left'},
                                                 }),
                                     ('showPredictions', {'label'   : 'Show Predictions',
                                                          'tipText' : 'Show predictions and calculate predicted sequences.',
@@ -1856,7 +1858,7 @@ class SequenceGraphModule(CcpnModule):
                                                         }),
                                     ))
         if self.activePulldownClass:
-            settingsDict.update(OrderedDict(((LINKTOPULLDOWNCLASS, {'label'   : 'Link to current %s:' % self.activePulldownClass.className,
+            settingsDict.update(OrderedDict(((LINKTOPULLDOWNCLASS, {'label'   : 'Link to current %s' % self.activePulldownClass.className,
                                                                     'tipText' : 'Set/update current %s when selecting from pulldown' % self.activePulldownClass.className,
                                                                     'callBack': None,
                                                                     'enabled' : True,
@@ -1920,7 +1922,7 @@ class SequenceGraphModule(CcpnModule):
                                                        labelText='Show Sequence:',
                                                        checked=True,
                                                        # fixedWidths=(colwidth, 15),
-                                                       orientation='right', hAlign='left',
+                                                       orientation='left', hAlign='left',
                                                        tipText='Show chain sequences',
                                                        callback=self._toggleSequence,
                                                        grid=(0, _col), gridSpan=(1, 1))
@@ -1930,7 +1932,7 @@ class SequenceGraphModule(CcpnModule):
                                                           labelText='Show all NmrResidues:',
                                                           checked=True,
                                                           # fixedWidths=(colwidth, 15),
-                                                          orientation='right', hAlign='left',
+                                                          orientation='left', hAlign='left',
                                                           tipText='Show all the NmrResidues in the NmrChain',
                                                           callback=self.showNmrChainFromPulldown,
                                                           grid=(0, _col), gridSpan=(1, 1))
