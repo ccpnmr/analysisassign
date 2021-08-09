@@ -771,8 +771,13 @@ class AxisAssignmentObject(Frame):
 
     def _createNewNmrAtom(self, dim):
         isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
-        nmrAtom = self.project.fetchNmrChain(shortName=defaultNmrChainCode
-                                             ).newNmrResidue().newNmrAtom(isotopeCode=isotopeCode)
+        axisCode = self.current.peak.peakList.spectrum.axisCodes[dim]
+        nmrChain = self.project.fetchNmrChain(shortName=defaultNmrChainCode)
+        nmrResidue = nmrChain.newNmrResidue()
+        nmrAtom = nmrResidue.newNmrAtom(isotopeCode=isotopeCode)
+        # # create a new name from axisCode and the uniqueId
+        # newName = '%s_%s' % (axisCode[0:1], nmrAtom._uniqueId)
+        # nmrAtom.rename(newName)
 
         with undoBlockWithoutSideBar():
             try:
