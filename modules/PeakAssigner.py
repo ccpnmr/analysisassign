@@ -44,7 +44,7 @@ from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.widgets.HLine import HLine
+from ccpn.ui.gui.widgets.HLine import HLine, LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass
@@ -90,7 +90,7 @@ allowedResidueTypes = [('', '', ''),
                        ('Unknown', 'UNK', ''),
                        ('Valine', 'VAL', 'V')]
 
-MSG = '<Not-defined. Select any to start>'
+MSG = 'Not-defined >Select any to start<'
 
 ROWDEFAULT = 300
 ROWSIZES = {7 : 3000,
@@ -99,6 +99,10 @@ ROWSIZES = {7 : 3000,
             -1: 1200,
             -2: ROWDEFAULT,
             }
+
+
+_showBorders = False  # for debugging of layout's
+_margins = (10, 3, 10, 3)
 
 
 class PeakAssigner(CcpnModule):
@@ -159,40 +163,51 @@ class PeakAssigner(CcpnModule):
         self.settingsWidget.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.settingsWidget.setScrollBarPolicies(scrollBarPolicies=('asNeeded', 'never'))
 
-        # setup a scroll area
-        self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
-                                               acceptDrops=True, grid=(0, 0), gridSpan=(1, 1), spacing=(5, 5))
-        self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
-
-        row = 0
-        self.spacer = Spacer(self.axisFrameWidget, 5, 5,
-                             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-                             grid=(row, 0), gridSpan=(1, 1))
-
-        row += 1
-        # put a label and axisFrame into the axisFrameWidget, this will be wrapped in scroll bars
-        self.peakLabel = Label(parent=self.axisFrameWidget, setLayout=True, spacing=(0, 0),
+        # put a peaklabel into the axisFrameWidget, this will be wrapped in scroll bars
+        self.peakLabel = Label(parent=self.mainWidget, setLayout=True, spacing=(0, 0),
                                text='Current Peak: ' + MSG, bold=True,
-                               grid=(row, 0),  #margins=(1, 3, 1, 3),
+                               grid=(0, 0),  margins=_margins,
                                hAlign='left', vAlign='t',
                                hPolicy='ignored', vPolicy='fixed'
                                )
 
-        row += 1
-        self.axisFrame = Splitter(self, grid=(row, 0), horizontal=False)
-        self.axisFrameWidget.getLayout().addWidget(self.axisFrame, row, 0, 1, 1)  # MUST be added like this
+        # setup a scroll for the dimension frames
+        self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
+                                               acceptDrops=True, grid=(1, 0),
+                                               # hAlign='left',
+                                               # hPolicy='minimalExpanding'
+                                               )
+        self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
+        row = -1
 
-        self.axisTables = []
-        self.axisDivergeLabels = []
         self.NDims = 0
+        self.maxDims = 4
+        self.dimensionTabs = []
         self.currentAtoms = None
+
+        row += 1
+        _frame = Frame(self.axisFrameWidget, grid=(row,0), setLayout=True, showBorder=_showBorders,
+                       hAlign='left',
+                       hPolicy='minimalExpanding'
+                       )
+        for dimIndex in range(self.maxDims):
+            dimTab = AxisAssignmentObject(parent=_frame, grid=(0, dimIndex),
+                                          parentModule=self, index=dimIndex,
+                                          mainWindow=self.mainWindow,
+                                          )
+            self.dimensionTabs.append(dimTab)
+
+        # # testing
+        # self.dimensionTabs[1].setNotAligned(True)
+        # self.dimensionTabs[0].setHLineText('H: 10.7')
+        # self.dimensionTabs[2].hide()
 
         # respond to peaks
         self._registerNotifiers()
 
         self.closeModule = self._closeModule
 
-        self._updateInterface()
+        self._updateInterface(self.current.peaks)
 
     def _registerNotifiers(self):
         # without a tableSelection specified in the table callback, this nmrAtom callback is needed
@@ -219,67 +234,25 @@ class PeakAssigner(CcpnModule):
                          onceOnly=True)
 
     def _updateNmrAtom(self, data):
-        self._updateInterface(action=data[Notifier.TRIGGER])
+        self._updateInterface(data, action=data[Notifier.TRIGGER])
 
     def _updateNmrResidue(self, data):
-        self._updateInterface(action=data[Notifier.TRIGGER])
+        self._updateInterface(data, action=data[Notifier.TRIGGER])
 
-    def _updateInterface(self, peaks: typing.List[Peak] = None, action=None):
+    def _updateInterface(self, data=None, action=None):
         """Updates the whole module, including recalculation
            of which nmrAtoms fit to the peaks.
         """
-        # self._emptyAllTablesAndLists()
-        if not self.current.peaks or not self._peaksAreCompatible():
-            self.axisFrame.hide()
+        peaks = self.current.peaks
+
+        if not peaks or not self._peaksAreCompatible(peaks):
+            self.axisFrameWidget.hide()
             self.peakLabel.setText('Current Peak: ' + MSG)
         else:
 
-            Ndimensions = self.current.peak.spectrum.dimensionCount
-            # _sizes = [1000] * Ndimensions
+            self.axisFrameWidget.show()
 
-            if Ndimensions > self.NDims:  # len(self.axisTables):
-                for addNew in range(len(self.axisTables), Ndimensions):
-                    # add a new axis item to the end of the list
-                    _frame = Frame(self.axisFrame, setLayout=True, hAlign='l', vAlign='t')
-                    row = -1
-
-                    # row += 1
-                    # HLine(_frame, grid=(row,0), height=10, colour=getColours()[DIVIDER])
-                    row += 1
-                    _newAxis = AxisAssignmentObject(self, index=addNew,
-                                                    parent=_frame,
-                                                    mainWindow=self.mainWindow,
-                                                    grid=(row, 0), gridSpan=(1, 1))
-                    self.axisTables.append(_newAxis)
-
-                    # make a small label that appears when there is nothing to display
-                    row += 1
-                    self.tempFrame = Frame(_frame, setLayout=True, grid=(row, 0))
-                    self.tempDivider = None  #HLine(self.tempFrame, grid=(0, 0), gridSpan=(1, 3), colour=getColours()[DIVIDER], height=15)
-                    self.tempLabel = Label(self.tempFrame, text='', grid=(1, 0), hPolicy='ignored', textColour=getColours()[LABEL_WARNINGFOREGROUND], )
-                    self.tempLabel.setFixedHeight(self._height * 3)
-
-                    self.axisDivergeLabels.append([self.tempFrame, self.tempDivider, self.tempLabel])
-
-                    self.axisFrame.addWidget(_frame)
-
-                for showNew in range(self.NDims, Ndimensions):
-                    self.axisTables[showNew].setVisible(True)
-                    self.axisDivergeLabels[showNew][0].hide()
-                    self.axisFrame.widget(showNew).setVisible(True)
-
-            elif Ndimensions < len(self.axisTables):
-                for delOld in range(Ndimensions, len(self.axisTables)):
-                    # self.axisTables[delOld].setVisible(False)
-                    # self.axisDivergeLabels[delOld][0].hide()
-                    # _sizes.append(1)
-                    self.axisFrame.widget(delOld).setVisible(False)
-
-            self.NDims = Ndimensions
-
-            # and enable the frame
-            self.axisFrame.show()
-
+            # update the peaksLabel
             peaksIds = ' , '.join([str(pp.id) for pp in self.current.peaks])
             if len(self.current.peaks) < 2:
                 self.peakLabel.setText('Current Peak: %s' % self.current.peak.id)
@@ -287,78 +260,79 @@ class PeakAssigner(CcpnModule):
                 self.peakLabel.setText('Current Peaks: %s' % _truncateText(peaksIds, maxWords=6))
                 self.peakLabel.setToolTip(peaksIds)
 
-            _sizes = self._updateNewTable()
+            self.Ndims = self.current.peak.spectrum.dimensionCount
 
-            # if all(val == ROWDEFAULT for val in _sizes):
-            #     self.axisFrame.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
-            # else:
-            #     self.axisFrame.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
+            # show/hide the dimension tabs
+            for dimIndex, dimTab in enumerate(self.dimensionTabs):
+                if dimIndex < self.Ndims:
+                    dimTab.show()
+                else:
+                    dimTab.hide()
 
-            # self.axisFrame.setSizes(_sizes)
+            for dimIndex, dimTab in enumerate(self.dimensionTabs[:self.Ndims]):
+                # show/hide if peaks are aligned
+                aligned = peaksAreOnLine(peaks=peaks, dimIndex=dimIndex)
+                if not aligned:
+                    txt = '%s: peaks\nnot aligned' % (peaks[0].axisCodes[dimIndex], )
+                    dimTab.setNotAlignedText(txt)
+                else:
+                    ppmValues = np.array([pk.ppmPositions[dimIndex] for pk in peaks])
+                    txt = '%s: %.3f' % (peaks[0].axisCodes[dimIndex], ppmValues.mean())
+                    dimTab.setHLineText(txt)
+                dimTab.showNotAligned(not aligned)
 
-    def _updateNewTable(self):
+            self._updateTables(peaks=peaks)
+
+    def _updateTables(self, peaks):
         """
         update Assigned and alternatives tables showing which nmrAtoms
-        are assigned to which peak dimensions. If multiple
-        peaks are selected, only the assignment that they
-        have in common are shown. Maybe this should be all
-        assignments. You can see that at the peak annotation
-        though.
+        are assigned to which peak dimensions. If multiple peaks are selected,
+        only the assignment that they have in common are shown. Maybe this should be all
+        assignments. You can see that at the peak annotation though.
         """
-        peaks = self.current.peaks
+
         doubleTolerance = self.doubleToleranceCheckbox.isChecked()
         intraResidual = self.intraCheckbox.isChecked()
+
         validNmrAtoms = [nmrAtom for nmrAtom in self.project.nmrAtoms if not (nmrAtom.nmrResidue.isDeleted or nmrAtom.nmrResidue._flaggedForDelete)]
         nmrAtomsForTables = nmrAtomsForPeaks(peaks, validNmrAtoms,
                                              doubleTolerance=doubleTolerance,
                                              intraResidual=intraResidual)
 
-        Ndimensions = len(nmrAtomsForTables)
+        Ndimensions = self.Ndims
         self.currentList = []
 
         self._tables = [self._emptyObject()] * Ndimensions
 
         _sizes = []
-        for dim, nmrAtoms in zip(range(Ndimensions),
-                                 nmrAtomsForTables):
-            self.axisTables[dim].show()
-            self.axisDivergeLabels[dim][0].hide()
+        for dim, nmrAtoms in zip(range(Ndimensions), nmrAtomsForTables):
+            # self.axisTables[dim].show()
+            # self.axisDivergeLabels[dim][0].hide()
 
-            ll = [set(peak.dimensionNmrAtoms[dim]) for peak in self.current.peaks]
+            ll = [set(peak.dimensionNmrAtoms[dim]) for peak in peaks]
             self.nmrAtoms = list(sorted(set.intersection(*ll)))  # was intersection
             self.nmrAtoms = [nmrAtom for nmrAtom in self.nmrAtoms if not (nmrAtom.nmrResidue.isDeleted or nmrAtom.nmrResidue._flaggedForDelete)]
 
             self.currentList.append([str(a.pid) for a in self.nmrAtoms])  # ejb - keep another list
-            self.axisTables[dim].setAssignedTable(self.nmrAtoms)
-            _rows = self.axisTables[dim].tables[0].rowCount()
+            self.dimensionTabs[dim].setAssignedTable(self.nmrAtoms)
+            # _rows = self.axisTables[dim].tables[0].rowCount()
             # _rows = self.axisTables[dim].tables[0].sizeHint().height()
 
             nmrAtomsForTables[dim] = [nmr for nmr in nmrAtomsForTables[dim] if nmr not in self.nmrAtoms]
-
-            if peaksAreOnLine(peaks, dim):
-                self.axisTables[dim].setAlternativesTable(nmrAtomsForTables[dim])
-                _rows = max(_rows, self.axisTables[dim].tables[1].rowCount())
-                for k, val in ROWSIZES.items():
-                    if _rows > k:
-                        _sizes.append(val)
-                        break
-                else:
-                    _sizes.append(ROWDEFAULT)
-            else:
-                self.axisTables[dim].setAlternativesTable(None)
-                _sizes.append(ROWDEFAULT)
-
-                # hide as this is not a valid table
-                if not self.nmrAtoms:
-                    self.axisTables[dim].setVisible(False)
-                    self.axisDivergeLabels[dim][0].show()
-
-            positions = [peak.position[dim] for peak in self.current.peaks]
-            avgPos = round(sum(positions) / len(positions), 3)
-            axisCode = self.current.peak.peakList.spectrum.axisCodes[dim]
-            text = '%s: %.3f' % (axisCode, avgPos)
-            self.axisTables[dim].axisLabel.setText(text)
-            self.axisDivergeLabels[dim][2].setText(axisCode + ': peaks diverge')
+            self.dimensionTabs[dim].setAlternativesTable(nmrAtomsForTables[dim])
+            # if peaksAreOnLine(peaks, dim):
+            #     self.axisTables[dim].setAlternativesTable(nmrAtomsForTables[dim])
+            #     # _rows = max(_rows, self.axisTables[dim].tables[1].rowCount())
+            #     # for k, val in ROWSIZES.items():
+            #     #     if _rows > k:
+            #     #         _sizes.append(val)
+            #     #         break
+            #     # else:
+            #     #     _sizes.append(ROWDEFAULT)
+            # else:
+            #     self.axisTables[dim].setAlternativesTable(None)
+            #     # _sizes.append(ROWDEFAULT)
+            #     #
 
         return _sizes
 
@@ -398,25 +372,30 @@ class PeakAssigner(CcpnModule):
                 if shift:
                     return shift.value  # '%8.3f' % shift.value
 
-    def _peaksAreCompatible(self) -> bool:
+    def _peaksAreCompatible(self, peaks) -> bool:
         """
         If multiple peaks are selected, a check is performed
         to determine whether assignment of corresponding
         dimensions of a peak allowed.
         """
-        if len(self.current.peaks) == 1:
+        if len(peaks) == 1:
             return True
+
         if not self.multiCheckbox.isChecked():
-            getLogger().warning("Multiple peaks selected, not allowed.")
+            getLogger().warning("Selecting multiple peaks is currently not active (change in settings pane)")
             return False
-        dimensionalities = set([len(peak.position) for peak in self.current.peaks])
+
+        dimensionalities = set(peak.spectrum.dimensionCount for peak in peaks)
         if len(dimensionalities) > 1:
-            getLogger().warning('Not all peaks have the same number of dimensions.')
+            getLogger().warning('Not all selected peaks have the same number of dimensions')
             return False
-        for dim in range(len(self.current.peak.position)):
-            if not sameAxisCodes(self.current.peaks, dim):
-                getLogger().warning('The combination of axiscodes is different for multiple selected peaks')
+
+        for dimIndex in range(peaks[0].spectrum.dimensionCount):
+            isotopeCodes = set(peak.spectrum.isotopeCodes[dimIndex] for peak in peaks)
+            if len(isotopeCodes) > 1:
+                getLogger().warning('Selected peaks have different isotopeCodes along dimension %d' % dimIndex+1)
                 return False
+
         return True
 
     def _emptyAllTablesAndLists(self):
@@ -440,9 +419,9 @@ class PeakAssigner(CcpnModule):
         """
         CCPN-INTERNAL: used to close the module
         """
-        for axisTable in self.axisTables:
-            axisTable._close()
-        self.axisTables = None
+        for dimTab in self.dimensionTabs:
+            dimTab._close()
+        self.dimensionTabs = []
         super()._closeModule()
 
 
@@ -463,16 +442,55 @@ class NotOnLine(object):
 NOL = NotOnLine()
 
 
+class AssignmentTable(GuiTable):
+    """Subclassed for some added functionality"""
+
+    def __init__(self, parent=None,
+                 mainWindow=None,
+                 dataFrameObject=None,  # collate into a single object that can be changed quickly
+                 actionCallback=None,
+                 selectionCallback=None,
+                 checkBoxCallback=None,
+                 clearSelectionCallback=None,
+                 _pulldownKwds=None, enableMouseMoveEvent=True,
+                 multiSelect=False, selectRows=True, numberRows=False, autoResize=False,
+                 enableExport=True, enableDelete=True, enableSearch=True,
+                 hideIndex=True, stretchLastSection=True,
+                 **kwds):
+
+        super(AssignmentTable, self).__init__(  parent=parent,
+                                         mainWindow=mainWindow,
+                                         dataFrameObject=dataFrameObject,
+                                         actionCallback=actionCallback,
+                                         selectionCallback=selectionCallback,
+                                         checkBoxCallback=checkBoxCallback,
+                                         _pulldownKwds=_pulldownKwds, enableMouseMoveEvent=enableMouseMoveEvent,
+                                         multiSelect=multiSelect, selectRows=selectRows,
+                                         numberRows=numberRows, autoResize=autoResize,
+                                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
+                                         hideIndex=hideIndex, stretchLastSection=stretchLastSection,
+                                         **kwds)
+
+        self._clearSelectionCallback = clearSelectionCallback
+
+    def clearSelection(self):
+        super(AssignmentTable, self).clearSelection()
+        if self._clearSelectionCallback:
+            self._clearSelectionCallback()
+
+
 class AxisAssignmentObject(Frame):
     """
     Create a new frame for displaying information in 1 axis of peakassigner
     """
 
-    def __init__(self, parentModule, index=None, parent=None, mainWindow=None, grid=None, gridSpan=None):
-        _showBorders = True  # for debugging of layout's
+    def __init__(self, parent, parentModule, index, mainWindow, grid=None, **kwds):
+
+        settings = dict(hPolicy = 'minimal', hAlign='left', vPolicy = 'expanding', vAlign='top')
+
         super(AxisAssignmentObject, self).__init__(parent=parent,
                                                    setLayout=True, showBorder=_showBorders,
-                                                   grid=grid, gridSpan=gridSpan,
+                                                   grid=grid, **settings, **kwds
                                                    )
 
         # Derive application, project, and current from mainWindow
@@ -492,66 +510,81 @@ class AxisAssignmentObject(Frame):
         self.lastNmrAtomSelected = None
         self.tables = [None, None]  # The two tables (assignment and alternatives)
 
-        margins = (10, 3, 10, 3)
         height=20
         # self._minWidth = 150
-        _minTabWidth = 150
-        settings = dict(hPolicy = 'expanding', hAlign='left', vPolicy = 'expanding', vAlign='top')
+        _minTabWidth = 100
+        _tabHeight = 100
         _pullDownWidth = 65
 
         aRow = -1  # Toplevel row in the widget
         #=========================================
         # divider line
         #=========================================
-        aRow += 1
-        HLine(self, grid=(aRow,0), gridSpan=(1,2), height=10, colour=getColours()[DIVIDER])
+        # aRow += 1
+        # self.hLine = LabeledHLine(self, text='axis', grid=(aRow,0), height=10, colour=getColours()[DIVIDER])
 
         #=========================================
-        # Splitter Frame; only appears to works with the getLayout().setWidget() arrangments !??
+        # assignments
         #=========================================
         aRow += 1
-        # self.splitter = Splitter(parent=self, setLayout=True, **settings)
-        # self.getLayout().addWidget(self.splitter, aRow, 0)
-        # self.splitter.setSizes([1000, 1000])
-        # self.splitter.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-
-        #=========================================
-        # On the left in the splitter: assignments
-        #=========================================
         self._assignmentsFrame = Frame(self, setLayout=True, showBorder=_showBorders,
-                                       grid=(aRow,0), margins=margins, **settings)
+                                       grid=(aRow,0), margins=_margins, **settings)
         # self._assignmentsFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         row = -1
 
         row += 1
-        self.axisLabel = Label(self._assignmentsFrame, 'Axis', hAlign='l', grid=(row, 0))
-        self.axisLabel.setMinimumHeight(height)
+        self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row,0), height=10, colour=getColours()[DIVIDER])
+
+        # row += 1
+        # self.axisLabel = Label(self._assignmentsFrame, 'Axis', hAlign='l', grid=(row, 0))
+        # self.axisLabel.setMinimumHeight(height)
         row += 1
-        self.tables[0] = GuiTable(parent=self._assignmentsFrame,
+        self.tables[0] = AssignmentTable(parent=self._assignmentsFrame,
                                   mainWindow=mainWindow,
                                   dataFrameObject=None,
                                   setLayout=True,
-                                  autoResize=True, multiSelect=False,
+                                  autoResize=False, multiSelect=False,
                                   actionCallback=partial(self._assignDeassignNmrAtom, 0),
-                                  selectionCallback=partial(self._updatePulldownLists, 0),
+                                  selectionCallback=partial(self._clickedTableCallback, 0),
                                   grid=(row, 0), gridSpan=(1, 1),
                                   # **settings,
                                   stretchLastSection=True,
                                   enableSearch=False,
                                   acceptDrops=True,
+                                  enableExport=False,
                                   tipText='Click to select; double-click to de-assign')
         self.tables[0].setMinimumWidth(_minTabWidth)
+
         row += 1
-        self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
-                                                     setLayout=True, showBorder=_showBorders, grid=(row, 0), **settings)
+        self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
+        self._alternativesLabel.setMinimumHeight(height)
+        row += 1
+        self.tables[1] = AssignmentTable(parent=self._assignmentsFrame,
+                                  mainWindow=mainWindow,
+                                  dataFrameObject=None,
+                                  setLayout=True,
+                                  autoResize=True, multiSelect=False,
+                                  actionCallback=partial(self._assignDeassignNmrAtom, 1),
+                                  selectionCallback=partial(self._clickedTableCallback, 1),
+                                  grid=(row, 0), gridSpan=(1, 1),
+                                  # **settings,
+                                  stretchLastSection=True,
+                                  enableSearch=False,
+                                  enableExport=False,
+                                  acceptDrops=True,
+                                  tipText='Click to select; double-click to assign')
+        self.tables[1].setMinimumWidth(_minTabWidth)
+        # row += 1
+        # self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
+        #                                              setLayout=True, showBorder=_showBorders, grid=(row, 0), **settings)
         row += 1
         _frame = Frame(parent=self._assignmentsFrame, grid=(row,0), setLayout=True, showBorder=_showBorders, **settings)
-        self.renameButton = Button(parent=_frame, text='Rename',
+        self.renameButton = Button(parent=_frame, text='Edit',
                                    callback=partial(self._reassignNmrAtom, self.index),
                                    grid=(0,0), hAlign='centre',
                                    tipText='Rename selected nmrAtom')
 
-        self.newNmrAtomButton = Button(parent=_frame, text='New NmrAtom',
+        self.newNmrAtomButton = Button(parent=_frame, text='New',
                                        callback=partial(self._createNewNmrAtom, self.index),
                                        grid=(0,1), hAlign='centre',
                                        tipText='Create new nmrAtom')
@@ -559,36 +592,18 @@ class AxisAssignmentObject(Frame):
         # self._assignmentsFrame.addSpacer(5, 5, grid=(row,0), expandX=True, expandY=True)
 
         #===========================================
-        # On the right in the splitter; alternatives
+        # Not-aligned frame
         #===========================================
-        self._alternativesFrame = Frame(self, setLayout=True, showBorder=_showBorders,
-                                        grid=(aRow,1), margins=margins, **settings)
-        # self._alternativesFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        row = -1
+        aRow += 1
+        self.notAlignedFrame =  Frame(self, setLayout=True, showBorder=_showBorders, grid=(aRow,0), margins=_margins, **settings)
+        self.notAlignedLabel = Label(parent=self.notAlignedFrame, text='peaks\nnot aligned', grid=(0, 0),
+                                     hPolicy='minimal', hAlign='centre',
+                                     textColour=getColours()[LABEL_WARNINGFOREGROUND] )
 
-        row += 1
-        self._alternativesLabel = Label(self._alternativesFrame, 'Alternatives', hAlign='l', grid=(row, 0))
-        self._alternativesLabel.setMinimumHeight(height)
-        row += 1
-        self.tables[1] = GuiTable(parent=self._alternativesFrame,
-                                  mainWindow=mainWindow,
-                                  dataFrameObject=None,
-                                  setLayout=True,
-                                  autoResize=True, multiSelect=False,
-                                  actionCallback=partial(self._assignDeassignNmrAtom, 1),
-                                  selectionCallback=partial(self._updatePulldownLists, 1),
-                                  grid=(row, 0), gridSpan=(1, 1),
-                                  # **settings,
-                                  stretchLastSection=True,
-                                  enableSearch=False,
-                                  acceptDrops=True,
-                                  tipText='Click to select; double-click to assign')
-        self.tables[1].setMinimumWidth(_minTabWidth)
 
-        # row += 1
-        # self._alternativesFrame.addSpacer(5, 5, grid=(row,0), expandX=True, expandY=True)
-
+        #===========================================
         # set up notifiers to changes to peaks, nmrAtoms and assignments
+        #===========================================
         self.tables[0].setTableNotifiers(tableClass=Peak,
                                          rowClass=NmrAtom,
                                          cellClassNames=None,
@@ -625,7 +640,7 @@ class AxisAssignmentObject(Frame):
         self.tables[0]._hiddenColumns = ['Pid', 'Shift']
         self.tables[1]._hiddenColumns = ['Pid', 'Shift']
 
-        self._setDefaultPulldowns()
+        # self._setDefaultPulldowns()
 
     def _nmrAtomWidget(self, parent, minWidth, **kwds):
         """Make Frame with the nmrAtom Pulldown widgets
@@ -645,28 +660,23 @@ class AxisAssignmentObject(Frame):
                                                      grid=(0, 3), gridSpan=(1, 1),
                                                      tipText='Atom type')
 
-        # self.renameButton = Button(parent=_frame, text='Rename',
-        #                            callback=partial(self._reassignNmrAtom, self.index),
-        #                            grid=(1,0), gridSpan=(1,2), hAlign='left',
-        #                            tipText='Rename selected nmrAtom')
-        #
-        # self.newNmrAtomButton = Button(parent=_frame, text='New NmrAtom',
-        #                                callback=partial(self._createNewNmrAtom, self.index),
-        #                                grid=(1,2), gridSpan=(1,2), hAlign='left',
-        #                                tipText='Create new nmrAtom')
-
         for w in [self.chainPulldown, self.seqCodePulldown, self.resTypePulldown, self.atomTypePulldown]:
             w.setMinimumWidth(minWidth)
 
         return _frame
 
-    # def sizeHint(self) -> QtCore.QSize:
-    #     _size = super().sizeHint()
-    #     _width = max(self._minWidth, self._parent.width() - 30)
-    #     t0 = self._parent._axisFrameScrollArea.verticalScrollBar()
-    #     if t0.isVisible():
-    #         _width -= t0.width()
-    #     return QtCore.QSize(_width, _size.height())
+    def showNotAligned(self, flag):
+        """Show/hide of notAligned and assignmentFrame"""
+        self.notAlignedFrame.setVisible(flag)
+        self._assignmentsFrame.setVisible(not flag)
+
+    def setHLineText(self, text):
+        """Set the text of the top horizontal Line"""
+        self.hLine.setText(text)
+
+    def setNotAlignedText(self, text):
+        """Set the text of the notAligned widget"""
+        self.notAlignedLabel.setText(text)
 
     def _close(self):
         self.tables[0]._close()
@@ -691,20 +701,30 @@ class AxisAssignmentObject(Frame):
             # assign from right to left
             self._assignNmrAtom(self.index, action=True)
 
-    def _updatePulldownLists(self, tableNum, data):
+    def _clickedTableCallback(self, tableNum, data):
         self.lastTableSelected = tableNum
         obj = data[Notifier.OBJECT]
         if obj:
             self._clickedNmrAtom = obj[0]
-            # self._clickedLabel.setText('Current NmrAtom: {}'.format(obj[0].pid))
-            # self._clickedClear.setVisible(True)
-            if tableNum == 0:
-                self._updateAssignmentWidget(tableNum, obj[0])
-                self.tables[1].clearSelection()
+        if tableNum == 0:
+            self.tables[1].clearSelection()
+        elif tableNum == 1:
+            self.tables[0].clearSelection()
 
-            elif tableNum == 1:
-                self._updateAssignmentWidget(tableNum, obj[0])
-                self.tables[0].clearSelection()
+    # def _updatePulldownLists(self, tableNum, data):
+    #     self.lastTableSelected = tableNum
+    #     obj = data[Notifier.OBJECT]
+    #     if obj:
+    #         self._clickedNmrAtom = obj[0]
+    #         # self._clickedLabel.setText('Current NmrAtom: {}'.format(obj[0].pid))
+    #         # self._clickedClear.setVisible(True)
+    #     if tableNum == 0:
+    #         # self._updateAssignmentWidget(tableNum, obj[0])
+    #         self.tables[1].clearSelection()
+    #
+    #     elif tableNum == 1:
+    #         # self._updateAssignmentWidget(tableNum, obj[0])
+    #         self.tables[0].clearSelection()
 
     def _createChainPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='') -> PulldownList:
         """Creates a PulldownList with callback, editable.
@@ -999,13 +1019,11 @@ class AxisAssignmentObject(Frame):
             self.tables[0].selectObjects([nmrAtom], setUpdatesEnabled=False)
 
             if nmrAtom:
-                self._updateAssignmentWidget(0, nmrAtom)
-
+                # self._updateAssignmentWidget(0, nmrAtom)
                 self.lastTableSelected = 0
 
             else:
-                self._updateAssignmentWidget(0, None)
-
+                # self._updateAssignmentWidget(0, None)
                 self.lastTableSelected = 0
 
             # update the module
@@ -1045,7 +1063,7 @@ class AxisAssignmentObject(Frame):
                 self.tables[1].selectObjects([currentObject[0]], setUpdatesEnabled=False)
                 nextAtom = self.tables[1].getSelectedObjects()
                 if nextAtom:
-                    self._updateAssignmentWidget(1, currentObject[0])
+                    # self._updateAssignmentWidget(1, currentObject[0])
 
                     self.lastTableSelected = 1
                     # self.buttonList.setButtonEnabled('Delete', True)
@@ -1053,7 +1071,7 @@ class AxisAssignmentObject(Frame):
                     # self.buttonList.setButtonEnabled('Assign', True)
 
                 else:
-                    self._updateAssignmentWidget(1, None)
+                    # self._updateAssignmentWidget(1, None)
 
                     self.lastTableSelected = 1
                     # self.buttonList.setButtonEnabled('Delete', False)
@@ -1070,14 +1088,14 @@ class AxisAssignmentObject(Frame):
                                      )
         self.tables[0].sortByColumn(4, QtCore.Qt.AscendingOrder)
 
-        # Set the pulldowns with either thelast NmrAtom selected or the first in the list
-        if (nmrAtom := self.lastNmrAtomSelected) is None:
-            if (objs := self.tables[0].getFirstObject()) is not None:
-                if (objPid := objs.get('Pid')) is not None:
-                    nmrAtom = self.project.getByPid(objPid)
-
-        if nmrAtom and not nmrAtom.isDeleted:
-            self._updatePulldownLists(0, {Notifier.OBJECT: [nmrAtom]})
+        # # Set the pulldowns with either thelast NmrAtom selected or the first in the list
+        # if (nmrAtom := self.lastNmrAtomSelected) is None:
+        #     if (objs := self.tables[0].getFirstObject()) is not None:
+        #         if (objPid := objs.get('Pid')) is not None:
+        #             nmrAtom = self.project.getByPid(objPid)
+        #
+        # if nmrAtom and not nmrAtom.isDeleted:
+        #     self._updatePulldownLists(0, {Notifier.OBJECT: [nmrAtom]})
 
     def setAlternativesTable(self, atomList: list):
 
