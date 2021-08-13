@@ -471,12 +471,13 @@ class AssignmentTable(GuiTable):
                                          hideIndex=hideIndex, stretchLastSection=stretchLastSection,
                                          **kwds)
 
-        self._clearSelectionCallback = clearSelectionCallback
+        self._clearSelectionCallbackFunction = clearSelectionCallback
 
-    def clearSelection(self):
-        super(AssignmentTable, self).clearSelection()
-        if self._clearSelectionCallback:
-            self._clearSelectionCallback()
+    def _clearSelectionCallback(self):
+        super(AssignmentTable, self)._clearSelectionCallback()
+        if self._clearSelectionCallbackFunction:
+            data = {}
+            self._clearSelectionCallbackFunction(data)
 
 
 class AxisAssignmentObject(Frame):
@@ -546,6 +547,7 @@ class AxisAssignmentObject(Frame):
                                   autoResize=False, multiSelect=False,
                                   actionCallback=partial(self._assignDeassignNmrAtom, 0),
                                   selectionCallback=partial(self._clickedTableCallback, 0),
+                                  clearSelectionCallback=partial(self._clearTableCallback, 0),
                                   grid=(row, 0), gridSpan=(1, 1),
                                   # **settings,
                                   stretchLastSection=True,
@@ -563,9 +565,10 @@ class AxisAssignmentObject(Frame):
                                   mainWindow=mainWindow,
                                   dataFrameObject=None,
                                   setLayout=True,
-                                  autoResize=True, multiSelect=False,
+                                  autoResize=False, multiSelect=False,
                                   actionCallback=partial(self._assignDeassignNmrAtom, 1),
                                   selectionCallback=partial(self._clickedTableCallback, 1),
+                                  clearSelectionCallback=partial(self._clearTableCallback, 1),
                                   grid=(row, 0), gridSpan=(1, 1),
                                   # **settings,
                                   stretchLastSection=True,
@@ -579,7 +582,7 @@ class AxisAssignmentObject(Frame):
         #                                              setLayout=True, showBorder=_showBorders, grid=(row, 0), **settings)
         row += 1
         _frame = Frame(parent=self._assignmentsFrame, grid=(row,0), setLayout=True, showBorder=_showBorders, **settings)
-        self.renameButton = Button(parent=_frame, text='Edit',
+        self.editButton = Button(  parent=_frame, text='Edit',
                                    callback=partial(self._reassignNmrAtom, self.index),
                                    grid=(0,0), hAlign='centre',
                                    tipText='Rename selected nmrAtom')
@@ -706,10 +709,16 @@ class AxisAssignmentObject(Frame):
         obj = data[Notifier.OBJECT]
         if obj:
             self._clickedNmrAtom = obj[0]
-        if tableNum == 0:
-            self.tables[1].clearSelection()
-        elif tableNum == 1:
-            self.tables[0].clearSelection()
+            self.editButton.enableWidget(True)
+
+            if tableNum == 0:
+                self.tables[1].clearSelection()
+            elif tableNum == 1:
+                self.tables[0].clearSelection()
+
+    def _clearTableCallback(self, tableNum, data):
+        self._clickedNmrAtom = None
+        self.editButton.enableWidget(False)
 
     # def _updatePulldownLists(self, tableNum, data):
     #     self.lastTableSelected = tableNum
