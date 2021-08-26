@@ -191,8 +191,10 @@ class PeakAssigner(CcpnModule):
                        hPolicy='minimalExpanding'
                        )
         for dimIndex in range(self.maxDims):
+            # 4 axes per row
+            if dimIndex == 4: row +=1
             dimTab = AxisAssignmentObject(parent=_frame, grid=(0, dimIndex),
-                                          parentModule=self, index=dimIndex,
+                                          parentModule=self, dimIndex=dimIndex,
                                           mainWindow=self.mainWindow,
                                           )
             self.dimensionTabs.append(dimTab)
@@ -485,7 +487,7 @@ class AxisAssignmentObject(Frame):
     Create a new frame for displaying information in 1 axis of peakassigner
     """
 
-    def __init__(self, parent, parentModule, index, mainWindow, grid=None, **kwds):
+    def __init__(self, parent, parentModule, dimIndex, mainWindow, grid=None, **kwds):
 
         settings = dict(hPolicy = 'minimal', hAlign='left', vPolicy = 'expanding', vAlign='top')
 
@@ -503,7 +505,7 @@ class AxisAssignmentObject(Frame):
         self._clickedNmrAtom = None
 
         # initialise axis information
-        self.index = index
+        self.dimIndex = dimIndex
         self._parent = parentModule
         self.dataFrameAssigned = None
         self.dataFrameAlternatives = None
@@ -583,12 +585,12 @@ class AxisAssignmentObject(Frame):
         row += 1
         _frame = Frame(parent=self._assignmentsFrame, grid=(row,0), setLayout=True, showBorder=_showBorders, **settings)
         self.editButton = Button(  parent=_frame, text='Edit',
-                                   callback=partial(self._reassignNmrAtom, self.index),
+                                   callback=partial(self._reassignNmrAtom, self.dimIndex),
                                    grid=(0,0), hAlign='centre',
                                    tipText='Rename selected nmrAtom')
 
         self.newNmrAtomButton = Button(parent=_frame, text='New',
-                                       callback=partial(self._createNewNmrAtom, self.index),
+                                       callback=partial(self._createNewNmrAtom, self.dimIndex),
                                        grid=(0,1), hAlign='centre',
                                        tipText='Create new nmrAtom')
         # row += 1
@@ -644,6 +646,7 @@ class AxisAssignmentObject(Frame):
         self.tables[1]._hiddenColumns = ['Pid', 'Shift']
 
         # self._setDefaultPulldowns()
+        self.editButton.enableWidget(False)
 
     def _nmrAtomWidget(self, parent, minWidth, **kwds):
         """Make Frame with the nmrAtom Pulldown widgets
@@ -699,10 +702,10 @@ class AxisAssignmentObject(Frame):
         """
         if tableNum == 0:
             # deassign from left to right
-            self._deassignNmrAtom(self.index)
+            self._deassignNmrAtom(self.dimIndex)
         elif tableNum == 1:
             # assign from right to left
-            self._assignNmrAtom(self.index, action=True)
+            self._assignNmrAtom(self.dimIndex, action=True)
 
     def _clickedTableCallback(self, tableNum, data):
         self.lastTableSelected = tableNum
@@ -719,6 +722,13 @@ class AxisAssignmentObject(Frame):
     def _clearTableCallback(self, tableNum, data):
         self._clickedNmrAtom = None
         self.editButton.enableWidget(False)
+
+    def _assignNmrAtomCallback(self, data):
+        obj = data[Notifier.OBJECT]
+        if obj:
+            nmrAtom = obj[0]
+
+
 
     # def _updatePulldownLists(self, tableNum, data):
     #     self.lastTableSelected = tableNum
@@ -1232,7 +1242,7 @@ class AxisAssignmentObject(Frame):
         thisAtom = self.atomTypePulldown.currentText()
         atomNames = ['']
         if self.current.peak:
-            isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.index]
+            isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
             atomNames += getIsotopeListFromCode(isotopeCode)
 
         if nmrAtom:
