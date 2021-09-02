@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-04 15:23:19 +0100 (Fri, June 04, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-02 12:39:23 +0100 (Thu, September 02, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -124,14 +124,14 @@ class AssignmentInspectorModule(CcpnModule):
         self._tickLisWidget = Frame(self._splitWidget, grid=(0, 1), setLayout=True, vPolicy='minimum')
 
         self.displaysWidget = SpectrumDisplaySelectionWidget(self._splitWidget, mainWindow=self.mainWindow,
-                                                 grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                                                 vPolicy='maximum',
-                                                 orientation='left',
-                                                 labelText='Display(s):',
-                                                 tipText='SpectrumDisplay modules to respond to double-click',
-                                                 texts=[ALL] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
-                                                 defaults=[ALL]
-                                                 )
+                                                             grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+                                                             vPolicy='maximum',
+                                                             orientation='left',
+                                                             labelText='Display(s):',
+                                                             tipText='SpectrumDisplay modules to respond to double-click',
+                                                             texts=[ALL] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
+                                                             defaults=[ALL]
+                                                             )
 
         self.sequentialStripsWidget = CheckBoxCompoundWidget(
                 self._tickLisWidget,
@@ -211,11 +211,11 @@ class AssignmentInspectorModule(CcpnModule):
             if firstItemText:
                 self.chemicalShiftTable._chemicalShiftListPulldown.selectFirstItem()
                 chemicalShiftList = self.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
-                self.chemicalShiftTable._update(chemicalShiftList)
+                if chemicalShiftList:
 
-                dataFrameObject = self.chemicalShiftTable._dataFrameObject
-                if len(dataFrameObject.objects) > 0:
-                    self._selectByChemicalShifts([dataFrameObject.objects[0]])
+                    self.chemicalShiftTable._update(chemicalShiftList)
+                    if chemicalShiftList._chemicalShifts:
+                        self._selectByChemicalShifts([chemicalShiftList._chemicalShifts[0]])
 
         # install the event filter to handle maximising from floated dock
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
@@ -239,7 +239,6 @@ class AssignmentInspectorModule(CcpnModule):
         minHeight = max(self._tickLisWidget.sizeHint().height(), self.displaysWidget.minimumSizeHint().height()) + (
                 self.SETTING_PADDING * 2) + marginsTotalVertical
         return minHeight
-
 
     def _maximise(self):
         """
@@ -400,11 +399,10 @@ class AssignmentInspectorModule(CcpnModule):
         """
         Highlight chemical shifts in the table
         """
-        if self.chemicalShiftTable._dataFrameObject:
+        if self.chemicalShiftTable.chemicalShiftList:
             getLogger().debug('_highlightChemicalShifts ', nmrResidues)
 
-            chemicalShifts = self.chemicalShiftTable._dataFrameObject._objects
-
+            chemicalShifts = self.chemicalShiftTable.chemicalShiftList._chemicalShifts
             residues = set(nmrResidues)
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in residues]
 
@@ -465,10 +463,10 @@ class AssignmentInspectorModule(CcpnModule):
 
         objList = data[CallBack.OBJECT]
 
-        if self.chemicalShiftTable._dataFrameObject:
+        if self.chemicalShiftTable.chemicalShiftList:
             getLogger().debug('_highlightNmrResidues ', objList)
 
-            chemicalShifts = self.chemicalShiftTable._dataFrameObject._objects
+            chemicalShifts = self.chemicalShiftTable.chemicalShiftList._chemicalShifts
             nmrResidues = set(objList.nmrResidues)  #        set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
@@ -487,10 +485,10 @@ class AssignmentInspectorModule(CcpnModule):
 
         objList = data[CallBack.OBJECT]
 
-        if self.chemicalShiftTable._dataFrameObject:
+        if self.chemicalShiftTable.chemicalShiftList:
             getLogger().debug('_highlightNmrAtoms ', objList)
 
-            chemicalShifts = self.chemicalShiftTable._dataFrameObject._objects
+            chemicalShifts = self.chemicalShiftTable.chemicalShiftList._chemicalShifts
             nmrResidues = set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
@@ -507,7 +505,7 @@ class AssignmentInspectorModule(CcpnModule):
         """
         objList = data[CallBack.OBJECT]
 
-        if self.chemicalShiftTable._dataFrameObject:
+        if self.chemicalShiftTable.chemicalShiftList:
             getLogger().debug('_refreshNmrAtoms ', objList)
 
             self.assignedPeaksTable._updateModuleCallback(None, updateFromNmrResidues=False)
@@ -711,7 +709,7 @@ class AssignmentInspectorTable(GuiTable):
         allPeaks = list(set([pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks]))
         chemicalShiftList = self.moduleParent.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
         if chemicalShiftList:
-            spectra = chemicalShiftList.spectra #show peaks only for spectra currently available for the selected CSL
+            spectra = chemicalShiftList.spectra  #show peaks only for spectra currently available for the selected CSL
             peaks = [peak for peak in allPeaks if peak.peakList.spectrum in spectra]
         else:
             peaks = []
