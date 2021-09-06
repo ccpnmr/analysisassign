@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-03 12:18:42 +0100 (Fri, September 03, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-06 17:46:45 +0100 (Mon, September 06, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -412,7 +412,7 @@ class AssignmentInspectorModule(CcpnModule):
         """
         PeakTable double-click callback; navigate in to peak in current.strip
         """
-        displays = self._getDisplays()
+        displays = self.displaysWidget.getDisplays()
         markPositions = self.markPositionsWidget.checkBox.isChecked()
 
         if len(displays) == 0:
