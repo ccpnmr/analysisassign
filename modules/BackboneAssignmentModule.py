@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-04 18:10:43 +0100 (Fri, June 04, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-06 17:58:19 +0100 (Mon, September 06, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -30,7 +30,7 @@ import typing
 from collections import OrderedDict
 from PyQt5 import QtGui, QtWidgets
 from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
-from ccpn.core.ChemicalShift import ChemicalShift
+from ccpn.core._OldChemicalShift import _OldChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot
@@ -793,7 +793,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if self.matchC.isChecked():
             self.nmrAtomsToMatch.append('C')
 
-    def _createMatchStrips(self, assignMatrix: typing.Tuple[typing.Dict[NmrResidue, typing.List[ChemicalShift]], typing.List[float]]):
+    def _createMatchStrips(self, assignMatrix: typing.Tuple[typing.Dict[NmrResidue, typing.List[_OldChemicalShift]], typing.List[float]]):
         """
         Creates strips in match module corresponding to the best assignment possibilities
         in the assignMatrix.
