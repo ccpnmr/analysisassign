@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-06 17:46:45 +0100 (Mon, September 06, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-13 19:21:18 +0100 (Mon, September 13, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -214,8 +214,8 @@ class AssignmentInspectorModule(CcpnModule):
                 if chemicalShiftList:
 
                     self.chemicalShiftTable._update(chemicalShiftList)
-                    if chemicalShiftList.chemShifts:
-                        self._selectByChemicalShifts([chemicalShiftList.chemShifts[0]])
+                    if chemicalShiftList.chemicalShifts:
+                        self._selectByChemicalShifts([chemicalShiftList.chemicalShifts[0]])
 
         # install the event filter to handle maximising from floated dock
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
@@ -356,7 +356,7 @@ class AssignmentInspectorModule(CcpnModule):
         objList = data[CallBack.OBJECT]
 
         if objList:
-            getLogger().debug('AssignmentInspectorChemShift>>> selection', objList)
+            getLogger().debug('AssignmentInspectorChemicalShift>>> selection', objList)
 
         self._selectByChemicalShifts(objList)
 
@@ -402,7 +402,7 @@ class AssignmentInspectorModule(CcpnModule):
         if self.chemicalShiftTable.chemicalShiftList:
             getLogger().debug('_highlightChemicalShifts ', nmrResidues)
 
-            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemShifts
+            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemicalShifts
             residues = set(nmrResidues)
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in residues]
 
@@ -466,7 +466,7 @@ class AssignmentInspectorModule(CcpnModule):
         if self.chemicalShiftTable.chemicalShiftList:
             getLogger().debug('_highlightNmrResidues ', objList)
 
-            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemShifts
+            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemicalShifts
             nmrResidues = set(objList.nmrResidues)  #        set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
@@ -488,7 +488,7 @@ class AssignmentInspectorModule(CcpnModule):
         if self.chemicalShiftTable.chemicalShiftList:
             getLogger().debug('_highlightNmrAtoms ', objList)
 
-            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemShifts
+            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemicalShifts
             nmrResidues = set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 

@@ -13,7 +13,8 @@ and to include "Restricted pick and assign" button.
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -21,9 +22,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2021-04-08 15:22:17 +0100 (Thu, April 08, 2021) $"
-__version__ = "$Revision: 3.0.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2021-09-13 19:21:18 +0100 (Mon, September 13, 2021) $"
+__version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,6 +43,7 @@ from ccpn.core.NmrResidue import NmrResidue
 from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+
 
 logger = getLogger()
 
@@ -68,7 +70,7 @@ class PickAndAssignModule(NmrResidueTableModule):
 
     def __init__(self, mainWindow, name='Pick and Assign'):
 
-        super().__init__(mainWindow=mainWindow, name=name,  selectFirstItem=True)  # ejb ='Pick And Assign')
+        super().__init__(mainWindow=mainWindow, name=name, selectFirstItem=True)  # ejb ='Pick And Assign')
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -77,7 +79,7 @@ class PickAndAssignModule(NmrResidueTableModule):
         self.current = mainWindow.application.current
 
         # Main widget
-        self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick,)
+        self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick, )
         self.nmrResidueTable.addWidgetToPos(self.restrictedPickButton, row=1, col=2)
 
         self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
@@ -175,8 +177,9 @@ class PickAndAssignModule(NmrResidueTableModule):
 
                 for nmrAtom in self.application.current.nmrResidue.nmrAtoms:
                     if nmrAtom.isotopeCode in shiftDict.keys():
-                        if shiftList.getChemicalShift(nmrAtom.id):
-                            shiftDict[nmrAtom.isotopeCode].append((nmrAtom, shiftList.getChemicalShift(nmrAtom.id).value))
+                        cShift = shiftList.getChemicalShift(nmrAtom)
+                        if cShift:
+                            shiftDict[nmrAtom.isotopeCode].append((nmrAtom, cShift.value))
 
                 for ii, isotopeCode in enumerate(spectrum.isotopeCodes):
 
@@ -345,4 +348,3 @@ class PickAndAssignModule(NmrResidueTableModule):
                                                     widths=strip._getCurrentZoomRatio(strip.viewRange()),
                                                     markPositions=(n == 2))
                 self.application.current.nmrResidue = nmrResidue
-

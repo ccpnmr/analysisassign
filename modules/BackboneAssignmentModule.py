@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-06 17:58:19 +0100 (Mon, September 06, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-13 19:21:18 +0100 (Mon, September 13, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -776,8 +776,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if chemicalShiftList:
             for nmrResidue in self.application.project.nmrResidues:
                 nmrAtoms = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms]
-                shifts = [chemicalShiftList.getChemicalShift(atom.id) for atom in nmrAtoms
-                          if chemicalShiftList.getChemicalShift(atom.id) is not None]
+                shifts = [chemicalShiftList.getChemicalShift(atom) for atom in nmrAtoms
+                          if chemicalShiftList.getChemicalShift(atom) is not None]
                 if nmrResidue.relativeOffset == -1:
                     self.interShifts[nmrResidue] = shifts
                 elif nmrResidue.relativeOffset == 0 or nmrResidue.relativeOffset is None:
