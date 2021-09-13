@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-04 15:23:19 +0100 (Fri, June 04, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-13 19:29:56 +0100 (Mon, September 13, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -51,6 +51,7 @@ from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.Icon import Icon
+from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER, LABEL_WARNINGFOREGROUND
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
@@ -100,9 +101,8 @@ ROWSIZES = {7 : 3000,
             -2: ROWDEFAULT,
             }
 
-
 _showBorders = False  # for debugging of layout's
-_margins = (10, 3, 10, 3)
+_margins = (2, 2, 2, 2)
 
 
 class PeakAssigner(CcpnModule):
@@ -114,7 +114,10 @@ class PeakAssigner(CcpnModule):
     includeSettingsWidget = True
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
     settingsPosition = 'left'
+
     className = 'PeakAssigner'
+
+    activePulldownClass = None
 
 
     class _emptyObject():
@@ -123,8 +126,10 @@ class PeakAssigner(CcpnModule):
 
 
     def __init__(self, mainWindow, name="Peak Assigner"):
-
-        CcpnModule.__init__(self, mainWindow=mainWindow, name=name)
+        """
+        Initialise the Module widgets
+        """
+        super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -132,84 +137,134 @@ class PeakAssigner(CcpnModule):
         self.project = mainWindow.application.project
         self.current = mainWindow.application.current
 
-        # settings
+        self.Ndims = 0
+        self.maxDims = 4
+        self.dimensionTabs = []
+        self.currentAtoms = None
+        self._visibleDims = 0
+
+        # add widgets to the module
+        self._setWidgets()
+
+        # set notifiers to respond to peaks
+        self._registerNotifiers()
+
+        # populate the tables
+        self._updateInterface(self.current.peaks)
+
+        from ccpn.ui.gui.modules.CcpnModule import BorderOverlay
+
+        self.installMaximiseEventHandler(self._maximise, self._closeModule)
+
+    def _maximise(self):
+        """
+        Maximise the attached table
+        """
+        self.chemicalShiftTable._maximise()
+
+    def _setWidgets(self):
+        """Add the widgets to the module
+        """
+        self.blockSignals(True)
+
+        if self.includeSettingsWidget:
+            # settings
+            row = 0
+            self.doubleToleranceCheckbox = CheckBox(self.settingsWidget, checked=False,
+                                                    callback=self._updateInterface,
+                                                    grid=(row, 1))
+            Label(self.settingsWidget, text="Double Tolerances ", grid=(row, 0))
+
+            row += 1
+            self.intraCheckbox = CheckBox(self.settingsWidget, checked=False,
+                                          callback=self._updateInterface,
+                                          grid=(row, 1))
+            Label(self.settingsWidget, text="Only Intra-residual ", grid=(row, 0))
+
+            row += 1
+            self.multiCheckbox = CheckBox(self.settingsWidget, checked=True,
+                                          callback=self._updateInterface,
+                                          grid=(row, 1))
+            Label(self.settingsWidget, text="Allow Multiple Peaks ", grid=(row, 0))
+
+            row += 1
+            self.allChainCheckBoxLabel = CheckBox(self.settingsWidget, checked=False,
+                                                  callback=self._updateInterface,
+                                                  grid=(row, 1))
+            Label(self.settingsWidget, "Peak Selection from Table", grid=(row, 0))
+
+            self._height = getFontHeight()
+            self._tableHeight = getFontHeight(name=TABLEFONT)
+            self.settingsWidget.setContentsMargins(5, 5, 5, 5)
+            self.settingsWidget.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+            self.settingsWidget.setScrollBarPolicies(scrollBarPolicies=('asNeeded', 'never'))
+
         row = 0
-        self.doubleToleranceCheckbox = CheckBox(self.settingsWidget, checked=False,
-                                                callback=self._updateInterface,
-                                                grid=(row, 1))
-        doubleToleranceCheckboxLabel = Label(self.settingsWidget, text="Double Tolerances ", grid=(row, 0))
-
-        row += 1
-        self.intraCheckbox = CheckBox(self.settingsWidget, checked=False,
-                                      callback=self._updateInterface,
-                                      grid=(row, 1))
-        intraCheckboxLabel = Label(self.settingsWidget, text="Only Intra-residual ", grid=(row, 0))
-
-        row += 1
-        self.multiCheckbox = CheckBox(self.settingsWidget, checked=True,
-                                      callback=self._updateInterface,
-                                      grid=(row, 1))
-        multiCheckboxLabel = Label(self.settingsWidget, text="Allow Multiple Peaks ", grid=(row, 0))
-
-        row += 1
-        self.allChainCheckBoxLabel = CheckBox(self.settingsWidget, checked=False,
-                                              callback=self._updateInterface,
-                                              grid=(row, 1))
-        allChainCheckBoxLabel = Label(self.settingsWidget, "Peak Selection from Table", grid=(row, 0))
-
-        self._height = getFontHeight()
-        self._tableHeight = getFontHeight(name=TABLEFONT)
-        self.settingsWidget.setContentsMargins(5, 5, 5, 5)
-        self.settingsWidget.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        self.settingsWidget.setScrollBarPolicies(scrollBarPolicies=('asNeeded', 'never'))
-
-        # put a peaklabel into the axisFrameWidget, this will be wrapped in scroll bars
+        # add a label for the selected peaks
         self.peakLabel = Label(parent=self.mainWidget, setLayout=True, spacing=(0, 0),
                                text='Current Peak: ' + MSG, bold=True,
-                               grid=(0, 0),  margins=_margins,
+                               grid=(row, 0), margins=_margins,
                                hAlign='left', vAlign='t',
                                hPolicy='ignored', vPolicy='fixed'
                                )
 
-        # setup a scroll for the dimension frames
-        self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
-                                               acceptDrops=True, grid=(1, 0),
-                                               # hAlign='left',
-                                               # hPolicy='minimalExpanding'
-                                               )
-        self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
-        row = -1
+        row += 1
+        # setup a frame for the dimension frames - scrollable frame not resizing correctly
+        self.axisFrameWidget = Frame(parent=self.mainWidget, showBorder=False, setLayout=True,
+                                     acceptDrops=True, grid=(row, 0),
+                                     # hAlign='left',
+                                     # hPolicy='minimalExpanding'
+                                     )
+        # self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
+        # row = -1
 
-        self.NDims = 0
-        self.maxDims = 4
-        self.dimensionTabs = []
-        self.currentAtoms = None
+        # self.Ndims = 0
+        # self.maxDims = 4
+        # self.dimensionTabs = []
+        # self.currentAtoms = None
+        # self._visibleDims = 0
 
         row += 1
-        _frame = Frame(self.axisFrameWidget, grid=(row,0), setLayout=True, showBorder=_showBorders,
-                       hAlign='left',
-                       hPolicy='minimalExpanding'
-                       )
+        # _frame = Frame(self.axisFrameWidget, grid=(row,0), setLayout=True, showBorder=_showBorders,
+        #                # hAlign='left',
+        #                # hPolicy='minimumExpanding'
+        #                )
+        # self.axisFrameWidget.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.MinimumExpanding)
+        # self.axisFrameWidget.getLayout().setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
+
+        colIndex = 0
         for dimIndex in range(self.maxDims):
             # 4 axes per row
-            if dimIndex == 4: row +=1
-            dimTab = AxisAssignmentObject(parent=_frame, grid=(0, dimIndex),
+            if dimIndex == 4:
+                row += 1
+                colIndex = 0
+            dimTab = AxisAssignmentObject(parent=self.axisFrameWidget, grid=(row, colIndex),
                                           parentModule=self, dimIndex=dimIndex,
                                           mainWindow=self.mainWindow,
                                           )
             self.dimensionTabs.append(dimTab)
+            colIndex += 1
+
+        self.mainWidget.getLayout().setAlignment(QtCore.Qt.AlignTop)
+        self.axisFrameWidget.setVisible(False)
 
         # # testing
         # self.dimensionTabs[1].setNotAligned(True)
         # self.dimensionTabs[0].setHLineText('H: 10.7')
         # self.dimensionTabs[2].hide()
 
-        # respond to peaks
-        self._registerNotifiers()
+        self.blockSignals(False)
 
-        self.closeModule = self._closeModule
-
-        self._updateInterface(self.current.peaks)
+    def resizeEvent(self, ev):
+        """fix the size of the tables
+        """
+        # NOTE:ED - this is not very clean but qt is doing something very strange
+        #  with the resizing of tables when setStretchLastColumn is set :|
+        if self.Ndims:
+            w = (self.width() - 32) / max(self.Ndims, 4)
+            for tab in self.dimensionTabs:
+                tab.setMinimumWidth(w)
+        super().resizeEvent(ev)
 
     def _registerNotifiers(self):
         # without a tableSelection specified in the table callback, this nmrAtom callback is needed
@@ -236,9 +291,11 @@ class PeakAssigner(CcpnModule):
                          onceOnly=True)
 
     def _updateNmrAtom(self, data):
+        # not a very efficient way of doing this
         self._updateInterface(data, action=data[Notifier.TRIGGER])
 
     def _updateNmrResidue(self, data):
+        # not a very efficient way of doing this
         self._updateInterface(data, action=data[Notifier.TRIGGER])
 
     def _updateInterface(self, data=None, action=None):
@@ -275,7 +332,7 @@ class PeakAssigner(CcpnModule):
                 # show/hide if peaks are aligned
                 aligned = peaksAreOnLine(peaks=peaks, dimIndex=dimIndex)
                 if not aligned:
-                    txt = '%s: peaks\nnot aligned' % (peaks[0].axisCodes[dimIndex], )
+                    txt = '%s: peaks\nnot aligned' % (peaks[0].axisCodes[dimIndex],)
                     dimTab.setNotAlignedText(txt)
                 else:
                     ppmValues = np.array([pk.ppmPositions[dimIndex] for pk in peaks])
@@ -349,10 +406,12 @@ class PeakAssigner(CcpnModule):
         for peak in self.current.peaks:
             shiftList = peak.peakList.spectrum.chemicalShiftList
             if shiftList:
-                shift = shiftList.getChemicalShift(nmrAtom.id)
+                shift = shiftList.getChemicalShift(nmrAtom)
                 if shift:
-                    position = peak.position[dim]
-                    deltas.append(abs(shift.value - position))
+                    _value = shift.value
+                    if _value is not None:
+                        position = peak.position[dim]
+                        deltas.append(abs(shift.value - position))
         # average = sum(deltas)/len(deltas) #Bug: ZERO DIVISION!
 
         if len(deltas) > 0:
@@ -370,7 +429,7 @@ class PeakAssigner(CcpnModule):
         for peak in self.current.peaks:
             shiftList = peak.peakList.spectrum.chemicalShiftList
             if shiftList:
-                shift = shiftList.getChemicalShift(nmrAtom.id)
+                shift = shiftList.getChemicalShift(nmrAtom)
                 if shift:
                     return shift.value  # '%8.3f' % shift.value
 
@@ -395,7 +454,7 @@ class PeakAssigner(CcpnModule):
         for dimIndex in range(peaks[0].spectrum.dimensionCount):
             isotopeCodes = set(peak.spectrum.isotopeCodes[dimIndex] for peak in peaks)
             if len(isotopeCodes) > 1:
-                getLogger().warning('Selected peaks have different isotopeCodes along dimension %d' % dimIndex+1)
+                getLogger().warning('Selected peaks have different isotopeCodes along dimension %d' % dimIndex + 1)
                 return False
 
         return True
@@ -460,18 +519,18 @@ class AssignmentTable(GuiTable):
                  hideIndex=True, stretchLastSection=True,
                  **kwds):
 
-        super(AssignmentTable, self).__init__(  parent=parent,
-                                         mainWindow=mainWindow,
-                                         dataFrameObject=dataFrameObject,
-                                         actionCallback=actionCallback,
-                                         selectionCallback=selectionCallback,
-                                         checkBoxCallback=checkBoxCallback,
-                                         _pulldownKwds=_pulldownKwds, enableMouseMoveEvent=enableMouseMoveEvent,
-                                         multiSelect=multiSelect, selectRows=selectRows,
-                                         numberRows=numberRows, autoResize=autoResize,
-                                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
-                                         hideIndex=hideIndex, stretchLastSection=stretchLastSection,
-                                         **kwds)
+        super().__init__(parent=parent,
+                         mainWindow=mainWindow,
+                         dataFrameObject=dataFrameObject,
+                         actionCallback=actionCallback,
+                         selectionCallback=selectionCallback,
+                         checkBoxCallback=checkBoxCallback,
+                         _pulldownKwds=_pulldownKwds, enableMouseMoveEvent=enableMouseMoveEvent,
+                         multiSelect=multiSelect, selectRows=selectRows,
+                         numberRows=numberRows, autoResize=autoResize,
+                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
+                         hideIndex=hideIndex, stretchLastSection=stretchLastSection,
+                         **kwds)
 
         self._clearSelectionCallbackFunction = clearSelectionCallback
 
@@ -481,6 +540,111 @@ class AssignmentTable(GuiTable):
             data = {}
             self._clearSelectionCallbackFunction(data)
 
+    def _setContextMenu(self, enableExport=True, enableDelete=True):
+        """Subclass guiTable to add new item to top of context menu
+        """
+        super()._setContextMenu(enableExport=enableExport, enableDelete=enableDelete)
+        _actions = self.tableMenu.actions()
+        if _actions:
+            _topMenuItem = _actions[0]
+            _topSeparator = self.tableMenu.insertSeparator(_topMenuItem)
+            self._editMenuAction = self.tableMenu.addAction('Edit nmrAtom ...', self._editNmrAtom)
+            # move new actions to the top of the list
+            self.tableMenu.insertAction(_topSeparator, self._editMenuAction)
+
+    def _raiseTableContextMenu(self, pos):
+        """Create a new menu and popup at cursor position
+        Update text for edit nmrAtom
+        """
+        selection = self.getSelectedObjects()
+        data = self.getRightMouseItem()
+        if data and selection:
+            # add more information to the edit nmrAtom option in the menu
+            currentNmrAtom = selection[0]
+            self._editMenuAction.setText('Edit NmrAtom {}'.format(currentNmrAtom.id if currentNmrAtom else '...'))
+            self._editMenuAction.setEnabled(True if currentNmrAtom else False)
+
+        else:
+            # disabled but visible lets user know that menu items exist
+            self._editMenuAction.setText('Edit NmrAtom ...')
+            self._editMenuAction.setEnabled(False)
+
+        # hide the previous edit balloon (looks a little cleaner)
+        self._owner.setEditPopupVisible(False)
+        super()._raiseTableContextMenu(pos)
+
+    def _editNmrAtom(self):
+        """Edit the nmrAtom from the parent widget
+        """
+        # NOTE:ED - should the edit functionality be here or in the AxisAssignmentObject?
+        selection = self.getSelectedObjects()
+        data = self.getRightMouseItem()
+        if data and selection:
+            # call the edit popup balloon
+            self._owner._reassignNmrAtomPopup()
+
+
+class EditNmrAtomBalloon(SpeechBalloon):
+    """Balloon to hold the pulldown lists for editing the nmrAtom
+    """
+
+    def __init__(self, mainWindow=None, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+        # attach handle to focus and maximise/minimise signals from app and parent window
+        QtWidgets.qApp.focusChanged.connect(self._focusChanged)
+        if mainWindow:
+            mainWindow.WindowMaximiseMinimise.connect(self._stateChanged)
+
+    @QtCore.pyqtSlot('QWidget*', 'QWidget*')
+    def _focusChanged(self, oldWidget, newWidget):
+        """Hide the balloon if the focus has changed to a widget outside the parent widget
+        """
+        # Check whether the focus is still inside the popup
+        if self.isVisible() and newWidget not in self.findChildren(QtWidgets.QWidget):
+            self.setVisible(False)
+            getLogger().debug2(f'Closing _focusChanged')
+
+    @QtCore.pyqtSlot(bool)
+    def _stateChanged(self, state):
+        """Hide the balloon if the parent window is minimised
+        """
+        # Check whether widget is visible
+        if state is False and self.isVisible() is True:
+            self.setVisible(False)
+            getLogger().debug2(f'Closing _stateChanged')
+
+    # NOTE:ED - test method, attach eventFilter to all children - above method much more flexible
+    # def _attachFocusOut(self, mainWindow=None):
+    #     """Attach eventFilter to child widgets to capture focusOut event
+    #     Used to close parent if lost focus to outside widget
+    #     """
+    #     children = self.findChildren(QtWidgets.QWidget)
+    #     for ch in children:
+    #         ch.installEventFilter(self)
+    #
+    # def eventFilter(self, target, event):
+    #     """Event filter to handle a child of a widget losing focus
+    #     Calls parent check to see if another child still has focus
+    #     """
+    #     if event.type() == QtCore.QEvent.FocusOut:
+    #         # use singleShot to ensure that all widgets are up-to-date before checking focus from parent
+    #         QtCore.QTimer.singleShot(0, self._checkFocus)
+    #     return super().eventFilter(target, event)
+    #
+    # def _checkFocus(self):
+    #     """Check whether any of the children still have focus
+    #     """
+    #     children = self.findChildren(QtWidgets.QWidget)
+    #     for ch in children:
+    #         if ch.hasFocus():
+    #             # editPopup is okay, stay visible
+    #             break
+    #     else:
+    #         # no children have focus, so need to hide - caused by any click outside the editBalloon
+    #         self.setVisible(False)
+    #         getLogger().debug2(f'Closing nmrAtom editor')
+
 
 class AxisAssignmentObject(Frame):
     """
@@ -489,7 +653,8 @@ class AxisAssignmentObject(Frame):
 
     def __init__(self, parent, parentModule, dimIndex, mainWindow, grid=None, **kwds):
 
-        settings = dict(hPolicy = 'minimal', hAlign='left', vPolicy = 'expanding', vAlign='top')
+        # settings = dict(hPolicy = 'minimum', hAlign='left', vPolicy = 'expanding', vAlign='top')
+        settings = dict(vAlign='top', )
 
         super(AxisAssignmentObject, self).__init__(parent=parent,
                                                    setLayout=True, showBorder=_showBorders,
@@ -513,7 +678,7 @@ class AxisAssignmentObject(Frame):
         self.lastNmrAtomSelected = None
         self.tables = [None, None]  # The two tables (assignment and alternatives)
 
-        height=20
+        height = 20
         # self._minWidth = 150
         _minTabWidth = 100
         _tabHeight = 100
@@ -531,80 +696,93 @@ class AxisAssignmentObject(Frame):
         #=========================================
         aRow += 1
         self._assignmentsFrame = Frame(self, setLayout=True, showBorder=_showBorders,
-                                       grid=(aRow,0), margins=_margins, **settings)
+                                       grid=(aRow, 0), margins=_margins, **settings)
         # self._assignmentsFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        row = -1
+        # row = -1
 
-        row += 1
-        self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row,0), height=10, colour=getColours()[DIVIDER])
+        row = 0
+        self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row, 0), height=16, colour=getColours()[DIVIDER])
 
         # row += 1
         # self.axisLabel = Label(self._assignmentsFrame, 'Axis', hAlign='l', grid=(row, 0))
         # self.axisLabel.setMinimumHeight(height)
         row += 1
         self.tables[0] = AssignmentTable(parent=self._assignmentsFrame,
-                                  mainWindow=mainWindow,
-                                  dataFrameObject=None,
-                                  setLayout=True,
-                                  autoResize=False, multiSelect=False,
-                                  actionCallback=partial(self._assignDeassignNmrAtom, 0),
-                                  selectionCallback=partial(self._clickedTableCallback, 0),
-                                  clearSelectionCallback=partial(self._clearTableCallback, 0),
-                                  grid=(row, 0), gridSpan=(1, 1),
-                                  # **settings,
-                                  stretchLastSection=True,
-                                  enableSearch=False,
-                                  acceptDrops=True,
-                                  enableExport=False,
-                                  tipText='Click to select; double-click to de-assign')
-        self.tables[0].setMinimumWidth(_minTabWidth)
+                                         mainWindow=mainWindow,
+                                         dataFrameObject=None,
+                                         setLayout=True,
+                                         autoResize=False, multiSelect=False,
+                                         actionCallback=partial(self._assignDeassignNmrAtom, 0),
+                                         selectionCallback=partial(self._clickedTableCallback, 0),
+                                         clearSelectionCallback=partial(self._clearTableCallback, 0),
+                                         grid=(row, 0), gridSpan=(1, 1),
+                                         # **settings,
+                                         stretchLastSection=True,
+                                         enableSearch=False,
+                                         acceptDrops=True,
+                                         enableExport=False,
+                                         tipText='Click to select; double-click to de-assign')
+        self.tables[0]._owner = self
+        # self.tables[0].setMinimumWidth(_minTabWidth)
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
         self._alternativesLabel.setMinimumHeight(height)
         row += 1
         self.tables[1] = AssignmentTable(parent=self._assignmentsFrame,
-                                  mainWindow=mainWindow,
-                                  dataFrameObject=None,
-                                  setLayout=True,
-                                  autoResize=False, multiSelect=False,
-                                  actionCallback=partial(self._assignDeassignNmrAtom, 1),
-                                  selectionCallback=partial(self._clickedTableCallback, 1),
-                                  clearSelectionCallback=partial(self._clearTableCallback, 1),
-                                  grid=(row, 0), gridSpan=(1, 1),
-                                  # **settings,
-                                  stretchLastSection=True,
-                                  enableSearch=False,
-                                  enableExport=False,
-                                  acceptDrops=True,
-                                  tipText='Click to select; double-click to assign')
-        self.tables[1].setMinimumWidth(_minTabWidth)
+                                         mainWindow=mainWindow,
+                                         dataFrameObject=None,
+                                         setLayout=True,
+                                         autoResize=False, multiSelect=False,
+                                         actionCallback=partial(self._assignDeassignNmrAtom, 1),
+                                         selectionCallback=partial(self._clickedTableCallback, 1),
+                                         clearSelectionCallback=partial(self._clearTableCallback, 1),
+                                         grid=(row, 0), gridSpan=(1, 1),
+                                         # **settings,
+                                         stretchLastSection=True,
+                                         enableSearch=False,
+                                         enableExport=False,
+                                         acceptDrops=True,
+                                         tipText='Click to select; double-click to assign')
+        self.tables[1]._owner = self
+        # self.tables[1].setMinimumWidth(_minTabWidth)
+        # self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
         # row += 1
-        # self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
-        #                                              setLayout=True, showBorder=_showBorders, grid=(row, 0), **settings)
-        row += 1
-        _frame = Frame(parent=self._assignmentsFrame, grid=(row,0), setLayout=True, showBorder=_showBorders, **settings)
-        self.editButton = Button(  parent=_frame, text='Edit',
-                                   callback=partial(self._reassignNmrAtom, self.dimIndex),
-                                   grid=(0,0), hAlign='centre',
-                                   tipText='Rename selected nmrAtom')
 
-        self.newNmrAtomButton = Button(parent=_frame, text='New',
-                                       callback=partial(self._createNewNmrAtom, self.dimIndex),
-                                       grid=(0,1), hAlign='centre',
-                                       tipText='Create new nmrAtom')
+        # self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
+        #                                              setLayout=True, showBorder=_showBorders, grid=(0, 0))
+
+        row += 1
+        _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
+                              tipTexts=['Rename selected nmrAtom', 'Create new nmrAtom'],
+                              callbacks=[self._reassignNmrAtomPopup,
+                                         partial(self._createNewNmrAtom, self.dimIndex)],
+                              grid=(row, 0), hAlign='l'
+                              )
+        self.editButton = _buttons.getButton('Edit')
+        self.newNmrAtomButton = _buttons.getButton('New')
+        # _frame = Frame(parent=self._assignmentsFrame, grid=(row,0), setLayout=True, showBorder=_showBorders, ) #**settings)
+        # self.editButton = Button(  parent=_frame, text='Edit',
+        #                            callback=partial(self._reassignNmrAtom, self.dimIndex),
+        #                            grid=(0,0), hAlign='centre',
+        #                            tipText='Rename selected nmrAtom')
+        #
+        # self.newNmrAtomButton = Button(parent=_frame, text='New',
+        #                                callback=partial(self._createNewNmrAtom, self.dimIndex),
+        #                                grid=(0,1), hAlign='centre',
+        #                                tipText='Create new nmrAtom')
+
         # row += 1
         # self._assignmentsFrame.addSpacer(5, 5, grid=(row,0), expandX=True, expandY=True)
 
         #===========================================
         # Not-aligned frame
         #===========================================
-        aRow += 1
-        self.notAlignedFrame =  Frame(self, setLayout=True, showBorder=_showBorders, grid=(aRow,0), margins=_margins, **settings)
+        # aRow += 1
+        self.notAlignedFrame = Frame(self, setLayout=True, showBorder=_showBorders, grid=(aRow, 0), margins=_margins, )  #**settings)
         self.notAlignedLabel = Label(parent=self.notAlignedFrame, text='peaks\nnot aligned', grid=(0, 0),
                                      hPolicy='minimal', hAlign='centre',
-                                     textColour=getColours()[LABEL_WARNINGFOREGROUND] )
-
+                                     textColour=getColours()[LABEL_WARNINGFOREGROUND])
 
         #===========================================
         # set up notifiers to changes to peaks, nmrAtoms and assignments
@@ -638,14 +816,19 @@ class AxisAssignmentObject(Frame):
                                        ('_object', lambda nmrAtom: nmrAtom, 'Object', None, None),
                                        ('Shift', lambda nmrAtom: parentModule._getShift(nmrAtom), 'Chemical shift',
                                         None, '%8.3f'),
-                                       ('Delta', lambda nmrAtom: parentModule._getDeltaShift(nmrAtom, index),
+                                       ('Delta', lambda nmrAtom: parentModule._getDeltaShift(nmrAtom, self.dimIndex),
                                         'Delta shift', None, '%6.3f')])
         self._hiddenColumns = [['Pid', 'Shift'], ['Pid', 'Shift']]
 
         self.tables[0]._hiddenColumns = ['Pid', 'Shift']
         self.tables[1]._hiddenColumns = ['Pid', 'Shift']
 
-        # self._setDefaultPulldowns()
+        self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
+                                                     setLayout=True, showBorder=_showBorders, grid=(0, 0))
+        self.editPopup = EditNmrAtomBalloon(mainWindow=self.mainWindow, on_top=True)
+        self.editPopup.setCentralWidget(self._assignmentWidget)
+        self.editPopup.hide()
+
         self.editButton.enableWidget(False)
 
     def _nmrAtomWidget(self, parent, minWidth, **kwds):
@@ -665,11 +848,19 @@ class AxisAssignmentObject(Frame):
         self.atomTypePulldown = self._createPulldown(parent=_frame,
                                                      grid=(0, 3), gridSpan=(1, 1),
                                                      tipText='Atom type')
+        _innerFrame = Frame(parent=_frame, setLayout=True, grid=(1, 0), gridSpan=(1, 4))
+        self.accept = Button(parent=_innerFrame, text='Accept', grid=(1, 0), hAlign='r',
+                             callback=partial(self._reassignAccept, self.dimIndex))
 
         for w in [self.chainPulldown, self.seqCodePulldown, self.resTypePulldown, self.atomTypePulldown]:
             w.setMinimumWidth(minWidth)
 
         return _frame
+
+    def setEditPopupVisible(self, visible):
+        """Hide the edit popup balloon
+        """
+        self.editPopup.setVisible(visible)
 
     def showNotAligned(self, flag):
         """Show/hide of notAligned and assignmentFrame"""
@@ -723,27 +914,27 @@ class AxisAssignmentObject(Frame):
         self._clickedNmrAtom = None
         self.editButton.enableWidget(False)
 
-    def _assignNmrAtomCallback(self, data):
-        obj = data[Notifier.OBJECT]
-        if obj:
-            nmrAtom = obj[0]
-
-
-
-    # def _updatePulldownLists(self, tableNum, data):
-    #     self.lastTableSelected = tableNum
-    #     obj = data[Notifier.OBJECT]
-    #     if obj:
-    #         self._clickedNmrAtom = obj[0]
-    #         # self._clickedLabel.setText('Current NmrAtom: {}'.format(obj[0].pid))
-    #         # self._clickedClear.setVisible(True)
-    #     if tableNum == 0:
-    #         # self._updateAssignmentWidget(tableNum, obj[0])
-    #         self.tables[1].clearSelection()
+    #     def _assignNmrAtomCallback(self, data):
+    #         obj = data[Notifier.OBJECT]
+    #         if obj:
+    #             nmrAtom = obj[0]
     #
-    #     elif tableNum == 1:
-    #         # self._updateAssignmentWidget(tableNum, obj[0])
-    #         self.tables[0].clearSelection()
+    #
+    #
+    #     # def _updatePulldownLists(self, tableNum, data):
+    #     #     self.lastTableSelected = tableNum
+    #     #     obj = data[Notifier.OBJECT]
+    #     #     if obj:
+    #     #         self._clickedNmrAtom = obj[0]
+    #     #         # self._clickedLabel.setText('Current NmrAtom: {}'.format(obj[0].pid))
+    #     #         # self._clickedClear.setVisible(True)
+    #     #     if tableNum == 0:
+    #     #         # self._updateAssignmentWidget(tableNum, obj[0])
+    #     #         self.tables[1].clearSelection()
+    #     #
+    #     #     elif tableNum == 1:
+    #     #         # self._updateAssignmentWidget(tableNum, obj[0])
+    #     #         self.tables[0].clearSelection()
 
     def _createChainPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='') -> PulldownList:
         """Creates a PulldownList with callback, editable.
@@ -779,7 +970,7 @@ class AxisAssignmentObject(Frame):
         return pulldownList
 
     def _createNewNmrAtom(self, dim):
-        "Callback for the newNmrAtom button"
+        """Callback for the newNmrAtom button"""
         # from ccpn.ui.gui.popups.NmrAtomPopup import NmrAtomNewPopup
 
         isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
@@ -799,7 +990,6 @@ class AxisAssignmentObject(Frame):
                         axisCode = peak.spectrum.axisCodes[dim]
                         peak.assignDimension(axisCode, newAssignments)
 
-
                 # highlight on the table and populate the pulldowns
                 self.tables[0].selectObjects([nmrAtom], setUpdatesEnabled=False)
                 self.tables[1].clearSelection()
@@ -813,6 +1003,26 @@ class AxisAssignmentObject(Frame):
 
             except Exception as es:
                 showWarning(str(self.windowTitle()), str(es))
+
+    def _reassignNmrAtomPopup(self):
+        """Show the edit popup
+        """
+        from ccpn.ui.gui.widgets.BalloonMetrics import Side
+
+        _table = self.lastTableSelected
+        nextAtom = self.tables[_table].getSelectedObjects()
+        if nextAtom:
+            self._updateAssignmentWidget(_table, nextAtom[0])
+
+        pos = QtGui.QCursor().pos()
+        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
+        # need an accept button here
+
+    def _reassignAccept(self, dim: int):
+        """Handle the accept button in the balloon popup
+        """
+        self._reassignNmrAtom(self.dimIndex)
+        self.editPopup.setVisible(False)
 
     def _reassignNmrAtom(self, dim: int):
         """
@@ -916,10 +1126,10 @@ class AxisAssignmentObject(Frame):
             return
 
         try:
-            nmrChainName = self.chainPulldown.currentText()
-            seqCode = self.seqCodePulldown.currentText()
-            newResType = self.resTypePulldown.currentText()
-            nmrAtomName = self.atomTypePulldown.currentText()
+            # nmrChainName = self.chainPulldown.currentText()
+            # seqCode = self.seqCodePulldown.currentText()
+            # newResType = self.resTypePulldown.currentText()
+            # nmrAtomName = self.atomTypePulldown.currentText()
 
             # # get options from the pulldowns
             # currentNmrAtomSelected = (nmrChainName,
@@ -930,88 +1140,94 @@ class AxisAssignmentObject(Frame):
 
             # create = self.createNew.isChecked()
 
-            nmrAtom = None
+            nmrAtom = self.tables[1].getSelectedObjects()
+            if not (nmrAtom and nmrAtom[0]):
+                return
+            nmrAtom = nmrAtom[0]
+
+            # nmrAtom = None
 
             # wrap all actions in a single undo block
             with undoBlockWithoutSideBar():
 
-                _chainPid = 'NC:{}'.format(nmrChainName)
-                if create and not action:
-                    # get the current chain (but may create a new one)
-                    _nmrChain = self.project.fetchNmrChain(nmrChainName)
-                else:
-                    # find the existing nmrChain
-                    _nmrChain = self.project.getByPid(_chainPid)
-                    if not _nmrChain:
-                        # raise error to notify popup
-                        raise ValueError("NmrChain doesn't exists")
+                # NOTE:ED need to keep for the minute
+                # _chainPid = 'NC:{}'.format(nmrChainName)
+                # if create and not action:
+                #     # get the current chain (but may create a new one)
+                #     _nmrChain = self.project.fetchNmrChain(nmrChainName)
+                # else:
+                #     # find the existing nmrChain
+                #     _nmrChain = self.project.getByPid(_chainPid)
+                #     if not _nmrChain:
+                #         # raise error to notify popup
+                #         raise ValueError("NmrChain doesn't exists")
+                #
+                # nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
+                # nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
+                #
+                # if not action:
+                #     if create:
+                #         if nmrResidue:
+                #             if self._clickedNmrAtom and self._clickedNmrAtom.nmrResidue == nmrResidue and nmrResidue.residueType != newResType:
+                #                 if len(nmrResidue.nmrAtoms) > 1:
+                #                     yes = showYesNoWarning('Assigning nmrAtoms',
+                #                                            'This will change all nmrAtoms to the residueType {}, continue?'.format(newResType))
+                #                     if yes:
+                #                         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+                #                 else:
+                #                     nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+                #
+                #         else:
+                #             # can do a residueType rename
+                #             nmrResidue = _nmrChain.fetchNmrResidue(seqCode, newResType)
+                #
+                #         nmrAtom = nmrResidue.fetchNmrAtom(nmrAtomName)
+                #
+                #     else:
+                #         pass
 
-                nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
-                nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
-
-                if not action:
-                    if create:
-                        if nmrResidue:
-                            if self._clickedNmrAtom and self._clickedNmrAtom.nmrResidue == nmrResidue and nmrResidue.residueType != newResType:
-                                if len(nmrResidue.nmrAtoms) > 1:
-                                    yes = showYesNoWarning('Assigning nmrAtoms',
-                                                           'This will change all nmrAtoms to the residueType {}, continue?'.format(newResType))
-                                    if yes:
-                                        nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-                                else:
-                                    nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-
-                        else:
-                            # can do a residueType rename
-                            nmrResidue = _nmrChain.fetchNmrResidue(seqCode, newResType)
-
-                        nmrAtom = nmrResidue.fetchNmrAtom(nmrAtomName)
-
-                    else:
-                        pass
-
-                        # if not self._clickedNmrAtom:
-                        #     showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
-                        #     return
-                        #
-                        # # edit existing
-                        # if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
-                        #     # existing different nmrResidue
-                        #     nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                        #     if nmrAtom:
-                        #         yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
-                        #                                             "{}   into   {}".format(self._clickedNmrAtom.id,
-                        #                                                                     nmrAtom.id))
-                        #         if yesNo:
-                        #             # merge into the new nmrAtom
-                        #             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
-                        #
-                        #     else:
-                        #         # assign to a new nmrAtom
-                        #         self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
-                        #                                       sequenceCode=seqCode,
-                        #                                       residueType=newResType,
-                        #                                       name=nmrAtomName,
-                        #                                       mergeToExisting=False)
-                        #
-                        # elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
-                        #     # rename the same nmrAtom
-                        #     if newResType != nmrResidue.residueType:
-                        #         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-                        #
-                        #     if nmrAtomName != self._clickedNmrAtom.name:
-                        #         nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                        #         if nmrAtom:
-                        #             raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
-                        #         self._clickedNmrAtom.rename(nmrAtomName)
-                        #
-                        # else:
-                        #     # nmrResidue doesn't exists
-                        #     self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
-                        #                                   sequenceCode=seqCode,
-                        #                                   residueType=newResType,
-                        #                                   name=nmrAtomName,
-                        #                                   mergeToExisting=False)
+                # if not self._clickedNmrAtom:
+                #     showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
+                #     return
+                #
+                # # edit existing
+                # if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
+                #     # existing different nmrResidue
+                #     nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                #     if nmrAtom:
+                #         yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
+                #                                             "{}   into   {}".format(self._clickedNmrAtom.id,
+                #                                                                     nmrAtom.id))
+                #         if yesNo:
+                #             # merge into the new nmrAtom
+                #             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
+                #
+                #     else:
+                #         # assign to a new nmrAtom
+                #         self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                #                                       sequenceCode=seqCode,
+                #                                       residueType=newResType,
+                #                                       name=nmrAtomName,
+                #                                       mergeToExisting=False)
+                #
+                # elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
+                #     # rename the same nmrAtom
+                #     if newResType != nmrResidue.residueType:
+                #         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
+                #
+                #     if nmrAtomName != self._clickedNmrAtom.name:
+                #         nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
+                #         if nmrAtom:
+                #             raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
+                #         self._clickedNmrAtom.rename(nmrAtomName)
+                #
+                # else:
+                #     # nmrResidue doesn't exists
+                #     self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
+                #                                   sequenceCode=seqCode,
+                #                                   residueType=newResType,
+                #                                   name=nmrAtomName,
+                #                                   mergeToExisting=False)
 
                 try:
 
