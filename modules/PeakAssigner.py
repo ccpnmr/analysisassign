@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-14 14:35:31 +0100 (Tue, September 14, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-14 18:29:09 +0100 (Tue, September 14, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -105,7 +105,7 @@ _showBorders = False  # for debugging of layout's
 _margins = (2, 2, 2, 2)
 ASSIGNEDROWS = 3
 ALTERNATIVEROWS = 5
-MINTABLEWIDTH = 200
+MINTABLEWIDTH = 150
 
 
 class PeakAssigner(CcpnModule):
@@ -590,28 +590,31 @@ class EditNmrAtomBalloon(SpeechBalloon):
     def __init__(self, mainWindow=None, *args, **kwds):
         super().__init__(*args, **kwds)
 
-        # attach handle to focus and maximise/minimise signals from app and parent window
-        QtWidgets.qApp.focusChanged.connect(self._focusChanged)
-        if mainWindow:
-            mainWindow.WindowMaximiseMinimise.connect(self._stateChanged)
+        # simplest way to make the popup function as modal and disappear as required
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.Popup)
 
-    @QtCore.pyqtSlot('QWidget*', 'QWidget*')
-    def _focusChanged(self, oldWidget, newWidget):
-        """Hide the balloon if the focus has changed to a widget outside the parent widget
-        """
-        # Check whether the focus is still inside the popup
-        if self.isVisible() and newWidget not in self.findChildren(QtWidgets.QWidget):
-            self.setVisible(False)
-            getLogger().debug2(f'Closing _focusChanged')
-
-    @QtCore.pyqtSlot(bool)
-    def _stateChanged(self, state):
-        """Hide the balloon if the parent window is minimised
-        """
-        # Check whether widget is visible
-        if state is False and self.isVisible() is True:
-            self.setVisible(False)
-            getLogger().debug2(f'Closing _stateChanged')
+    #     # attach handle to focus and maximise/minimise signals from app and parent window
+    #     QtWidgets.qApp.focusChanged.connect(self._focusChanged)
+    #     if mainWindow:
+    #         mainWindow.WindowMaximiseMinimise.connect(self._stateChanged)
+    #
+    # @QtCore.pyqtSlot('QWidget*', 'QWidget*')
+    # def _focusChanged(self, oldWidget, newWidget):
+    #     """Hide the balloon if the focus has changed to a widget outside the parent widget
+    #     """
+    #     # Check whether the focus is still inside the popup
+    #     if self.isVisible() and newWidget not in self.findChildren(QtWidgets.QWidget):
+    #         self.setVisible(False)
+    #         getLogger().debug2(f'Closing _focusChanged')
+    #
+    # @QtCore.pyqtSlot(bool)
+    # def _stateChanged(self, state):
+    #     """Hide the balloon if the parent window is minimised
+    #     """
+    #     # Check whether widget is visible
+    #     if state is False and self.isVisible() is True:
+    #         self.setVisible(False)
+    #         getLogger().debug2(f'Closing _stateChanged')
 
     # NOTE:ED - test method, attach eventFilter to all children - above method much more flexible
     # def _attachFocusOut(self, mainWindow=None):
