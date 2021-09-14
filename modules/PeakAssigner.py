@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-13 19:29:56 +0100 (Mon, September 13, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-14 14:35:31 +0100 (Tue, September 14, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -103,6 +103,9 @@ ROWSIZES = {7 : 3000,
 
 _showBorders = False  # for debugging of layout's
 _margins = (2, 2, 2, 2)
+ASSIGNEDROWS = 3
+ALTERNATIVEROWS = 5
+MINTABLEWIDTH = 200
 
 
 class PeakAssigner(CcpnModule):
@@ -151,8 +154,6 @@ class PeakAssigner(CcpnModule):
 
         # populate the tables
         self._updateInterface(self.current.peaks)
-
-        from ccpn.ui.gui.modules.CcpnModule import BorderOverlay
 
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
@@ -210,10 +211,8 @@ class PeakAssigner(CcpnModule):
 
         row += 1
         # setup a frame for the dimension frames - scrollable frame not resizing correctly
-        self.axisFrameWidget = Frame(parent=self.mainWidget, showBorder=False, setLayout=True,
+        self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
                                      acceptDrops=True, grid=(row, 0),
-                                     # hAlign='left',
-                                     # hPolicy='minimalExpanding'
                                      )
         # self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
         # row = -1
@@ -261,9 +260,9 @@ class PeakAssigner(CcpnModule):
         # NOTE:ED - this is not very clean but qt is doing something very strange
         #  with the resizing of tables when setStretchLastColumn is set :|
         if self.Ndims:
-            w = (self.width() - 32) / max(self.Ndims, 4)
+            w = (self.width() - 8) / max(self.Ndims, 4)
             for tab in self.dimensionTabs:
-                tab.setMinimumWidth(w)
+                tab.setFixedWidth(max(w, MINTABLEWIDTH))
         super().resizeEvent(ev)
 
     def _registerNotifiers(self):
@@ -723,7 +722,7 @@ class AxisAssignmentObject(Frame):
                                          enableExport=False,
                                          tipText='Click to select; double-click to de-assign')
         self.tables[0]._owner = self
-        # self.tables[0].setMinimumWidth(_minTabWidth)
+        self.tables[0].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
@@ -745,6 +744,8 @@ class AxisAssignmentObject(Frame):
                                          acceptDrops=True,
                                          tipText='Click to select; double-click to assign')
         self.tables[1]._owner = self
+        self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
+
         # self.tables[1].setMinimumWidth(_minTabWidth)
         # self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
         # row += 1
@@ -970,8 +971,8 @@ class AxisAssignmentObject(Frame):
         return pulldownList
 
     def _createNewNmrAtom(self, dim):
-        """Callback for the newNmrAtom button"""
-        # from ccpn.ui.gui.popups.NmrAtomPopup import NmrAtomNewPopup
+        """Callback for the newNmrAtom button
+        """
 
         isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
 
@@ -1016,7 +1017,6 @@ class AxisAssignmentObject(Frame):
 
         pos = QtGui.QCursor().pos()
         self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
-        # need an accept button here
 
     def _reassignAccept(self, dim: int):
         """Handle the accept button in the balloon popup
