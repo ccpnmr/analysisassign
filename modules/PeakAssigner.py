@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-14 18:29:09 +0100 (Tue, September 14, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-15 15:11:42 +0100 (Wed, September 15, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -140,8 +140,8 @@ class PeakAssigner(CcpnModule):
         self.project = mainWindow.application.project
         self.current = mainWindow.application.current
 
-        self.Ndims = 0
-        self.maxDims = 4
+        self.Ndims = 1
+        self.maxDims = 8
         self.dimensionTabs = []
         self.currentAtoms = None
         self._visibleDims = 0
@@ -152,10 +152,21 @@ class PeakAssigner(CcpnModule):
         # set notifiers to respond to peaks
         self._registerNotifiers()
 
+        # install event filter to track changes in width
+        self.mainWidget.installEventFilter(self)
+
         # populate the tables
         self._updateInterface(self.current.peaks)
 
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
+
+    def eventFilter(self, target, event):
+        """Event filter to handle a mainWidget resizing
+        """
+        # tables are acting very strange in this module - caused by setStretchLastColumn
+        if event.type() == QtCore.QEvent.Resize:
+            self._resize(event.size().width())
+        return super().eventFilter(target, event)
 
     def _maximise(self):
         """
@@ -254,16 +265,17 @@ class PeakAssigner(CcpnModule):
 
         self.blockSignals(False)
 
-    def resizeEvent(self, ev):
-        """fix the size of the tables
-        """
-        # NOTE:ED - this is not very clean but qt is doing something very strange
-        #  with the resizing of tables when setStretchLastColumn is set :|
+    def _resize(self, width):
         if self.Ndims:
-            w = (self.width() - 8) / max(self.Ndims, 4)
+            try:
+                wid = self.axisFrameWidget.scrollArea.verticalScrollBar()
+                visible = wid.isVisible()
+                offset = wid.width() if visible else 0
+            except:
+                offset = 0
+            w = (width - 6 - offset) / min(self.Ndims, 4)
             for tab in self.dimensionTabs:
                 tab.setFixedWidth(max(w, MINTABLEWIDTH))
-        super().resizeEvent(ev)
 
     def _registerNotifiers(self):
         # without a tableSelection specified in the table callback, this nmrAtom callback is needed
@@ -308,8 +320,6 @@ class PeakAssigner(CcpnModule):
             self.peakLabel.setText('Current Peak: ' + MSG)
         else:
 
-            self.axisFrameWidget.show()
-
             # update the peaksLabel
             peaksIds = ' , '.join([str(pp.id) for pp in self.current.peaks])
             if len(self.current.peaks) < 2:
@@ -340,6 +350,8 @@ class PeakAssigner(CcpnModule):
                 dimTab.showNotAligned(not aligned)
 
             self._updateTables(peaks=peaks)
+            self._resize(self.mainWidget.width())
+            self.axisFrameWidget.show()
 
     def _updateTables(self, peaks):
         """
