@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-13 19:21:18 +0100 (Mon, September 13, 2021) $"
+__dateModified__ = "$dateModified: 2021-09-30 13:09:55 +0100 (Thu, September 30, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -257,8 +257,7 @@ class PickAndAssignModule(NmrResidueTableModule):
                                     # validPeakListViews[plv.peakList] += (plv,)
                                     pass
 
-            for pk, specAndView in validPeakListViews.items():
-                spectrum, peakListView = specAndView
+            for pk, (spectrum, peakListView) in validPeakListViews.items():
 
                 axisCodes = [spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
                              for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
@@ -266,7 +265,7 @@ class PickAndAssignModule(NmrResidueTableModule):
                 peakList, pks = PeakList.restrictedPick(peakListView=peakListView,
                                                         axisCodes=axisCodes, nmrResidue=nmrResidue)
                 if pks:
-                    peaks = peaks + pks
+                    peaks = peaks + list(pks)
 
             # for module in self.application.project.spectrumDisplays:
             #     if len(module.axisCodes) >= 2:
