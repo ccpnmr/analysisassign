@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-15 15:11:42 +0100 (Wed, September 15, 2021) $"
+__dateModified__ = "$dateModified: 2021-10-05 11:34:11 +0100 (Tue, October 05, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -223,8 +223,8 @@ class PeakAssigner(CcpnModule):
         row += 1
         # setup a frame for the dimension frames - scrollable frame not resizing correctly
         self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
-                                     acceptDrops=True, grid=(row, 0),
-                                     )
+                                               acceptDrops=True, grid=(row, 0),
+                                               )
         # self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
         # row = -1
 
@@ -865,8 +865,18 @@ class AxisAssignmentObject(Frame):
                                                      grid=(0, 3), gridSpan=(1, 1),
                                                      tipText='Atom type')
         _innerFrame = Frame(parent=_frame, setLayout=True, grid=(1, 0), gridSpan=(1, 4))
-        self.accept = Button(parent=_innerFrame, text='Accept', grid=(1, 0), hAlign='r',
-                             callback=partial(self._reassignAccept, self.dimIndex))
+
+        _accept = partial(self._reassignAccept, self.dimIndex)
+        self._acceptButton = Button(parent=_innerFrame, text='Accept', grid=(1, 0), hAlign='r',
+                                    callback=_accept)
+
+        # set the response to pressing enter/return in the popup
+        self.chainPulldown.lineEdit().returnPressed.connect(_accept)
+        self.seqCodePulldown.lineEdit().returnPressed.connect(_accept)
+        self.resTypePulldown.lineEdit().returnPressed.connect(_accept)
+        self.atomTypePulldown.lineEdit().returnPressed.connect(_accept)
+        # activate return/enter on the button when focussed
+        self._acceptButton.setAutoDefault(True)
 
         for w in [self.chainPulldown, self.seqCodePulldown, self.resTypePulldown, self.atomTypePulldown]:
             w.setMinimumWidth(minWidth)
@@ -1017,8 +1027,23 @@ class AxisAssignmentObject(Frame):
                 self.lastTableSelected = 0
                 self.lastNmrAtomSelected = nmrAtom
 
+                self._clickedNmrAtom = nmrAtom
+                self._showNmrAtomPopup(nmrAtom, self.tables[0])
+
             except Exception as es:
                 showWarning(str(self.windowTitle()), str(es))
+
+    def _showNmrAtomPopup(self, nmrAtom, table):
+        """Call the popup with the supplied nmrAtom
+        """
+        from ccpn.ui.gui.widgets.BalloonMetrics import Side
+
+        if nmrAtom:
+            self._updateAssignmentWidget(table, nmrAtom)
+
+        pos = QtGui.QCursor().pos()
+        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
+        self.chainPulldown.setFocus()
 
     def _reassignNmrAtomPopup(self):
         """Show the edit popup
@@ -1027,11 +1052,8 @@ class AxisAssignmentObject(Frame):
 
         _table = self.lastTableSelected
         nextAtom = self.tables[_table].getSelectedObjects()
-        if nextAtom:
-            self._updateAssignmentWidget(_table, nextAtom[0])
 
-        pos = QtGui.QCursor().pos()
-        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
+        self._showNmrAtomPopup(nextAtom[0] if nextAtom else None, _table)
 
     def _reassignAccept(self, dim: int):
         """Handle the accept button in the balloon popup
