@@ -64,6 +64,8 @@ from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
 from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
 from ccpn.ui.gui.guiSettings import BORDERNOFOCUS_COLOUR
+from ccpn.ui.gui.widgets.DropBase import DropBase
+from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 
 
 allowedResidueTypes = [('', '', ''),
@@ -738,6 +740,8 @@ class AxisAssignmentObject(Frame):
                                          tipText='Click to select; double-click to de-assign')
         self.tables[0]._owner = self
         self.tables[0].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
+        self._parent.setGuiNotifier(self.tables[0], [GuiNotifier.DROPEVENT],
+                            [DropBase.PIDS], callback=self._handleDroppedItems)
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
@@ -758,6 +762,8 @@ class AxisAssignmentObject(Frame):
                                          enableExport=False,
                                          acceptDrops=True,
                                          tipText='Click to select; double-click to assign')
+        self._parent.setGuiNotifier(self.tables[1], [GuiNotifier.DROPEVENT],
+                                    [DropBase.PIDS], callback=self._handleDroppedAlternativeItems)
         self.tables[1]._owner = self
         self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
 
@@ -905,6 +911,12 @@ class AxisAssignmentObject(Frame):
         self.tables[0]._close()
         self.tables[1]._close()
         self.tables = None
+
+    def _handleDroppedItems(self, dataDict):
+        print('Peak Assigner, DROPPED ITEMS: ', dataDict)
+
+    def _handleDroppedAlternativeItems(self, dataDict):
+        print('Peak Assigner,  Dropped Alternative Items: ', dataDict)
 
     # def _clearClicked(self, val):
     #     self._clickedNmrAtom = None
