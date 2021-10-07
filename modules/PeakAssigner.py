@@ -43,14 +43,10 @@ from ccpn.ui.gui.widgets.ButtonList import ButtonList, Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.HLine import HLine, LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass
-from ccpn.ui.gui.widgets.MessageDialog import showYesNoWarning
-from ccpn.ui.gui.widgets.Splitter import Splitter
-from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER, LABEL_WARNINGFOREGROUND
 from ccpn.util.Logging import getLogger
@@ -58,12 +54,8 @@ from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNo
 from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
 from ccpn.core.lib.Notifiers import Notifier
-from ccpn.ui.gui.widgets.ScrollArea import ScrollArea
-from ccpn.ui.gui.widgets.Widget import Widget
-from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
 from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
-from ccpn.ui.gui.guiSettings import BORDERNOFOCUS_COLOUR
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 
@@ -713,9 +705,11 @@ class AxisAssignmentObject(Frame):
         #=========================================
         aRow += 1
         self._assignmentsFrame = Frame(self, setLayout=True, showBorder=_showBorders,
-                                       grid=(aRow, 0), margins=_margins, **settings)
+                                       grid=(aRow, 0), margins=_margins, acceptDrops=True, **settings)
         # self._assignmentsFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         # row = -1
+        self._parent.setGuiNotifier(self._assignmentsFrame, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                    callback=self._handleDropsFromSideBar)
 
         row = 0
         self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row, 0), height=16, colour=getColours()[DIVIDER])
@@ -920,6 +914,25 @@ class AxisAssignmentObject(Frame):
     def _clearTableOveray(self):
         for table in self.tables:
            table.setStyleSheet(table._defaultStyleSheet)
+
+    def _handleDropsFromSideBar(self, dataDict):
+        """
+        Handle drops from SideBar. If NmrAtoms, then assign to the selected peaks.
+        """
+        objs = self.project.getObjectsByPids(dataDict.get(DropBase.PIDS))
+        nmrAtoms = [x for x in objs if isinstance(x, NmrAtom)]
+
+        if self.current.peak:
+            failedNmrAtoms = []
+            isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
+            for nmrAtom in nmrAtoms:
+                if isotopeCode == nmrAtom.isotopeCode or nmrAtom.isotopeCode is None:
+                    self._assignNmrAtom(self.dimIndex, nmrAtoms=[nmrAtom])
+                else:
+                    failedNmrAtoms.append(nmrAtom)
+            if len(failedNmrAtoms)>0:
+                showWarning('Incompatible IsotopeCode Error',
+                            f'Cannot assign NmrAtoms: {nmrAtoms} to peaks with IsotopeCode {isotopeCode} ')
 
     def _handleDragMoveEvent(self, enteringToTableNum: int, dataDict):
         """
@@ -1335,6 +1348,12 @@ class AxisAssignmentObject(Frame):
                             allAtoms = list(peak.dimensionNmrAtoms)
                             allAtoms[dim] = dimNmrAtoms
                             peak.dimensionNmrAtoms = allAtoms
+
+                    ## Set the isotopeCode here if was not defined yet
+                    if not nmrAtom.isotopeCode:
+                        isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
+                        nmrAtom._setIsotopeCode(isotopeCode)
+
 
                 except Exception as es:
                     showWarning(str(self.windowTitle()), str(es))
