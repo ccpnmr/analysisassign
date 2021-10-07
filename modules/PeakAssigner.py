@@ -528,7 +528,7 @@ class AssignmentTable(GuiTable):
                  clearSelectionCallback=None,
                  _pulldownKwds=None, enableMouseMoveEvent=True,
                  multiSelect=False, selectRows=True, numberRows=False, autoResize=False,
-                 enableExport=True, enableDelete=True, enableSearch=True,
+                 enableExport=True, enableDelete=True, enableSearch=True, allowRowDragAndDrop=True,
                  hideIndex=True, stretchLastSection=True,
                  **kwds):
 
@@ -539,6 +539,7 @@ class AssignmentTable(GuiTable):
                          selectionCallback=selectionCallback,
                          checkBoxCallback=checkBoxCallback,
                          _pulldownKwds=_pulldownKwds, enableMouseMoveEvent=enableMouseMoveEvent,
+                         allowRowDragAndDrop=allowRowDragAndDrop,
                          multiSelect=multiSelect, selectRows=selectRows,
                          numberRows=numberRows, autoResize=autoResize,
                          enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
@@ -740,8 +741,10 @@ class AxisAssignmentObject(Frame):
                                          tipText='Click to select; double-click to de-assign')
         self.tables[0]._owner = self
         self.tables[0].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
-        self._parent.setGuiNotifier(self.tables[0], [GuiNotifier.DROPEVENT],
-                            [DropBase.PIDS], callback=self._handleDroppedItems)
+        self._parent.setGuiNotifier(self.tables[0], [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                                    callback=partial(self._handleDroppedItems, 0))
+        self._parent.setGuiNotifier(self.tables[0], [GuiNotifier.DRAGMOVEEVENT], [DropBase.PIDS],
+                                    callback=partial(self._handleDragMoveEvent, 0))
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
@@ -763,7 +766,9 @@ class AxisAssignmentObject(Frame):
                                          acceptDrops=True,
                                          tipText='Click to select; double-click to assign')
         self._parent.setGuiNotifier(self.tables[1], [GuiNotifier.DROPEVENT],
-                                    [DropBase.PIDS], callback=self._handleDroppedAlternativeItems)
+                                    [DropBase.PIDS], callback=partial(self._handleDroppedItems, 1))
+        self._parent.setGuiNotifier(self.tables[1], [GuiNotifier.DRAGMOVEEVENT],
+                                    [DropBase.PIDS], callback=partial(self._handleDragMoveEvent, 1))
         self.tables[1]._owner = self
         self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
 
@@ -912,11 +917,45 @@ class AxisAssignmentObject(Frame):
         self.tables[1]._close()
         self.tables = None
 
-    def _handleDroppedItems(self, dataDict):
-        print('Peak Assigner, DROPPED ITEMS: ', dataDict)
+    def _clearTableOveray(self):
+        for table in self.tables:
+           table.setStyleSheet(table._defaultStyleSheet)
 
-    def _handleDroppedAlternativeItems(self, dataDict):
-        print('Peak Assigner,  Dropped Alternative Items: ', dataDict)
+    def _handleDragMoveEvent(self, enteringToTableNum: int, dataDict):
+        """
+        Notifier callback activated upon a DragEnterEvent of an object.
+        Add a border overlay if the dragEnterEvent is in the permitted table
+        """
+        source = dataDict.get('source')
+        if source == self.tables[0] and enteringToTableNum == 1:
+            self.tables[1]._setDraggingStyleSheet()
+        elif source == self.tables[1] and enteringToTableNum == 0:
+            self.tables[0]._setDraggingStyleSheet()
+        else:
+           self._clearTableOveray()
+
+
+    def _handleDroppedItems(self, droppingToTableNum: int, dataDict, ):
+        """
+        Notifier callback activated upon a DropEvent of an object.
+        Note, the source of the drag can be from anywhere, therefore here is limited only if the source is
+        within the module and right tables pairs. The correct instance of the dropped object is checked afterwards.
+        """
+        assignmentTableNum = 0
+        alternativeTableNum = 1
+        sourceTable = dataDict.get('source')
+        nmrAtoms = self.project.getObjectsByPids(dataDict.get(DropBase.PIDS))
+
+        ## Action 0, Assignment: dropping to Assignment (Table-0) from Alternative (Table-1)
+        if droppingToTableNum == assignmentTableNum:
+            if sourceTable == self.tables[alternativeTableNum]: # needs this constraint to avoid cross-table drag&drop
+                self._assignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
+                return
+        ## Action 1, DeAssign from top to bottom: dropping to Alternative (Table-1) from Assignment (Table-0)
+        if droppingToTableNum == alternativeTableNum:
+            if sourceTable == self.tables[assignmentTableNum]: # needs this constraint to avoid cross-table drag&drop
+                self._deassignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
+                return
 
     # def _clearClicked(self, val):
     #     self._clickedNmrAtom = None
@@ -930,10 +969,10 @@ class AxisAssignmentObject(Frame):
         peaks.
         """
         if tableNum == 0:
-            # deassign from left to right
+            # deAssign from top to bottom
             self._deassignNmrAtom(self.dimIndex)
         elif tableNum == 1:
-            # assign from right to left
+            # assign bottom - up
             self._assignNmrAtom(self.dimIndex, action=True)
 
     def _clickedTableCallback(self, tableNum, data):
@@ -1162,7 +1201,7 @@ class AxisAssignmentObject(Frame):
         except Exception as es:
             showWarning('Rename NmrAtom', str(es))
 
-    def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True):
+    def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True, nmrAtoms = None):
         """
         Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
         :param dim - axis dimension of the atom:
@@ -1189,10 +1228,12 @@ class AxisAssignmentObject(Frame):
 
             # create = self.createNew.isChecked()
 
-            nmrAtom = self.tables[1].getSelectedObjects()
-            if not (nmrAtom and nmrAtom[0]):
+            selectedObjects = nmrAtoms or self.tables[1].getSelectedObjects()
+            if not (selectedObjects and selectedObjects[0]):
                 return
-            nmrAtom = nmrAtom[0]
+            nmrAtom = selectedObjects[0]
+            if not isinstance(nmrAtom, NmrAtom):
+                return
 
             # nmrAtom = None
 
@@ -1316,7 +1357,7 @@ class AxisAssignmentObject(Frame):
         except Exception as es:
             showWarning('Assign NmrAtom', str(es))
 
-    def _deassignNmrAtom(self, dim: int):
+    def _deassignNmrAtom(self, dim: int, nmrAtoms=None):
         """
         remove nmrAtom from peak assignment
         """
@@ -1326,15 +1367,19 @@ class AxisAssignmentObject(Frame):
             return
 
         try:
-            currentObject = self.tables[0].getSelectedObjects()
+            currentObjects = nmrAtoms or self.tables[0].getSelectedObjects()
+            if not currentObjects:
+                return
 
-            if currentObject:
+            nmrAtom = currentObjects[0]
+            if isinstance(nmrAtom, NmrAtom):
                 try:
                     with undoBlockWithoutSideBar():
                         for peak in self.current.peaks:
                             peakDimNmrAtoms = peak.dimensionNmrAtoms
                             dimNmrAtoms = list(peakDimNmrAtoms[dim])  # ejb - changed to list
-                            dimNmrAtoms.remove(currentObject[0])
+                            if nmrAtom in dimNmrAtoms:
+                                dimNmrAtoms.remove(nmrAtom)
 
                             allAtoms = list(peakDimNmrAtoms)
                             allAtoms[dim] = dimNmrAtoms
@@ -1344,7 +1389,7 @@ class AxisAssignmentObject(Frame):
                     showWarning(str(self.windowTitle()), str(es))
 
                 self._parent._updateInterface()
-                self.tables[1].selectObjects([currentObject[0]], setUpdatesEnabled=False)
+                self.tables[1].selectObjects([nmrAtom], setUpdatesEnabled=False)
                 nextAtom = self.tables[1].getSelectedObjects()
                 if nextAtom:
                     # self._updateAssignmentWidget(1, currentObject[0])
@@ -1361,7 +1406,6 @@ class AxisAssignmentObject(Frame):
                     # self.buttonList.setButtonEnabled('Delete', False)
                     # self.buttonList.setButtonEnabled('Deassign', False)
                     # self.buttonList.setButtonEnabled('Assign', True) #False)
-
         except Exception as es:
             showWarning('Deassign NmrAtom', str(es))
 
