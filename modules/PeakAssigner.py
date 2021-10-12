@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-10-05 11:34:11 +0100 (Tue, October 05, 2021) $"
+__dateModified__ = "$dateModified: 2021-10-12 12:36:25 +0100 (Tue, October 12, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -219,23 +219,8 @@ class PeakAssigner(CcpnModule):
         self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
                                                acceptDrops=True, grid=(row, 0),
                                                )
-        # self._axisFrameScrollArea = self.axisFrameWidget._scrollArea
-        # row = -1
-
-        # self.Ndims = 0
-        # self.maxDims = 4
-        # self.dimensionTabs = []
-        # self.currentAtoms = None
-        # self._visibleDims = 0
 
         row += 1
-        # _frame = Frame(self.axisFrameWidget, grid=(row,0), setLayout=True, showBorder=_showBorders,
-        #                # hAlign='left',
-        #                # hPolicy='minimumExpanding'
-        #                )
-        # self.axisFrameWidget.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.MinimumExpanding)
-        # self.axisFrameWidget.getLayout().setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-
         colIndex = 0
         for dimIndex in range(self.maxDims):
             # 4 axes per row
@@ -251,11 +236,6 @@ class PeakAssigner(CcpnModule):
 
         self.mainWidget.getLayout().setAlignment(QtCore.Qt.AlignTop)
         self.axisFrameWidget.setVisible(False)
-
-        # # testing
-        # self.dimensionTabs[1].setNotAligned(True)
-        # self.dimensionTabs[0].setHLineText('H: 10.7')
-        # self.dimensionTabs[2].hide()
 
         self.blockSignals(False)
 
@@ -370,8 +350,6 @@ class PeakAssigner(CcpnModule):
 
         _sizes = []
         for dim, nmrAtoms in zip(range(Ndimensions), nmrAtomsForTables):
-            # self.axisTables[dim].show()
-            # self.axisDivergeLabels[dim][0].hide()
 
             ll = [set(peak.dimensionNmrAtoms[dim]) for peak in peaks]
             self.nmrAtoms = list(sorted(set.intersection(*ll)))  # was intersection
@@ -379,24 +357,9 @@ class PeakAssigner(CcpnModule):
 
             self.currentList.append([str(a.pid) for a in self.nmrAtoms])  # ejb - keep another list
             self.dimensionTabs[dim].setAssignedTable(self.nmrAtoms)
-            # _rows = self.axisTables[dim].tables[0].rowCount()
-            # _rows = self.axisTables[dim].tables[0].sizeHint().height()
 
             nmrAtomsForTables[dim] = [nmr for nmr in nmrAtomsForTables[dim] if nmr not in self.nmrAtoms]
             self.dimensionTabs[dim].setAlternativesTable(nmrAtomsForTables[dim])
-            # if peaksAreOnLine(peaks, dim):
-            #     self.axisTables[dim].setAlternativesTable(nmrAtomsForTables[dim])
-            #     # _rows = max(_rows, self.axisTables[dim].tables[1].rowCount())
-            #     # for k, val in ROWSIZES.items():
-            #     #     if _rows > k:
-            #     #         _sizes.append(val)
-            #     #         break
-            #     # else:
-            #     #     _sizes.append(ROWDEFAULT)
-            # else:
-            #     self.axisTables[dim].setAlternativesTable(None)
-            #     # _sizes.append(ROWDEFAULT)
-            #     #
 
         return _sizes
 
@@ -594,65 +557,13 @@ class EditNmrAtomBalloon(SpeechBalloon):
     """Balloon to hold the pulldown lists for editing the nmrAtom
     """
 
-    def __init__(self, mainWindow=None, *args, **kwds):
+    def __init__(self, mainWindow=None, project=None, *args, **kwds):
         super().__init__(*args, **kwds)
 
         # simplest way to make the popup function as modal and disappear as required
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.Popup)
-
-    #     # attach handle to focus and maximise/minimise signals from app and parent window
-    #     QtWidgets.qApp.focusChanged.connect(self._focusChanged)
-    #     if mainWindow:
-    #         mainWindow.WindowMaximiseMinimise.connect(self._stateChanged)
-    #
-    # @QtCore.pyqtSlot('QWidget*', 'QWidget*')
-    # def _focusChanged(self, oldWidget, newWidget):
-    #     """Hide the balloon if the focus has changed to a widget outside the parent widget
-    #     """
-    #     # Check whether the focus is still inside the popup
-    #     if self.isVisible() and newWidget not in self.findChildren(QtWidgets.QWidget):
-    #         self.setVisible(False)
-    #         getLogger().debug2(f'Closing _focusChanged')
-    #
-    # @QtCore.pyqtSlot(bool)
-    # def _stateChanged(self, state):
-    #     """Hide the balloon if the parent window is minimised
-    #     """
-    #     # Check whether widget is visible
-    #     if state is False and self.isVisible() is True:
-    #         self.setVisible(False)
-    #         getLogger().debug2(f'Closing _stateChanged')
-
-    # NOTE:ED - test method, attach eventFilter to all children - above method much more flexible
-    # def _attachFocusOut(self, mainWindow=None):
-    #     """Attach eventFilter to child widgets to capture focusOut event
-    #     Used to close parent if lost focus to outside widget
-    #     """
-    #     children = self.findChildren(QtWidgets.QWidget)
-    #     for ch in children:
-    #         ch.installEventFilter(self)
-    #
-    # def eventFilter(self, target, event):
-    #     """Event filter to handle a child of a widget losing focus
-    #     Calls parent check to see if another child still has focus
-    #     """
-    #     if event.type() == QtCore.QEvent.FocusOut:
-    #         # use singleShot to ensure that all widgets are up-to-date before checking focus from parent
-    #         QtCore.QTimer.singleShot(0, self._checkFocus)
-    #     return super().eventFilter(target, event)
-    #
-    # def _checkFocus(self):
-    #     """Check whether any of the children still have focus
-    #     """
-    #     children = self.findChildren(QtWidgets.QWidget)
-    #     for ch in children:
-    #         if ch.hasFocus():
-    #             # editPopup is okay, stay visible
-    #             break
-    #     else:
-    #         # no children have focus, so need to hide - caused by any click outside the editBalloon
-    #         self.setVisible(False)
-    #         getLogger().debug2(f'Closing nmrAtom editor')
+        self.setWindowFlags(int(self.windowFlags()) | QtCore.Qt.Popup)
+        self._mainWindow = mainWindow
+        self._project = project
 
 
 class AxisAssignmentObject(Frame):
@@ -706,17 +617,12 @@ class AxisAssignmentObject(Frame):
         aRow += 1
         self._assignmentsFrame = Frame(self, setLayout=True, showBorder=_showBorders,
                                        grid=(aRow, 0), margins=_margins, acceptDrops=True, **settings)
-        # self._assignmentsFrame.getLayout().setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        # row = -1
         self._parent.setGuiNotifier(self._assignmentsFrame, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
                                     callback=self._handleDropsFromSideBar)
 
         row = 0
         self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row, 0), height=16, colour=getColours()[DIVIDER])
 
-        # row += 1
-        # self.axisLabel = Label(self._assignmentsFrame, 'Axis', hAlign='l', grid=(row, 0))
-        # self.axisLabel.setMinimumHeight(height)
         row += 1
         self.tables[0] = AssignmentTable(parent=self._assignmentsFrame,
                                          mainWindow=mainWindow,
@@ -766,13 +672,6 @@ class AxisAssignmentObject(Frame):
         self.tables[1]._owner = self
         self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
 
-        # self.tables[1].setMinimumWidth(_minTabWidth)
-        # self.tables[1].setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Expanding)
-        # row += 1
-
-        # self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
-        #                                              setLayout=True, showBorder=_showBorders, grid=(0, 0))
-
         row += 1
         _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
                               tipTexts=['Rename selected nmrAtom', 'Create new nmrAtom'],
@@ -782,19 +681,6 @@ class AxisAssignmentObject(Frame):
                               )
         self.editButton = _buttons.getButton('Edit')
         self.newNmrAtomButton = _buttons.getButton('New')
-        # _frame = Frame(parent=self._assignmentsFrame, grid=(row,0), setLayout=True, showBorder=_showBorders, ) #**settings)
-        # self.editButton = Button(  parent=_frame, text='Edit',
-        #                            callback=partial(self._reassignNmrAtom, self.dimIndex),
-        #                            grid=(0,0), hAlign='centre',
-        #                            tipText='Rename selected nmrAtom')
-        #
-        # self.newNmrAtomButton = Button(parent=_frame, text='New',
-        #                                callback=partial(self._createNewNmrAtom, self.dimIndex),
-        #                                grid=(0,1), hAlign='centre',
-        #                                tipText='Create new nmrAtom')
-
-        # row += 1
-        # self._assignmentsFrame.addSpacer(5, 5, grid=(row,0), expandX=True, expandY=True)
 
         #===========================================
         # Not-aligned frame
@@ -846,7 +732,7 @@ class AxisAssignmentObject(Frame):
 
         self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
                                                      setLayout=True, showBorder=_showBorders, grid=(0, 0))
-        self.editPopup = EditNmrAtomBalloon(mainWindow=self.mainWindow, on_top=True)
+        self.editPopup = EditNmrAtomBalloon(mainWindow=self.mainWindow, project=self.project, on_top=True)
         self.editPopup.setCentralWidget(self._assignmentWidget)
         self.editPopup.hide()
 
@@ -871,15 +757,18 @@ class AxisAssignmentObject(Frame):
                                                      tipText='Atom type')
         _innerFrame = Frame(parent=_frame, setLayout=True, grid=(1, 0), gridSpan=(1, 4))
 
-        _accept = partial(self._reassignAccept, self.dimIndex)
+        self._acceptMode = 0
+        # self._acceptFuncs = [partial(self._reassignAccept, self.dimIndex), partial(self._assignNewAccept, self.dimIndex),]
+        self._acceptFuncs = [self._reassignAccept, self._assignNewAccept]
+        # _accept = partial(self._reassignAccept, self.dimIndex)
         self._acceptButton = Button(parent=_innerFrame, text='Accept', grid=(1, 0), hAlign='r',
-                                    callback=_accept)
+                                    callback=self._acceptNmrAtomCallback)
 
         # set the response to pressing enter/return in the popup
-        self.chainPulldown.lineEdit().returnPressed.connect(_accept)
-        self.seqCodePulldown.lineEdit().returnPressed.connect(_accept)
-        self.resTypePulldown.lineEdit().returnPressed.connect(_accept)
-        self.atomTypePulldown.lineEdit().returnPressed.connect(_accept)
+        self.chainPulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
+        self.seqCodePulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
+        self.resTypePulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
+        self.atomTypePulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
         # activate return/enter on the button when focussed
         self._acceptButton.setAutoDefault(True)
 
@@ -887,6 +776,12 @@ class AxisAssignmentObject(Frame):
             w.setMinimumWidth(minWidth)
 
         return _frame
+
+    def _acceptNmrAtomCallback(self, *args):
+        """Perform different acceptFunc depending on the mode
+        """
+        _func = self._acceptFuncs[self._acceptMode]
+        _func()
 
     def setEditPopupVisible(self, visible):
         """Hide the edit popup balloon
@@ -913,7 +808,7 @@ class AxisAssignmentObject(Frame):
 
     def _clearTableOveray(self):
         for table in self.tables:
-           table.setStyleSheet(table._defaultStyleSheet)
+            table.setStyleSheet(table._defaultStyleSheet)
 
     def _handleDropsFromSideBar(self, dataDict):
         """
@@ -930,7 +825,7 @@ class AxisAssignmentObject(Frame):
                     self._assignNmrAtom(self.dimIndex, nmrAtoms=[nmrAtom])
                 else:
                     failedNmrAtoms.append(nmrAtom)
-            if len(failedNmrAtoms)>0:
+            if len(failedNmrAtoms) > 0:
                 showWarning('Incompatible IsotopeCode Error',
                             f'Cannot assign NmrAtoms: {nmrAtoms} to peaks with IsotopeCode {isotopeCode} ')
 
@@ -945,8 +840,7 @@ class AxisAssignmentObject(Frame):
         elif source == self.tables[1] and enteringToTableNum == 0:
             self.tables[0]._setDraggingStyleSheet()
         else:
-           self._clearTableOveray()
-
+            self._clearTableOveray()
 
     def _handleDroppedItems(self, droppingToTableNum: int, dataDict, ):
         """
@@ -961,12 +855,12 @@ class AxisAssignmentObject(Frame):
 
         ## Action 0, Assignment: dropping to Assignment (Table-0) from Alternative (Table-1)
         if droppingToTableNum == assignmentTableNum:
-            if sourceTable == self.tables[alternativeTableNum]: # needs this constraint to avoid cross-table drag&drop
+            if sourceTable == self.tables[alternativeTableNum]:  # needs this constraint to avoid cross-table drag&drop
                 self._assignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
                 return
         ## Action 1, DeAssign from top to bottom: dropping to Alternative (Table-1) from Assignment (Table-0)
         if droppingToTableNum == alternativeTableNum:
-            if sourceTable == self.tables[assignmentTableNum]: # needs this constraint to avoid cross-table drag&drop
+            if sourceTable == self.tables[assignmentTableNum]:  # needs this constraint to avoid cross-table drag&drop
                 self._deassignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
                 return
 
@@ -1004,28 +898,6 @@ class AxisAssignmentObject(Frame):
         self._clickedNmrAtom = None
         self.editButton.enableWidget(False)
 
-    #     def _assignNmrAtomCallback(self, data):
-    #         obj = data[Notifier.OBJECT]
-    #         if obj:
-    #             nmrAtom = obj[0]
-    #
-    #
-    #
-    #     # def _updatePulldownLists(self, tableNum, data):
-    #     #     self.lastTableSelected = tableNum
-    #     #     obj = data[Notifier.OBJECT]
-    #     #     if obj:
-    #     #         self._clickedNmrAtom = obj[0]
-    #     #         # self._clickedLabel.setText('Current NmrAtom: {}'.format(obj[0].pid))
-    #     #         # self._clickedClear.setVisible(True)
-    #     #     if tableNum == 0:
-    #     #         # self._updateAssignmentWidget(tableNum, obj[0])
-    #     #         self.tables[1].clearSelection()
-    #     #
-    #     #     elif tableNum == 1:
-    #     #         # self._updateAssignmentWidget(tableNum, obj[0])
-    #     #         self.tables[0].clearSelection()
-
     def _createChainPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='') -> PulldownList:
         """Creates a PulldownList with callback, editable.
         """
@@ -1047,8 +919,6 @@ class AxisAssignmentObject(Frame):
             self._setResidueTypes(thisChain)
             self._setAtomNames()
 
-        self._pulldownEdited(None)
-
     def _createPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='') -> PulldownList:
         """Creates a PulldownList with callback, editable.
         """
@@ -1056,21 +926,46 @@ class AxisAssignmentObject(Frame):
                                     tipText=tipText)
         # pulldownList.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
         # pulldownList.setEditable(True)
-        pulldownList.lineEdit().textChanged.connect(partial(self._pulldownEdited, pulldownList))
         return pulldownList
 
     def _createNewNmrAtom(self, dim):
         """Callback for the newNmrAtom button
         """
+        from ccpn.core.NmrAtom import NmrAtom
+        from ccpn.ui.gui.widgets.BalloonMetrics import Side
 
-        isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
+        # get the next available Ids
+        _id = NmrAtom._nextId()
+        nmrChain, sequenceCode, residueType, atomName = _id.split('.')
 
-        with undoBlockWithoutSideBar():
-            nmrChain = self.project.fetchNmrChain(shortName=defaultNmrChainCode)
-            nmrResidue = nmrChain.newNmrResidue()
-            nmrAtom = nmrResidue.newNmrAtom(isotopeCode=isotopeCode)
+        # add the names to the pulldowns
+        self._updateAssignmentWidget(0, None)
+        self.chainPulldown.select('@-')
+        self.seqCodePulldown.addItem(sequenceCode)
+        self.seqCodePulldown.select(sequenceCode)
+        self.atomTypePulldown.addItem(atomName)
+        self.atomTypePulldown.select(atomName)
 
-            try:
+        # set the accept mode
+        self._acceptMode = 1
+
+        # show the popup
+        pos = QtGui.QCursor().pos()
+        self.chainPulldown.setFocus()
+        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
+
+    def _assignNewAccept(self):
+        try:
+            dim = self.dimIndex
+
+            with undoBlock():
+                isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
+
+                nmrChain = self.project.fetchNmrChain(shortName=defaultNmrChainCode)
+                nmrResidue = nmrChain.newNmrResidue()
+                self._acceptNmrAtom = nmrResidue.newNmrAtom(isotopeCode=isotopeCode)
+
+                nmrAtom = self._acceptNmrAtom
 
                 for peak in self.current.peaks:
                     if nmrAtom not in peak.dimensionNmrAtoms[dim]:
@@ -1092,44 +987,43 @@ class AxisAssignmentObject(Frame):
                 self.lastNmrAtomSelected = nmrAtom
 
                 self._clickedNmrAtom = nmrAtom
-                self._showNmrAtomPopup(nmrAtom, self.tables[0])
 
-            except Exception as es:
-                showWarning(str(self.windowTitle()), str(es))
+        except Exception as es:
+            showWarning(str(self.windowTitle()), str(es))
 
-    def _showNmrAtomPopup(self, nmrAtom, table):
+        self._reassignNmrAtom()
+        self.editPopup.setVisible(False)
+
+    def _showNmrAtomPopup(self, nmrAtom, tableNum, mode=0):
         """Call the popup with the supplied nmrAtom
         """
         from ccpn.ui.gui.widgets.BalloonMetrics import Side
 
-        if nmrAtom:
-            self._updateAssignmentWidget(table, nmrAtom)
+        # if nmrAtom:
+        self._updateAssignmentWidget(tableNum, nmrAtom)
 
         pos = QtGui.QCursor().pos()
-        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
         self.chainPulldown.setFocus()
+        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
 
     def _reassignNmrAtomPopup(self):
         """Show the edit popup
         """
-        from ccpn.ui.gui.widgets.BalloonMetrics import Side
+        _tableNum = self.lastTableSelected
+        nextAtom = self.tables[_tableNum].getSelectedObjects()
 
-        _table = self.lastTableSelected
-        nextAtom = self.tables[_table].getSelectedObjects()
+        self._acceptMode = 0
+        self._showNmrAtomPopup(nextAtom[0] if nextAtom else None, _tableNum)
 
-        self._showNmrAtomPopup(nextAtom[0] if nextAtom else None, _table)
-
-    def _reassignAccept(self, dim: int):
+    def _reassignAccept(self):
         """Handle the accept button in the balloon popup
         """
-        self._reassignNmrAtom(self.dimIndex)
+        self._reassignNmrAtom()
         self.editPopup.setVisible(False)
 
-    def _reassignNmrAtom(self, dim: int):
+    def _reassignNmrAtom(self):
         """
         Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
-        :param dim - axis dimension of the atom:
-        :param action - True if callback is action from the table:
         """
         try:
             nmrChainName = self.chainPulldown.currentText()
@@ -1137,35 +1031,16 @@ class AxisAssignmentObject(Frame):
             newResType = self.resTypePulldown.currentText()
             nmrAtomName = self.atomTypePulldown.currentText()
 
-            # # get options from the pulldowns
-            # currentNmrAtomSelected = (nmrChainName,
-            #                           seqCode,
-            #                           newResType,
-            #                           nmrAtomName)
-            # atomCompare = self._atomCompare(self.lastNmrAtomSelected, currentNmrAtomSelected)
-            nmrAtom = None
-
             if not self._clickedNmrAtom:
                 showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
                 return
 
             # wrap all actions in a single undo block
-            with undoBlockWithoutSideBar():
-
+            with undoBlock():
                 _chainPid = 'NC:{}'.format(nmrChainName)
-                # if create and not action:
-                #     # get the current chain (but may create a new one)
-                #     _nmrChain = self.project.fetchNmrChain(nmrChainName)
-                # else:
-                #     # find the existing nmrChain
-                #     _nmrChain = self.project.getByPid(_chainPid)
-                #     if not _nmrChain:
-                #         # raise error to notify popup
-                #         raise ValueError("NmrChain doesn't exists")
-
                 _nmrChain = self.project.fetchNmrChain(nmrChainName)
                 nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
-                nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
+                # nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
 
                 # edit existing
                 if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
@@ -1214,7 +1089,7 @@ class AxisAssignmentObject(Frame):
         except Exception as es:
             showWarning('Rename NmrAtom', str(es))
 
-    def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True, nmrAtoms = None):
+    def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True, nmrAtoms=None):
         """
         Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
         :param dim - axis dimension of the atom:
@@ -1227,20 +1102,6 @@ class AxisAssignmentObject(Frame):
             return
 
         try:
-            # nmrChainName = self.chainPulldown.currentText()
-            # seqCode = self.seqCodePulldown.currentText()
-            # newResType = self.resTypePulldown.currentText()
-            # nmrAtomName = self.atomTypePulldown.currentText()
-
-            # # get options from the pulldowns
-            # currentNmrAtomSelected = (nmrChainName,
-            #                           seqCode,
-            #                           newResType,
-            #                           nmrAtomName)
-            # atomCompare = self._atomCompare(self.lastNmrAtomSelected, currentNmrAtomSelected)
-
-            # create = self.createNew.isChecked()
-
             selectedObjects = nmrAtoms or self.tables[1].getSelectedObjects()
             if not (selectedObjects and selectedObjects[0]):
                 return
@@ -1435,15 +1296,6 @@ class AxisAssignmentObject(Frame):
                                      )
         self.tables[0].sortByColumn(4, QtCore.Qt.AscendingOrder)
 
-        # # Set the pulldowns with either thelast NmrAtom selected or the first in the list
-        # if (nmrAtom := self.lastNmrAtomSelected) is None:
-        #     if (objs := self.tables[0].getFirstObject()) is not None:
-        #         if (objPid := objs.get('Pid')) is not None:
-        #             nmrAtom = self.project.getByPid(objPid)
-        #
-        # if nmrAtom and not nmrAtom.isDeleted:
-        #     self._updatePulldownLists(0, {Notifier.OBJECT: [nmrAtom]})
-
     def setAlternativesTable(self, atomList: list):
 
         self.tables[1].populateTable(rowObjects=atomList,
@@ -1588,10 +1440,6 @@ class AxisAssignmentObject(Frame):
         delete selected nmrAtom from project
         """
         if self.lastTableSelected is not None:
-
-            # # deassign if assigned
-            # self._deassignNmrAtom(dim)
-
             # remove from the table
             deleted = self.tables[self.lastTableSelected].deleteObjFromTable()
             if deleted:
@@ -1599,7 +1447,6 @@ class AxisAssignmentObject(Frame):
 
                 # reset buttons
                 if not nextAtoms:
-
                     # self.buttonList.setButtonEnabled('Delete', False)
                     # self.buttonList.setButtonEnabled('Deassign', False)
                     # self.buttonList.setButtonEnabled('Assign', True) #False)
@@ -1607,18 +1454,6 @@ class AxisAssignmentObject(Frame):
                     self._updateAssignmentWidget(self.lastTableSelected, None)
                 else:
                     self._updateAssignmentWidget(self.lastTableSelected, nextAtoms[0])
-
-    def _pulldownEdited(self, pulldown: object):
-        """
-        Enable the assignment button if the text has changed in the pulldown
-        """
-        pass
-        # currentNmrAtomSelected = (self.chainPulldown.currentText(),
-        #                           self.seqCodePulldown.currentText(),
-        #                           self.resTypePulldown.currentText(),
-        #                           self.atomTypePulldown.currentText())
-        # enable = False in self._atomCompare(self.lastNmrAtomSelected, currentNmrAtomSelected)
-        # self.buttonList.setButtonEnabled('Assign', True) #enable)
 
     def _atomCompare(self, atom1: tuple, atom2: tuple):
         """
