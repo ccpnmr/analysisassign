@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-10-12 12:36:25 +0100 (Tue, October 12, 2021) $"
+__dateModified__ = "$dateModified: 2021-10-12 16:24:49 +0100 (Tue, October 12, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -952,7 +952,17 @@ class AxisAssignmentObject(Frame):
         # show the popup
         pos = QtGui.QCursor().pos()
         self.chainPulldown.setFocus()
-        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
+
+        global_rect = QtCore.QRect(self.newNmrAtomButton.mapToGlobal(QtCore.QPoint(0, 0)),
+                                   self.newNmrAtomButton.geometry().size())
+        mouse_screen = None
+        for screen in QtGui.QGuiApplication.screens():
+            if screen.geometry().contains(pos):
+                mouse_screen = screen
+                break
+        self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
+                              side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
+                              target_screen=mouse_screen)
 
     def _assignNewAccept(self):
         try:
@@ -1004,7 +1014,17 @@ class AxisAssignmentObject(Frame):
 
         pos = QtGui.QCursor().pos()
         self.chainPulldown.setFocus()
-        self.editPopup.showAt(pos, preferred_side=Side.TOP, side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT))
+
+        global_rect = QtCore.QRect(self.editButton.mapToGlobal(QtCore.QPoint(0, 0)),
+                                   self.editButton.geometry().size())
+        mouse_screen = None
+        for screen in QtGui.QGuiApplication.screens():
+            if screen.geometry().contains(pos):
+                mouse_screen = screen
+                break
+        self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
+                              side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
+                              target_screen=mouse_screen)
 
     def _reassignNmrAtomPopup(self):
         """Show the edit popup
