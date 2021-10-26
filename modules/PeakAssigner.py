@@ -722,6 +722,8 @@ class AxisAssignmentObject(Frame):
     def _clearTableCallback(self, tableNum, data):
         self._clickedNmrAtom = None
         self.editButton.enableWidget(False)
+        self.tables[0].clearSelection()
+        self.tables[1].clearSelection()
 
     def _assignNmrAtomCallback(self, data):
         obj = data[Notifier.OBJECT]
