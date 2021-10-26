@@ -897,6 +897,8 @@ class AxisAssignmentObject(Frame):
     def _clearTableCallback(self, tableNum, data):
         self._clickedNmrAtom = None
         self.editButton.enableWidget(False)
+        self.tables[0].clearSelection()
+        self.tables[1].clearSelection()
 
     def _createChainPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='') -> PulldownList:
         """Creates a PulldownList with callback, editable.
