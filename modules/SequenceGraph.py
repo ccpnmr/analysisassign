@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-28 19:13:07 +0100 (Mon, June 28, 2021) $"
+__dateModified__ = "$dateModified: 2021-11-04 20:19:26 +0000 (Thu, November 04, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -1777,7 +1777,7 @@ class SequenceGraphModule(CcpnModule):
         # add the settings widgets defined from the following orderedDict - test for refactored
         settingsDict = OrderedDict((('SpectrumDisplays', {'label'   : '',
                                                           'tipText' : '',
-                                                          'callBack': None,  #self.restraintListPulldown,
+                                                          'callBack': None,  #self.restraintTablePulldown,
                                                           'enabled' : True,
                                                           '_init'   : None,
                                                           'type'    : SpectrumDisplaySelectionWidget,
