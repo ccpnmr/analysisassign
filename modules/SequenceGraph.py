@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-11-04 20:19:26 +0000 (Thu, November 04, 2021) $"
+__dateModified__ = "$dateModified: 2021-11-22 17:49:16 +0000 (Mon, November 22, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -76,7 +76,7 @@ from ccpnc.clibrary import Clibrary
 _getNmrIndex = Clibrary.getNmrResidueIndex
 
 logger = getLogger()
-ALL = '<all>'
+ALL = '<Use all>'
 
 
 #==========================================================================================
@@ -1758,7 +1758,7 @@ class SequenceGraphModule(CcpnModule):
         self.thisSequenceWidget = SequenceWidget(moduleParent=self,
                                                  parent=self._sequenceWidgetFrame,
                                                  mainWindow=mainWindow,
-                                                 chains=self.project.chains)  # must match the chin selection below
+                                                 chains=self.project.chains)  # must match the chain selection below
 
         self.colours = getColours()
         self._lineColour = self.colours[SEQUENCEGRAPHMODULE_LINE]
@@ -1788,7 +1788,7 @@ class SequenceGraphModule(CcpnModule):
                                                           }),
                                     ('ChainSelection', {'label'   : '',
                                                         'tipText' : '',
-                                                        'callBack': None,  #self.showChainsChanged,
+                                                        'callBack': self.showChainsChanged,
                                                         'enabled' : True,
                                                         '_init'   : None,
                                                         'type'    : ChainSelectionWidget,
@@ -1873,7 +1873,7 @@ class SequenceGraphModule(CcpnModule):
 
         # NOTE:ED - need to clean this up
         self._SGwidget.chainsWidget = self._SGwidget.checkBoxes['ChainSelection']['widget']
-        self._SGwidget.chainsWidget.listWidget.changed.connect(self.showChainsChanged)
+        # self._SGwidget.chainsWidget.listWidget.changed.connect(self.showChainsChanged)
         self._SGwidget.displaysWidget = self._SGwidget.checkBoxes['SpectrumDisplays']['widget']
 
         self.initialiseScene()
@@ -2343,7 +2343,7 @@ class SequenceGraphModule(CcpnModule):
 
                     # this is the event that fires on a name change
                     # self._deleteBadNmrResidues(nmrResidue)
-                    self._deleteNmrResidues(nmrResidue, showPredictions)
+                    self._deleteNmrResidues(nmrResidue)
                     if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
                         # print('>>>error? redraw list')
                         # self.setNmrChainDisplay(self.nmrChain)

@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-13 19:21:18 +0100 (Mon, September 13, 2021) $"
+__dateModified__ = "$dateModified: 2021-11-22 17:49:16 +0000 (Mon, November 22, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -482,7 +482,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 queryShifts = []
             else:
                 queryShifts = [shift for shift in self.interShifts[nmrResidue]
-                               if shift and not shift.isDeleted and shift.nmrAtom.name in self.nmrAtomsToMatch]
+                               if (shift and not shift.isDeleted) and shift.nmrAtom and (shift.nmrAtom.name in self.nmrAtomsToMatch)]
             matchShifts = self.intraShifts
 
         # If NmrResidue is not an offset NmrResidue, set queryShifts as value from self.intraShifts dictionary
@@ -492,8 +492,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 queryShifts = []
             else:
                 queryShifts = [shift for shift in self.intraShifts[nmrResidue]
-                               if shift and not shift.isDeleted and shift.nmrAtom.name in self.nmrAtomsToMatch]
-                matchShifts = self.interShifts
+                               if (shift and not shift.isDeleted) and shift.nmrAtom.name in self.nmrAtomsToMatch]
+            matchShifts = self.interShifts
 
         # If NmrResidue has offset other than -1 or 0/None, tell user that we are not able to match
         else:
@@ -501,6 +501,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                     "Assignment matching not supported for NmrResidue offset %s. Matching display skipped"
                     % nmrResidue.relativeOffset
                     )
+            return
 
         assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
 

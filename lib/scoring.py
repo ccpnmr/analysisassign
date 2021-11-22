@@ -4,8 +4,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -13,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:21 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2021-11-22 17:49:16 +0000 (Mon, November 22, 2021) $"
+__version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -54,21 +55,28 @@ functionDict = {
 
 
 def getNmrResidueMatches(queryShifts, matchNmrResiduesDict, scoringMethod, isotopeCode='13C'):
+    """Method to calculate scores for matching nmrAtoms/isotopeCodes from chemicalShifts
+    """
     scoringMatrix = {}
+
     for res, mShifts in matchNmrResiduesDict.items():
 
         if res.isDeleted or res._flaggedForDelete:
             continue
 
-        scoringValues = []
-        mShifts2 = [shift for shift in mShifts if shift and shift.nmrAtom.isotopeCode == isotopeCode]
-        for mShift in mShifts2:
-            qShifts2 = [shift for shift in queryShifts if shift and shift.nmrAtom.isotopeCode == isotopeCode]
-            for qShift in queryShifts:
-                if qShift and mShift and qShift != mShift:
-                    if mShift.nmrAtom.name == qShift.nmrAtom.name:
-                        scoringValues.append((mShift.value, qShift.value))
-        if scoringValues and len(scoringValues) == len(qShifts2):
+        # get the matching isotopeCodes
+        mShifts2 = [shift for shift in mShifts
+                    if (shift and shift.nmrAtom) and shift.nmrAtom.isotopeCode == isotopeCode]
+        qShifts2 = [shift for shift in queryShifts
+                    if (shift and shift.nmrAtom) and shift.nmrAtom.isotopeCode == isotopeCode]
+
+        # get the matching atomNames
+        scoringValues = [(mShift.value, qShift.value)
+                         for mShift in mShifts2
+                         for qShift in qShifts2
+                         if (mShift != qShift) and (mShift.value is not None) and (qShift.value is not None) and (mShift.nmrAtom.name == qShift.nmrAtom.name)]
+
+        if scoringValues and len(scoringValues) == len(qShifts2):  # or should this be len(queryShifts)?
             score = functionDict[scoringMethod](scoringValues)
             scoringMatrix[score] = res
 
