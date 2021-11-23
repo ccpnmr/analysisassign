@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-11-22 17:49:16 +0000 (Mon, November 22, 2021) $"
+__dateModified__ = "$dateModified: 2021-11-23 14:26:09 +0000 (Tue, November 23, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -2115,7 +2115,7 @@ class SequenceGraphModule(CcpnModule):
     def _selectCurrentPulldownClass(self, data):
         """Respond to change in current activePulldownClass
         """
-        checkBox = self._SGwidget._getCheckBox(LINKTOPULLDOWNCLASS)
+        checkBox = self._SGwidget.getWidget(LINKTOPULLDOWNCLASS)
         if self.activePulldownClass and checkBox and checkBox.isChecked() and \
                 self.current.nmrChain and self.current.nmrChain != self.nmrChain:
             self.nmrChainPulldown.select(self.current.nmrChain.pid)
@@ -2737,7 +2737,7 @@ class SequenceGraphModule(CcpnModule):
             self.resetScene()
             return
 
-        checkBox = self._SGwidget._getCheckBox(LINKTOPULLDOWNCLASS)
+        checkBox = self._SGwidget.getWidget(LINKTOPULLDOWNCLASS)
         if self.current.nmrChain and self.current.nmrChain != nmrChain and checkBox and checkBox.isChecked():
             self.current.nmrChain = nmrChain
 
