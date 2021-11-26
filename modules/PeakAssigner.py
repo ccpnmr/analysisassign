@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-10-12 16:24:49 +0100 (Tue, October 12, 2021) $"
+__dateModified__ = "$dateModified: 2021-11-26 13:16:19 +0000 (Fri, November 26, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -971,19 +971,21 @@ class AxisAssignmentObject(Frame):
             dim = self.dimIndex
 
             with undoBlock():
+                # get the isotope code for the current dimension
                 isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
 
-                nmrChain = self.project.fetchNmrChain(shortName=defaultNmrChainCode)
-                nmrResidue = nmrChain.newNmrResidue()
-                self._acceptNmrAtom = nmrResidue.newNmrAtom(isotopeCode=isotopeCode)
+                # search for an existing nmrAtom or create a new one
+                nmrChain = self.project.fetchNmrChain(shortName=self.chainPulldown.get() or defaultNmrChainCode)
+                nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=self.seqCodePulldown.get())
+                if nmrResidue.residueType != self.resTypePulldown.get():
+                    raise ValueError(f'residueType does not match existing nmrResidue {nmrResidue.id}')
 
+                self._acceptNmrAtom = nmrResidue.fetchNmrAtom(name=self.atomTypePulldown.get(), isotopeCode=isotopeCode)
                 nmrAtom = self._acceptNmrAtom
 
                 for peak in self.current.peaks:
                     if nmrAtom not in peak.dimensionNmrAtoms[dim]:
-                        # newAssignments = peak.dimensionNmrAtoms[dim] + [nmrAtom]
-
-                        newAssignments = list(peak.dimensionNmrAtoms[dim]) + [nmrAtom]  # ejb - changed to list
+                        newAssignments = list(peak.dimensionNmrAtoms[dim]) + [nmrAtom]
                         axisCode = peak.spectrum.axisCodes[dim]
                         peak.assignDimension(axisCode, newAssignments)
 
@@ -1003,8 +1005,11 @@ class AxisAssignmentObject(Frame):
         except Exception as es:
             showWarning(str(self.windowTitle()), str(es))
 
-        self._reassignNmrAtom()
-        self.editPopup.setVisible(False)
+        else:
+            self._reassignNmrAtom()
+
+        finally:
+            self.editPopup.setVisible(False)
 
     def _showNmrAtomPopup(self, nmrAtom, tableNum, mode=0):
         """Call the popup with the supplied nmrAtom
