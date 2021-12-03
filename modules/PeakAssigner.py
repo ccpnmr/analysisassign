@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-11-26 13:16:19 +0000 (Fri, November 26, 2021) $"
+__dateModified__ = "$dateModified: 2021-12-03 17:13:54 +0000 (Fri, December 03, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -38,6 +38,9 @@ from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue
 from ccpn.core.Peak import Peak
 from ccpn.core.lib import CcpnSorting
 from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, sameAxisCodes
+from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
+from ccpn.core.lib.Pid import Pid
+from ccpn.core.lib.Notifiers import Notifier
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.ButtonList import ButtonList, Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
@@ -48,16 +51,14 @@ from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
+from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNo
+from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
+from ccpn.ui.gui.widgets.DropBase import DropBase
+from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER, LABEL_WARNINGFOREGROUND
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
-from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNo
 from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
-from ccpn.core.lib.Notifiers import Notifier
-from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
-from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
-from ccpn.ui.gui.widgets.DropBase import DropBase
-from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 
 
 allowedResidueTypes = [('', '', ''),
@@ -976,9 +977,12 @@ class AxisAssignmentObject(Frame):
 
                 # search for an existing nmrAtom or create a new one
                 nmrChain = self.project.fetchNmrChain(shortName=self.chainPulldown.get() or defaultNmrChainCode)
-                nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=self.seqCodePulldown.get())
-                if nmrResidue.residueType != self.resTypePulldown.get():
-                    raise ValueError(f'residueType does not match existing nmrResidue {nmrResidue.id}')
+                if not (nmrResidue := _getNmrResidue(nmrChain, self.seqCodePulldown.get())):
+                    nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=self.seqCodePulldown.get(), residueType=self.resTypePulldown.get())
+                else:
+                    # if existing then check the residueType matches
+                    if nmrResidue.residueType != self.resTypePulldown.get():
+                        raise ValueError(f'residueType does not match existing nmrResidue {nmrResidue.id}')
 
                 self._acceptNmrAtom = nmrResidue.fetchNmrAtom(name=self.atomTypePulldown.get(), isotopeCode=isotopeCode)
                 nmrAtom = self._acceptNmrAtom
