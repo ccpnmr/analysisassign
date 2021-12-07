@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-12-03 17:13:54 +0000 (Fri, December 03, 2021) $"
+__dateModified__ = "$dateModified: 2021-12-07 14:47:08 +0000 (Tue, December 07, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -101,6 +101,11 @@ _margins = (2, 2, 2, 2)
 ASSIGNEDROWS = 3
 ALTERNATIVEROWS = 5
 MINTABLEWIDTH = 150
+DEFAULT_COLOR = QtGui.QColor('black')
+
+PulldownFill = '--'
+OtherNames = PulldownFill + ' Other Options ' + PulldownFill
+OtherByIC = PulldownFill + ' Name Options ' + PulldownFill
 
 
 class PeakAssigner(CcpnModule):
@@ -776,7 +781,48 @@ class AxisAssignmentObject(Frame):
         for w in [self.chainPulldown, self.seqCodePulldown, self.resTypePulldown, self.atomTypePulldown]:
             w.setMinimumWidth(minWidth)
 
+        self.chainPulldown.activated.connect(self._checkResidueTypeCallback)
+        self.seqCodePulldown.activated.connect(self._checkResidueTypeCallback)
+
+        self.resTypePulldown.currentIndexChanged.connect(partial(self._setPulldownTextColour, self.resTypePulldown))
+        self.atomTypePulldown.currentIndexChanged.connect(partial(self._setPulldownTextColour, self.atomTypePulldown))
+
         return _frame
+
+    def _checkResidueTypeCallback(self, *args):
+        """Check the chain/sequenceCode and update the residueType if set
+        """
+        nmrChain = self.chainPulldown.currentText()
+        seqCode = self.seqCodePulldown.currentText()
+
+        _nmrChain = self.project.getNmrChain(nmrChain)
+        if nmrResidue := _getNmrResidue(_nmrChain, seqCode):
+
+            self._setAtomNames(nmrResidue=nmrResidue)
+            self._setPulldownColours(nmrResidue)
+
+            resType = nmrResidue.residueType
+            _ind = self.resTypePulldown.texts.index(resType) if resType in self.resTypePulldown.texts else 0
+            self.resTypePulldown.setIndex(_ind)
+            self._setPulldownTextColour(self.resTypePulldown)
+
+        else:
+            self._setAtomNames()
+            self._resetPulldownColours()
+
+    def _setPulldownTextColour(self, combo):
+        """Set the colour of the pulldown text
+        """
+        # NOTE:ED - should move this the the pulldown widget
+        ind = combo.currentIndex()
+        model = combo.model()
+        item = model.item(ind)
+        if item is not None and item.text():
+            color = item.foreground().color()
+            # use the palette to change the colour of the selection text - may not match for other themes
+            palette = combo.palette()
+            palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, color)
+            combo.setPalette(palette)
 
     def _acceptNmrAtomCallback(self, *args):
         """Perform different acceptFunc depending on the mode
@@ -1387,11 +1433,43 @@ class AxisAssignmentObject(Frame):
                 self.seqCodePulldown.setIndex(self.seqCodePulldown.texts.index(sequenceCode) if sequenceCode in self.seqCodePulldown.texts else 0)
                 self.resTypePulldown.setIndex(self.resTypePulldown.texts.index(residueType) if residueType in self.resTypePulldown.texts else 0)
                 self.atomTypePulldown.setIndex(self.atomTypePulldown.texts.index(nmrAtom.name) if nmrAtom.name in self.atomTypePulldown.texts else 0)
+                self._setPulldownColours(nmrAtom.nmrResidue)
 
             self.lastNmrAtomSelected = nmrAtom
         else:
             self._setDefaultPulldowns()
             self.lastNmrAtomSelected = None
+
+    def _resetPulldownColours(self):
+        for combo in (self.resTypePulldown, self.atomTypePulldown):
+            model = combo.model()
+            for ii in range(len(combo.texts)):
+                itm = model.item(ii)
+                if PulldownFill not in itm.text():
+                    itm.setForeground(DEFAULT_COLOR)
+            self._setPulldownTextColour(combo)
+
+    def _setPulldownColours(self, nmrResidue):
+        if not nmrResidue:
+            return
+
+        residueType = nmrResidue.residueType
+        color = QtGui.QColor('blue')
+
+        combo = self.resTypePulldown
+        model = combo.model()
+        _inds = [ii for ii, val in enumerate(self.resTypePulldown.texts) if val and val == residueType]
+        for ind in range(len(combo.texts)):
+            model.item(ind).setForeground(color if ind in _inds else DEFAULT_COLOR)
+        self._setPulldownTextColour(combo)
+
+        combo = self.atomTypePulldown
+        model = combo.model()
+        for _nmrAt in nmrResidue.nmrAtoms:
+            _inds = [ii for ii, val in enumerate(self.atomTypePulldown.texts) if val and val == _nmrAt.name]
+            for ind in range(len(combo.texts)):
+                model.item(ind).setForeground(color if ind in _inds else DEFAULT_COLOR)
+        self._setPulldownTextColour(combo)
 
     def _setDefaultPulldowns(self):
         """Clear the contents of the pullDowns
@@ -1447,24 +1525,73 @@ class AxisAssignmentObject(Frame):
         self.resTypePulldown.setData(sorted(residueTypes, key=CcpnSorting.stringSortKey))
         self.resTypePulldown.setIndex(self.resTypePulldown.texts.index(thisRes) if thisRes in self.resTypePulldown.texts else 0)
 
-    def _setAtomNames(self, nmrAtom=None):
+        self._setPulldownTextColour(self.resTypePulldown)
+
+    def _setAtomNames(self, nmrAtom=None, nmrResidue=None):
         """Populate the atomNames pulldown from the project
         """
-        thisAtom = self.atomTypePulldown.currentText()
-        atomNames = ['']
-        if self.current.peak:
-            isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
-            atomNames += getIsotopeListFromCode(isotopeCode)
+        from ccpnmodel.ccpncore.lib.assignment.ChemicalShift import PROTEIN_ATOM_NAMES, ALL_ATOMS_SORTED
+        from ccpn.core.lib.AssignmentLib import NEF_ATOM_NAMES
 
+        thisAtom = self.atomTypePulldown.currentText()
+
+        # get isotope list for hte selected dimension
+        isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
+        atomNameOptions = getIsotopeListFromCode(isotopeCode)
+        atomNameOptions = sorted(list(set(atomNameOptions)), key=greekKey) # greek letter sorting
+
+        nmrAtomName = None
         if nmrAtom:
-            atomNames.insert(0, nmrAtom.name)
-            thisAtom = nmrAtom.name  # set only if nmrAtom defined
+            nmrAtomName = nmrAtom.name  # set only if nmrAtom defined, find parent nmrResidue
+            nmrResidue = nmrAtom.nmrResidue
+
+        # _atomNameOptions = ([nmrAtomName] + [OtherByIC]) if nmrAtomName else []
+        _atomNameOptions = []
+        if thisAtom:
+            # add the last typed in value
+            _atomNameOptions = ([thisAtom] + [OtherByIC])
+
+        if nmrResidue:
+            # get the list of specific codes based on residueType
+            atomNameOptionsByResType = PROTEIN_ATOM_NAMES.get(nmrResidue.residueType, [])
+
+            if atomNameOptionsByResType:
+                atomNameOptions = sorted(list(set(atomNameOptionsByResType)), key=greekKey)  # greek letter sorting
+            else:
+                _atomNames = getIsotopeListFromCode(None)
+                atomNameOptions = sorted(list(set(_atomNames)), key=greekKey)  # greek letter sorting
+
+            if isotopeCode in NEF_ATOM_NAMES:
+                # if False:
+                atomsNameOptionsByIC = getIsotopeListFromCode(isotopeCode or nmrAtom.isotopeCode)
+                atomsNameOptionsByIC = sorted(list(set(atomsNameOptionsByIC)), key=greekKey)
+
+                atomNotOfSameIsotopeCode = [x for x in atomNameOptions if x not in atomsNameOptionsByIC]
+                atomOfSameIsotopeCode = [x for x in atomNameOptions if x in atomsNameOptionsByIC]
+                _atomNameOptions += atomOfSameIsotopeCode + \
+                                  [OtherNames] + \
+                                  atomNotOfSameIsotopeCode
+            else:
+                _atomNameOptions += atomNameOptions
+
+        else:
+            _atomNameOptions += atomNameOptions
 
         if self.lastNmrAtomSelected:
-            atomNames.append(self.lastNmrAtomSelected.pid.fields[3])
+            # add the last typed in value
+            val = self.lastNmrAtomSelected.pid.fields[3]
+            if val not in self.atomTypePulldown.texts:
+                _atomNameOptions.append(val)
 
-        self.atomTypePulldown.setData(sorted(list(set(atomNames)), key=greekKey))
-        self.atomTypePulldown.setIndex(self.atomTypePulldown.texts.index(thisAtom) if thisAtom in self.atomTypePulldown.texts else 0)
+        self.atomTypePulldown.setData(_atomNameOptions)
+        self.atomTypePulldown.disableLabelsOnPullDown([OtherNames, OtherByIC])
+
+        if nmrResidue:
+            self._setPulldownColours(nmrResidue)
+        if nmrAtomName:
+            self.atomTypePulldown.setIndex(self.atomTypePulldown.texts.index(thisAtom)
+                                           if thisAtom in self.atomTypePulldown.texts else 0)
+        self._setPulldownTextColour(self.resTypePulldown)
 
     def _deleteNmrAtom(self, dim: int):
         """
