@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-09-30 13:09:55 +0100 (Thu, September 30, 2021) $"
+__dateModified__ = "$dateModified: 2021-12-20 18:47:14 +0000 (Mon, December 20, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -248,7 +248,7 @@ class PickAndAssignModule(NmrResidueTableModule):
                 if dp.strips:
                     for sv in dp.strips[0].spectrumViews:
                         for plv in sv.peakListViews:
-                            if plv.isVisible() and sv.isVisible():
+                            if plv.isDisplayed and sv.isDisplayed:
                                 if plv.peakList not in validPeakListViews:
                                     validPeakListViews[plv.peakList] = (sv.spectrum, plv)
                                 else:
