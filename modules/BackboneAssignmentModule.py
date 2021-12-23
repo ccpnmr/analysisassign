@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-11-22 17:49:16 +0000 (Mon, November 22, 2021) $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2021-12-23 15:18:23 +0000 (Thu, December 23, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -34,8 +34,8 @@ from ccpn.core._OldChemicalShift import _OldChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot
-from ccpn.ui.gui.lib.Strip import matchAxesAndNmrAtoms
-from ccpn.ui.gui.lib.Strip import navigateToNmrResidueInDisplay
+from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
+from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, PulldownListCompoundWidget, CheckBoxCompoundWidget

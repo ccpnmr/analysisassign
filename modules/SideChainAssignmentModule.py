@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-06-29 14:27:29 +0100 (Tue, June 29, 2021) $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2021-12-23 15:18:23 +0000 (Thu, December 23, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -30,7 +30,7 @@ from ccpn.AnalysisAssign.modules.PickAndAssignModule import PickAndAssignModule
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot, makeStripPlotFromSingles
 from ccpn.core.lib.Notifiers import Notifier
 
-from ccpn.ui.gui.lib.Strip import matchAxesAndNmrAtoms
+from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
 
 
 class SideChainAssignmentModule(PickAndAssignModule):

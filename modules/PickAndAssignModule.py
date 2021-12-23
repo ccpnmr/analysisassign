@@ -22,8 +22,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-12-20 18:47:14 +0000 (Mon, December 20, 2021) $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2021-12-23 15:18:23 +0000 (Thu, December 23, 2021) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -35,7 +35,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 from ccpn.ui.gui.lib import PeakList
-from ccpn.ui.gui.lib import Strip
+from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.core.lib.Notifiers import Notifier
@@ -342,8 +342,8 @@ class PickAndAssignModule(NmrResidueTableModule):
                     else:
                         widths = ['default', 'full'] + (n - 2) * ['']
 
-                    Strip.navigateToNmrAtomsInStrip(strip=strip,
-                                                    nmrAtoms=nmrResidue.nmrAtoms,
-                                                    widths=strip._getCurrentZoomRatio(strip.viewRange()),
-                                                    markPositions=(n == 2))
+                    StripLib.navigateToNmrAtomsInStrip(strip=strip,
+                                                       nmrAtoms=nmrResidue.nmrAtoms,
+                                                       widths=strip._getCurrentZoomRatio(strip.viewRange()),
+                                                       markPositions=(n == 2))
                 self.application.current.nmrResidue = nmrResidue
