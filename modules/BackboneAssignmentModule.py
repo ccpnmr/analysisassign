@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2022"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2021-12-23 15:18:23 +0000 (Thu, December 23, 2021) $"
+__dateModified__ = "$dateModified: 2022-01-06 16:27:56 +0000 (Thu, January 06, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -761,8 +761,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             yW = max(yWidth, minPpm) + EXTRAWIDTH * dY
 
             # this should rescale all in spectrumDisplay
-            strips[0]._CcpnGLWidget.setAxisPosition(axisIndex=1, position=yPos, rescale=False, update=False)
-            strips[0]._CcpnGLWidget.setAxisWidth(axisIndex=1, width=yW, rescale=True, update=True)
+            strips[0].setAxisPosition(axisIndex=1, position=yPos, rescale=False, update=False)
+            strips[0].setAxisWidth(axisIndex=1, width=yW, rescale=True, update=True)
 
     def _setupShiftDicts(self, *args):
         """
