@@ -4,7 +4,7 @@ AnalysisAssign Program
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2022"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-04-28 15:54:46 +0100 (Wed, April 28, 2021) $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2022-01-20 13:16:15 +0000 (Thu, January 20, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -40,8 +40,8 @@ class Assign(Framework):
         Framework.__init__(self, applicationName, applicationVersion, commandLineArguments)
         # self.components.add('Assignment')
 
-    def setupMenus(self):
-        super().setupMenus()
+    def _setupMenus(self):
+        super()._setupMenus()
         menuSpec = ('Assign', [("Set up NmrResidues", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
                                ("Pick and Assign", self.showPickAndAssignModule, [('shortcut', 'pa')]),
                                (),
@@ -53,13 +53,13 @@ class Assign(Framework):
                                ("Assignment Inspector", self.showAssignmentInspectorModule, [('shortcut', 'ai')]),
                                # ("Residue Information", self.showResidueInformation, [('shortcut', 'ri')]),
                                ])
-        self.addApplicationMenuSpec(menuSpec)
+        self._addApplicationMenuSpec(menuSpec)
 
         viewMenuItems = [("Sequence Graph", self.showSequenceGraph, [('shortcut', 'sg')]),
                          # ("NmrAtom Assigner", self.showAtomSelector, [('shortcut', 'as')]),
                          ()
                          ]
-        self.addApplicationMenuItems('View', viewMenuItems, position=9)
+        self._addApplicationMenuItems('View', viewMenuItems, position=9)
 
     # overrides superclass
     def _closeExtraWindows(self):
