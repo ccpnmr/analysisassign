@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-01-20 13:16:15 +0000 (Thu, January 20, 2022) $"
+__dateModified__ = "$dateModified: 2022-01-21 17:37:15 +0000 (Fri, January 21, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -34,7 +34,9 @@ from ccpn.util.decorators import logCommand
 
 
 class Assign(Framework):
-    """Root class for Assign application"""
+    """Root class for AnalysisAssign application
+    """
+    applicationName = 'AnalysisAssign'
 
     def __init__(self, applicationName, applicationVersion, commandLineArguments):
         Framework.__init__(self, applicationName, applicationVersion, commandLineArguments)

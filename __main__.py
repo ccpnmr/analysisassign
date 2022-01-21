@@ -1,7 +1,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2022"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
@@ -11,8 +11,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2021-08-02 14:03:13 +0100 (Mon, August 02, 2021) $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2022-01-21 17:37:15 +0000 (Fri, January 21, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -26,10 +26,12 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 import os
 import sys
 from PyQt5 import QtGui, QtWidgets
+
 from ccpn.framework import Framework
 from ccpn.AnalysisAssign.AnalysisAssign import Assign as Application
 from ccpn.framework.Version import applicationVersion
 
+ANALYSIS_ASSIGN = 'AnalysisAssign'
 
 if __name__ == '__main__':
     # from ccpn.util.GitTools import getAllRepositoriesGitCommit
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     # QtGui.QSurfaceFormat().setDefaultFormat(viewportFormat)
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--enable-logging --log-level=3"
 
-    application = Application(Framework.AnalysisAssign, applicationVersion, commandLineArguments)
+    application = Application(ANALYSIS_ASSIGN, applicationVersion, commandLineArguments)
     Framework._getApplication = lambda: application
 
     application.start()
