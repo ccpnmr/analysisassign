@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-01-21 17:37:15 +0000 (Fri, January 21, 2022) $"
+__dateModified__ = "$dateModified: 2022-01-21 19:10:47 +0000 (Fri, January 21, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -29,9 +29,6 @@ from PyQt5 import QtGui, QtWidgets
 
 from ccpn.framework import Framework
 from ccpn.AnalysisAssign.AnalysisAssign import Assign as Application
-from ccpn.framework.Version import applicationVersion
-
-ANALYSIS_ASSIGN = 'AnalysisAssign'
 
 if __name__ == '__main__':
     # from ccpn.util.GitTools import getAllRepositoriesGitCommit
@@ -48,7 +45,7 @@ if __name__ == '__main__':
     # QtGui.QSurfaceFormat().setDefaultFormat(viewportFormat)
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--enable-logging --log-level=3"
 
-    application = Application(ANALYSIS_ASSIGN, applicationVersion, commandLineArguments)
+    application = Application(commandLineArguments)
     Framework._getApplication = lambda: application
 
     application.start()
