@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-01-24 11:13:31 +0000 (Mon, January 24, 2022) $"
+__dateModified__ = "$dateModified: 2022-01-24 17:36:15 +0000 (Mon, January 24, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     application = Application(commandLineArguments)
 
-    application.start()
+    application._startApplication()
     QtWidgets.QApplication.quit()
 
     if sys.platform.startswith('win'):
