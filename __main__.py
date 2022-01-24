@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-01-21 19:10:47 +0000 (Fri, January 21, 2022) $"
+__dateModified__ = "$dateModified: 2022-01-24 11:13:31 +0000 (Mon, January 24, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -27,15 +27,14 @@ import os
 import sys
 from PyQt5 import QtGui, QtWidgets
 
-from ccpn.framework import Framework
+from ccpn.framework.Application import defineProgramArguments
 from ccpn.AnalysisAssign.AnalysisAssign import Assign as Application
 
 if __name__ == '__main__':
     # from ccpn.util.GitTools import getAllRepositoriesGitCommit
-    # applicationVersion = 'development: {AnalysisAssign:.8s}'.format(**getAllRepositoriesGitCommit())
 
     # argument parser
-    parser = Framework.defineProgramArguments()
+    parser = defineProgramArguments()
 
     # add any additional commandline argument here
     commandLineArguments = parser.parse_args()
@@ -46,7 +45,6 @@ if __name__ == '__main__':
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--enable-logging --log-level=3"
 
     application = Application(commandLineArguments)
-    Framework._getApplication = lambda: application
 
     application.start()
     QtWidgets.QApplication.quit()
