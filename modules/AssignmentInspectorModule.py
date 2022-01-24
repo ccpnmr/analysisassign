@@ -7,7 +7,7 @@ modified by Geerten 1-9/12/2016:
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2022"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2021-12-23 15:18:23 +0000 (Thu, December 23, 2021) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2022-01-24 11:17:11 +0000 (Mon, January 24, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -191,7 +191,7 @@ class AssignmentInspectorModule(CcpnModule):
                                                            hiddenColumns=['Pid'])
         self.chemicalShiftTable = ChemicalShiftTable(parent=self._chemicalShiftFrame,
                                                      mainWindow=self.mainWindow,
-                                                     moduleParent=self.assignedPeaksTable,  # just to give a unique id
+                                                     moduleParent=self,  # why uniqueId?  _moduleId not used?
                                                      setLayout=True,
                                                      actionCallback=self.navigateToNmrResidueCallBack,
                                                      selectionCallback=self._selectionCallback,
