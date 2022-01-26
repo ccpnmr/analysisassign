@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-01-24 11:17:11 +0000 (Mon, January 24, 2022) $"
+__dateModified__ = "$dateModified: 2022-01-26 10:22:27 +0000 (Wed, January 26, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -428,7 +428,7 @@ class PeakAssigner(CcpnModule):
         for dimIndex in range(peaks[0].spectrum.dimensionCount):
             isotopeCodes = set(peak.spectrum.isotopeCodes[dimIndex] for peak in peaks)
             if len(isotopeCodes) > 1:
-                getLogger().warning('Selected peaks have different isotopeCodes along dimension %d' % dimIndex + 1)
+                getLogger().warning('Selected peaks have different isotopeCodes along dimension %d' % (dimIndex + 1))
                 return False
 
         return True
