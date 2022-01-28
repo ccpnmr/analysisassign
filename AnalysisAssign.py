@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-01-20 13:16:15 +0000 (Thu, January 20, 2022) $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2022-01-28 14:50:06 +0000 (Fri, January 28, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -172,3 +172,13 @@ class Assign(Framework):
         nmrAtomAssigner = NmrAtomAssignerModule(mainWindow=mainWindow, nmrAtom=nmrAtom)
         mainWindow.moduleArea.addModule(nmrAtomAssigner, position=position, relativeTo=relativeTo)
         return nmrAtomAssigner
+
+    @logCommand('application.')
+    def showPipeline(self, position='bottom', relativeTo=None):
+        """Display the Screening pipeLine Module
+        """
+        from ccpn.pipes import loadedPipes
+        from ccpn.ui.gui.modules.PipelineModule import GuiPipeline
+        guiPipeline = GuiPipeline(mainWindow=self.ui.mainWindow, pipes=loadedPipes, templates=None)
+        self.ui.mainWindow.moduleArea.addModule(guiPipeline, position=position)
+        return guiPipeline
