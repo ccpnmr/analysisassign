@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-01-26 10:22:27 +0000 (Wed, January 26, 2022) $"
+__dateModified__ = "$dateModified: 2022-01-28 10:53:21 +0000 (Fri, January 28, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -1124,11 +1124,10 @@ class AxisAssignmentObject(Frame):
                     # existing different nmrResidue
                     nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
                     if nmrAtom:
-                        yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
-                                                           "{}   into   {}".format(self._clickedNmrAtom.id,
-                                                                                   nmrAtom.id))
+                        yesNo = showYesNo('Merge NmrAtom', f'Do you want to merge\n\n'
+                                                           f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}')
                         if yesNo:
-                            # merge into the new nmrAtom
+                            # merge into the existing nmrAtom
                             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
 
                     else:
@@ -1147,8 +1146,16 @@ class AxisAssignmentObject(Frame):
                     if nmrAtomName != self._clickedNmrAtom.name:
                         nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
                         if nmrAtom:
-                            raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
-                        self._clickedNmrAtom.rename(nmrAtomName)
+                            # existing nmrAtom
+                            yesNo = showYesNo('NmrAtom already exists', f'Do you want to merge\n\n'
+                                                                        f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}')
+                            if yesNo:
+                                # merge into the existing nmrAtom
+                                nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
+
+                        else:
+                            # rename the nmrAtom
+                            self._clickedNmrAtom.rename(nmrAtomName)
 
                 else:
                     # nmrResidue doesn't exists
@@ -1553,7 +1560,7 @@ class AxisAssignmentObject(Frame):
         _atomNameOptions = []
         if thisAtom:
             # add the last typed in value
-            _atomNameOptions = [thisAtom,]  # + [OtherByIC])
+            _atomNameOptions = [thisAtom, ]  # + [OtherByIC])
 
         if nmrResidue:
             # get the list of specific codes based on residueType
