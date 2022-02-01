@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-01-21 19:10:47 +0000 (Fri, January 21, 2022) $"
+__dateModified__ = "$dateModified: 2022-02-01 15:02:29 +0000 (Tue, February 01, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -40,10 +40,6 @@ class Assign(Framework):
     """
     applicationName = AnalysisAssign
     applicationVersion = applicationVersion
-
-    # def __init__(self, commandLineArguments):
-    #     Framework.__init__(self, commandLineArguments)
-    #     # self.components.add('Assignment')
 
     def _setupMenus(self):
         super()._setupMenus()

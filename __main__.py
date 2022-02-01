@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-01-24 17:36:15 +0000 (Mon, January 24, 2022) $"
+__dateModified__ = "$dateModified: 2022-02-01 15:02:29 +0000 (Tue, February 01, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -30,8 +30,8 @@ from PyQt5 import QtGui, QtWidgets
 from ccpn.framework.Application import defineProgramArguments
 from ccpn.AnalysisAssign.AnalysisAssign import Assign as Application
 
-if __name__ == '__main__':
-    # from ccpn.util.GitTools import getAllRepositoriesGitCommit
+
+def main():
 
     # argument parser
     parser = defineProgramArguments()
@@ -51,3 +51,7 @@ if __name__ == '__main__':
 
     if sys.platform.startswith('win'):
         os._exit(0)
+
+
+if __name__ == '__main__':
+    main()
