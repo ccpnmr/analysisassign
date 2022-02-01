@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-01-28 10:53:21 +0000 (Fri, January 28, 2022) $"
+__dateModified__ = "$dateModified: 2022-02-01 13:17:38 +0000 (Tue, February 01, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -524,7 +524,9 @@ class AssignmentTable(GuiTable):
             _topMenuItem = _actions[0]
             _topSeparator = self.tableMenu.insertSeparator(_topMenuItem)
             self._editMenuAction = self.tableMenu.addAction('Edit nmrAtom ...', self._editNmrAtom)
+            self._newMenuAction = self.tableMenu.addAction('New nmrAtom', self._newNmrAtom)
             # move new actions to the top of the list
+            self.tableMenu.insertAction(_topSeparator, self._newMenuAction)
             self.tableMenu.insertAction(_topSeparator, self._editMenuAction)
 
     def _raiseTableContextMenu(self, pos):
@@ -551,12 +553,17 @@ class AssignmentTable(GuiTable):
     def _editNmrAtom(self):
         """Edit the nmrAtom from the parent widget
         """
-        # NOTE:ED - should the edit functionality be here or in the AxisAssignmentObject?
         selection = self.getSelectedObjects()
         data = self.getRightMouseItem()
         if data and selection:
             # call the edit popup balloon
-            self._owner._reassignNmrAtomPopup()
+            self._owner._reassignNmrAtomPopup(mode=1)
+
+    def _newNmrAtom(self):
+        """Create new nmrAtom from the parent widget
+        """
+        # call the new popup balloon
+        self._owner._newNmrAtomPopup(mode=1)
 
 
 class EditNmrAtomBalloon(SpeechBalloon):
@@ -682,7 +689,7 @@ class AxisAssignmentObject(Frame):
         _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
                               tipTexts=['Rename selected nmrAtom', 'Create new nmrAtom'],
                               callbacks=[self._reassignNmrAtomPopup,
-                                         partial(self._createNewNmrAtom, self.dimIndex)],
+                                         self._newNmrAtomPopup],
                               grid=(row, 0), hAlign='l'
                               )
         self.editButton = _buttons.getButton('Edit')
@@ -977,7 +984,7 @@ class AxisAssignmentObject(Frame):
         # pulldownList.setEditable(True)
         return pulldownList
 
-    def _createNewNmrAtom(self, dim):
+    def _newNmrAtomPopup(self, mode=0):
         """Callback for the newNmrAtom button
         """
         from ccpn.core.NmrAtom import NmrAtom
@@ -1002,8 +1009,15 @@ class AxisAssignmentObject(Frame):
         pos = QtGui.QCursor().pos()
         self.chainPulldown.setFocus()
 
-        global_rect = QtCore.QRect(self.newNmrAtomButton.mapToGlobal(QtCore.QPoint(0, 0)),
+        if mode == 0:
+            # if called from the button then set the pointer size - otherwise hide it
+            global_rect = QtCore.QRect(self.newNmrAtomButton.mapToGlobal(QtCore.QPoint(0, 0)),
                                    self.newNmrAtomButton.geometry().size())
+            self.editPopup.pointerHeight = 10
+        else:
+            global_rect = pos
+            self.editPopup.pointerHeight = 0
+
         mouse_screen = None
         for screen in QtGui.QGuiApplication.screens():
             if screen.geometry().contains(pos):
@@ -1072,8 +1086,15 @@ class AxisAssignmentObject(Frame):
         pos = QtGui.QCursor().pos()
         self.chainPulldown.setFocus()
 
-        global_rect = QtCore.QRect(self.editButton.mapToGlobal(QtCore.QPoint(0, 0)),
-                                   self.editButton.geometry().size())
+        if mode == 0:
+            # if called from the button then set the pointer size - otherwise hide it
+            global_rect = QtCore.QRect(self.editButton.mapToGlobal(QtCore.QPoint(0, 0)),
+                                       self.editButton.geometry().size())
+            self.editPopup.pointerHeight = 10
+        else:
+            global_rect = pos
+            self.editPopup.pointerHeight = 0
+
         mouse_screen = None
         for screen in QtGui.QGuiApplication.screens():
             if screen.geometry().contains(pos):
@@ -1083,14 +1104,14 @@ class AxisAssignmentObject(Frame):
                               side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
                               target_screen=mouse_screen)
 
-    def _reassignNmrAtomPopup(self):
+    def _reassignNmrAtomPopup(self, mode=0):
         """Show the edit popup
         """
         _tableNum = self.lastTableSelected
         nextAtom = self.tables[_tableNum].getSelectedObjects()
 
         self._acceptMode = 0
-        self._showNmrAtomPopup(nextAtom[0] if nextAtom else None, _tableNum)
+        self._showNmrAtomPopup(nextAtom[0] if nextAtom else None, _tableNum, mode)
 
     def _reassignAccept(self):
         """Handle the accept button in the balloon popup
