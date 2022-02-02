@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-02-01 15:30:12 +0000 (Tue, February 01, 2022) $"
+__dateModified__ = "$dateModified: 2022-02-02 10:17:25 +0000 (Wed, February 02, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -28,7 +28,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 
 from ccpn.framework.Version import applicationVersion
 from ccpn.framework.Framework import Framework
-from ccpn.framework.Application import AnalysisAssign
+from ccpn.framework.Application import ANALYSIS_ASSIGN
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.util.Logging import getLogger
@@ -38,7 +38,7 @@ from ccpn.util.decorators import logCommand
 class Assign(Framework):
     """Root class for AnalysisAssign application
     """
-    applicationName = AnalysisAssign
+    applicationName = ANALYSIS_ASSIGN
     applicationVersion = applicationVersion
 
     def _setupMenus(self):
