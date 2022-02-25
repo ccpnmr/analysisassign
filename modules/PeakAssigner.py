@@ -6,19 +6,19 @@ Responds to current.peaks
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2022"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
                  "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-02-01 13:17:38 +0000 (Tue, February 01, 2022) $"
-__version__ = "$Revision: 3.0.4 $"
+__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
+__dateModified__ = "$dateModified: 2022-02-25 16:33:36 +0000 (Fri, February 25, 2022) $"
+__version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,7 +33,7 @@ import numpy as np
 from functools import partial
 from collections import OrderedDict
 from PyQt5 import QtGui, QtWidgets, QtCore
-from ccpn.core.NmrAtom import NmrAtom
+from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
 from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue
 from ccpn.core.Peak import Peak
 from ccpn.core.lib import CcpnSorting
@@ -875,7 +875,7 @@ class AxisAssignmentObject(Frame):
             failedNmrAtoms = []
             isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
             for nmrAtom in nmrAtoms:
-                if isotopeCode == nmrAtom.isotopeCode or nmrAtom.isotopeCode is None:
+                if isotopeCode == nmrAtom.isotopeCode or nmrAtom.isotopeCode in [UnknownIsotopeCode, None]:
                     self._assignNmrAtom(self.dimIndex, nmrAtoms=[nmrAtom])
                 else:
                     failedNmrAtoms.append(nmrAtom)
