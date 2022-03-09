@@ -12,19 +12,19 @@ and to include "Restricted pick and assign" button.
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
                  "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2021-12-23 15:18:23 +0000 (Thu, December 23, 2021) $"
-__version__ = "$Revision: 3.0.4 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2022-03-09 11:00:02 +0000 (Wed, March 09, 2022) $"
+__version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -166,6 +166,7 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         with undoBlockWithoutSideBar():
             lastNmrResidue = self.application.current.nmrResidue
+            currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
             shiftDict = {}
             for atom in self.application.current.nmrResidue.nmrAtoms:
@@ -182,6 +183,11 @@ class PickAndAssignModule(NmrResidueTableModule):
                             shiftDict[nmrAtom.isotopeCode].append((nmrAtom, cShift.value))
 
                 for ii, isotopeCode in enumerate(spectrum.isotopeCodes):
+
+                    if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]:
+                        _restrictedIdx = self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)
+                        if (_restrictedIdx not in currentAxisCodeIndexes):
+                            continue
 
                     pValue = peak.position[ii]
                     if isotopeCode in shiftDict.keys():
