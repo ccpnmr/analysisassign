@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2022-02-25 16:33:36 +0000 (Fri, February 25, 2022) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2022-03-10 21:43:21 +0000 (Thu, March 10, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -30,6 +30,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 import typing
 import numpy as np
+from queue import Queue
 from functools import partial
 from collections import OrderedDict
 from PyQt5 import QtGui, QtWidgets, QtCore
@@ -161,6 +162,17 @@ class PeakAssigner(CcpnModule):
 
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
+        self._queuePending = Queue()
+        self._queueActive = Queue()
+        self._qTimer = _qTimer = QtCore.QTimer()
+        _qTimer.timeout.connect(self._queueProcess)
+        _qTimer.setSingleShot(True)
+        _qTimer._busy = False
+        _qTimer._restart = False
+        self._lock = QtCore.QMutex()
+
+        self._chemShifts = {}
+
     def eventFilter(self, target, event):
         """Event filter to handle a mainWidget resizing
         """
@@ -263,11 +275,11 @@ class PeakAssigner(CcpnModule):
         # to update the table
         self.setNotifier(self.current, [Notifier.CURRENT],
                          targetName=Peak._pluralLinkName,
-                         callback=self._updateInterface,
+                         callback=self._updateCurrent,  # self._updateInterface,
                          onceOnly=True)
         self.setNotifier(self.project, [Notifier.DELETE, Notifier.CREATE],
                          targetName=Peak.__name__,
-                         callback=self._updateInterface,
+                         callback=self._updatePeak,  # self._updateInterface,
                          onceOnly=True)
         self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.CREATE],
                          targetName=NmrAtom.__name__,
@@ -282,19 +294,83 @@ class PeakAssigner(CcpnModule):
                          callback=self._updateNmrResidue,
                          onceOnly=True)
 
+    def _queueProcess(self):
+        """Process current items in the queue
+        """
+        # set busy flag
+        self._qTimer._busy = True
+
+        try:
+            with QtCore.QMutexLocker(self._lock):
+                # protect the queue switching
+                self._queueActive = self._queuePending
+                self._queuePending = Queue()
+
+            # check length of queue?
+
+            _lastItm = None
+            while not self._queueActive.empty():
+                QtCore.QCoreApplication.instance().processEvents()
+
+                itm = self._queueActive.get()
+                # process item if different from previous
+                try:
+                    if _lastItm is None or itm[0] != _lastItm[0]:
+                        itm[0]()
+                except Exception as es:
+                    getLogger().debug('Error in PeakAssigner update')
+
+                finally:
+                    _lastItm = itm
+
+        finally:
+            # release busy and restart if required
+            self._qTimer._busy = False
+            if self._qTimer._restart:
+                self._qTimer._restart = False
+                self._qTimer.start(0)
+
+    def _queueAppend(self, itm):
+        """Append a new item to the queue
+        """
+        self._queuePending.put(itm)
+        if not self._qTimer.isActive() and not self._qTimer._busy:
+            self._qTimer._restart = False
+            self._qTimer.start(0)
+        else:
+            self._qTimer._restart = True
+
+    def _updateCurrent(self, data):
+        # not a very efficient way of doing this
+        # self._updateInterface(data, action=data[Notifier.TRIGGER])
+        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
+
+    def _updatePeak(self, data):
+        # not a very efficient way of doing this
+        # self._updateInterface(data, action=data[Notifier.TRIGGER])
+        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
+
     def _updateNmrAtom(self, data):
         # not a very efficient way of doing this
-        self._updateInterface(data, action=data[Notifier.TRIGGER])
+        # self._updateInterface(data, action=data[Notifier.TRIGGER])
+        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
 
     def _updateNmrResidue(self, data):
         # not a very efficient way of doing this
-        self._updateInterface(data, action=data[Notifier.TRIGGER])
+        # self._updateInterface(data, action=data[Notifier.TRIGGER])
+        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
 
+    from ccpn.util.decorators import profile
+
+    @profile()
     def _updateInterface(self, data=None, action=None):
         """Updates the whole module, including recalculation
            of which nmrAtoms fit to the peaks.
         """
         peaks = self.current.peaks
+        self._cachedShifts = {}
+        self._cachedTableShifts = {}
+        self._cachedTableDeltas = {}
 
         if not peaks or not self._peaksAreCompatible(peaks):
             self.axisFrameWidget.hide()
@@ -369,6 +445,17 @@ class PeakAssigner(CcpnModule):
 
         return _sizes
 
+    def _getCachedShift(self, shiftList, nmrAtom):
+        """Get the chemicalShift or the cached if exists
+        """
+        if (shiftList, nmrAtom) in self._cachedShifts:
+            return self._cachedShifts.get((shiftList, nmrAtom))
+
+        sh = shiftList.getChemicalShift(nmrAtom)
+        self._cachedShifts[(shiftList, nmrAtom)] = sh
+
+        return sh
+
     def _getDeltaShift(self, nmrAtom: NmrAtom, dim: int) -> typing.Union[float, str]:
         """
         Calculation of delta shift to add to the table.
@@ -376,11 +463,14 @@ class PeakAssigner(CcpnModule):
         if (not self.current.peaks) or nmrAtom is NOL:
             return ''
 
+        if nmrAtom in self._cachedTableDeltas:
+            return self._cachedTableDeltas[nmrAtom]
+
         deltas = []
         for peak in self.current.peaks:
             shiftList = peak.peakList.spectrum.chemicalShiftList
             if shiftList:
-                shift = shiftList.getChemicalShift(nmrAtom)
+                shift = self._getCachedShift(shiftList, nmrAtom)  # shiftList.getChemicalShift(nmrAtom)
                 if shift:
                     _value = shift.value
                     if _value is not None:
@@ -389,9 +479,12 @@ class PeakAssigner(CcpnModule):
         # average = sum(deltas)/len(deltas) #Bug: ZERO DIVISION!
 
         if len(deltas) > 0:
-            return float(np.mean(deltas))  #'%6.3f' % np.mean(deltas) - handled by table
+            _val = float(np.mean(deltas))  #'%6.3f' % np.mean(deltas) - handled by table
         else:
-            return ''
+            _val = ''
+
+        self._cachedTableDeltas[nmrAtom] = _val
+        return _val
 
     def _getShift(self, nmrAtom: NmrAtom) -> typing.Union[float, str]:
         """
@@ -400,12 +493,18 @@ class PeakAssigner(CcpnModule):
         if (not self.current.peaks) or nmrAtom is NOL:
             return ''
 
+        if nmrAtom in self._cachedTableShifts:
+            return self._cachedTableShifts[nmrAtom]
+
         for peak in self.current.peaks:
             shiftList = peak.peakList.spectrum.chemicalShiftList
             if shiftList:
-                shift = shiftList.getChemicalShift(nmrAtom)
+                shift = self._getCachedShift(shiftList, nmrAtom)  # shiftList.getChemicalShift(nmrAtom)
                 if shift:
-                    return shift.value  # '%8.3f' % shift.value
+                    _val = shift.value  # '%8.3f' % shift.value
+                    self._cachedTableShifts[nmrAtom] = _val
+                    return _val
+                    # return shift.value  # '%8.3f' % shift.value
 
     def _peaksAreCompatible(self, peaks) -> bool:
         """
@@ -1012,7 +1111,7 @@ class AxisAssignmentObject(Frame):
         if mode == 0:
             # if called from the button then set the pointer size - otherwise hide it
             global_rect = QtCore.QRect(self.newNmrAtomButton.mapToGlobal(QtCore.QPoint(0, 0)),
-                                   self.newNmrAtomButton.geometry().size())
+                                       self.newNmrAtomButton.geometry().size())
             self.editPopup.pointerHeight = 10
         else:
             global_rect = pos
@@ -1686,3 +1785,131 @@ class AxisAssignmentObject(Frame):
             return [True if a == b else False for a, b in zip(atom1, atom2)]
         else:
             return [False]
+
+
+def mainTest():
+    """Testing
+    """
+
+    import random
+    import time
+    import datetime
+    from queue import Queue
+
+    class Application(QtWidgets.QApplication):
+        """Simple application class with timer to process a queue when not busy
+        """
+
+        def __init__(self, applicationName='Testing', applicationVersion='0.0.1', organizationName='CCPN', organizationDomain='ccpn.ac.uk'):
+            super().__init__([applicationName, ])
+
+            self.setApplicationVersion(applicationVersion)
+            self.setOrganizationName(organizationName)
+            self.setOrganizationDomain(organizationDomain)
+
+            self._queuePending = Queue()
+            self._queueActive = Queue()
+            self._qTimer = _qTimer = QtCore.QTimer()
+            _qTimer.timeout.connect(self._queueProcess)
+            _qTimer.setSingleShot(True)
+            _qTimer._busy = False
+            _qTimer._restart = False
+
+            self._lock = QtCore.QMutex()
+            self._counter = 0
+            self._worldEvents = []
+
+        def start(self):
+            # start loading stuff on the queue
+            QtCore.QTimer.singleShot(0, self._startStuff)
+            QtCore.QTimer.singleShot(0, self._startStuff2)
+            self.exec_()
+
+        def _queueProcess(self):
+            """Process current items in the queue
+            """
+            # set busy flag
+            self._qTimer._busy = True
+
+            try:
+                print(f'   processing                 {datetime.datetime.now()}')
+                with QtCore.QMutexLocker(self._lock):
+
+                    # protect the queue switching
+                    self._queueActive = self._queuePending
+                    self._queuePending = Queue()
+
+                print(f'   len {self._queueActive.qsize()}')
+                vals = []
+                while not self._queueActive.empty():
+                    _val = self._queueActive.get()
+                    vals.append(_val)
+                print(f'       {vals}')
+
+                # pause for 2 seconds whilst processing events (may happen in qui)
+                for ii in range(100):
+                    self.processEvents()
+                    time.sleep(2 / 100)
+                self._worldEvents.extend(vals)
+
+                print(f'       {vals} - end sleep')
+
+            finally:
+                # release busy and restart if required
+                self._qTimer._busy = False
+                if self._qTimer._restart:
+                    self._qTimer._restart = False
+                    self._qTimer.start(0)
+
+        def _queueAppend(self, itm):
+            """Append a new item to the queue
+            """
+            self._queuePending.put(itm)
+            if not self._qTimer.isActive() and not self._qTimer._busy:
+                print(f'   append                     {datetime.datetime.now()}      {itm}')
+                self._qTimer.start(0)
+            else:
+                print(f'   append busy                {datetime.datetime.now()}      {itm}')
+                self._qTimer._restart = True
+
+        def _startStuff(self, val=0):
+            """Randomly add items to the queue
+            """
+            self._queueAppend(f'number - {val}')
+            if val < 15:
+                QtCore.QTimer.singleShot(int(random.random() * 1000), partial(self._startStuff, val + 1))
+
+        def _startStuff2(self, val=0):
+            """Randomly add items to the queue
+            """
+            self._queueAppend(f'again - {val}')
+            if val < 18:
+                QtCore.QTimer.singleShot(int(random.random() * 1000), partial(self._startStuff2, val + 1))
+
+        def _buttonClicked(self, *args):
+            """Handle user clicking button
+            """
+            if self._counter < 30:
+                self._queueAppend(self._counter)
+                self._counter += 1
+
+
+    app = Application()
+
+    window = QtWidgets.QMainWindow()
+    fr1 = QtWidgets.QFrame()
+    _layout = QtWidgets.QGridLayout()
+    fr1.setLayout(_layout)
+    window.setCentralWidget(fr1)
+    _button = QtWidgets.QPushButton('HELP')
+    _layout.addWidget(_button, 0, 0)
+    _button.clicked.connect(app._buttonClicked)
+
+    window.show()
+    app.start()
+
+    print('\n'.join([str(val) for val in app._worldEvents]))
+
+
+if __name__ == '__main__':
+    mainTest()
