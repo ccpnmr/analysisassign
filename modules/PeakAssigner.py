@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-10 21:43:21 +0000 (Thu, March 10, 2022) $"
+__dateModified__ = "$dateModified: 2022-03-11 12:15:49 +0000 (Fri, March 11, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -360,9 +360,6 @@ class PeakAssigner(CcpnModule):
         # self._updateInterface(data, action=data[Notifier.TRIGGER])
         self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
 
-    from ccpn.util.decorators import profile
-
-    @profile()
     def _updateInterface(self, data=None, action=None):
         """Updates the whole module, including recalculation
            of which nmrAtoms fit to the peaks.
