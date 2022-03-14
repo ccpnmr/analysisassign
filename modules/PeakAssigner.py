@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-11 12:15:49 +0000 (Fri, March 11, 2022) $"
+__dateModified__ = "$dateModified: 2022-03-14 13:49:55 +0000 (Mon, March 14, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -1827,6 +1827,11 @@ def mainTest():
             """
             # set busy flag
             self._qTimer._busy = True
+
+            # # NOTE:ED - check busy [state of ap at top-level
+            # #   defer processing again until not busy
+            # if app_busy:
+            #     self._qTimer.start(0)
 
             try:
                 print(f'   processing                 {datetime.datetime.now()}')
