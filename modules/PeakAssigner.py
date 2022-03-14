@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-14 14:14:37 +0000 (Mon, March 14, 2022) $"
+__dateModified__ = "$dateModified: 2022-03-14 14:15:58 +0000 (Mon, March 14, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -1825,7 +1825,7 @@ def mainTest():
         def _queueProcess(self):
             """Process current items in the queue
             """
-            # # NOTE:ED - check busy [state of ap at top-level
+            # # NOTE:ED - check busy-state of app at top-level
             # #   defer processing again until not busy
             # if app_busy:
             #     self._qTimer.start(0)
