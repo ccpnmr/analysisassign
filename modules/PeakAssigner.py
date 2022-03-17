@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-14 14:15:58 +0000 (Mon, March 14, 2022) $"
+__dateModified__ = "$dateModified: 2022-03-17 15:25:24 +0000 (Thu, March 17, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -310,15 +310,14 @@ class PeakAssigner(CcpnModule):
 
             _lastItm = None
             while not self._queueActive.empty():
-                QtCore.QCoreApplication.instance().processEvents()
-
                 itm = self._queueActive.get()
                 # process item if different from previous
                 try:
-                    if _lastItm is None or itm[0] != _lastItm[0]:
-                        itm[0]()
+                    func, data, trigger = itm
+                    if _lastItm is None or func != _lastItm[0]:
+                        func(data)
                 except Exception as es:
-                    getLogger().debug('Error in PeakAssigner update')
+                    getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
 
                 finally:
                     _lastItm = itm
@@ -337,7 +336,9 @@ class PeakAssigner(CcpnModule):
         if not self._qTimer.isActive() and not self._qTimer._busy:
             self._qTimer._restart = False
             self._qTimer.start(0)
-        else:
+
+        elif self._qTimer._busy:
+            # caught during the queue processing, need to restart
             self._qTimer._restart = True
 
     def _updateCurrent(self, data):
@@ -1870,7 +1871,8 @@ def mainTest():
             if not self._qTimer.isActive() and not self._qTimer._busy:
                 print(f'   append                     {datetime.datetime.now()}      {itm}')
                 self._qTimer.start(0)
-            else:
+
+            elif self._qTimer._busy:
                 print(f'   append busy                {datetime.datetime.now()}      {itm}')
                 self._qTimer._restart = True
 
