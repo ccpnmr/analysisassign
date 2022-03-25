@@ -316,7 +316,7 @@ class PeakAssigner(CcpnModule):
             self._queuePending = UpdateQueue()
 
         # check length of queue?
-        _lastItm = None
+        lastItm = None
         for itm in self._queueActive.items():
             # process item if different from previous
             if self.application and self.application._disableQueueException:
