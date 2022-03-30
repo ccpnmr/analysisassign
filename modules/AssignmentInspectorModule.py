@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-01 11:42:30 +0000 (Tue, March 01, 2022) $"
+__dateModified__ = "$dateModified: 2022-03-30 10:08:35 +0100 (Wed, March 30, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -30,32 +30,34 @@ __date__ = "$Date: 2016-07-09 14:17:30 +0100 (Sat, 09 Jul 2016) $"
 #=========================================================================================
 
 from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtWidgets import QAbstractScrollArea
 from contextlib import contextmanager
 from typing import Optional
-from ccpn.util.OrderedSet import OrderedSet
-from ccpn.ui.gui.modules.CcpnModule import CcpnModule
+
+from ccpn.core.NmrAtom import NmrAtom, NmrResidue
+from ccpn.core.Peak import Peak
+from ccpn.core.PeakList import PeakList
+from ccpn.core.ChemicalShiftList import ChemicalShiftList
+from ccpn.core.lib.peakUtils import getPeakPosition, getPeakAnnotation
+from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.widgets.GuiTable import GuiTable
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
-from ccpn.util.Logging import getLogger
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
-from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget
-from ccpn.core.lib.peakUtils import getPeakPosition, getPeakAnnotation
-from ccpn.core.lib.Notifiers import Notifier
-from ccpn.core.NmrAtom import NmrAtom, NmrResidue
-from ccpn.core.Peak import Peak
-from ccpn.ui.gui.modules.ChemicalShiftTable import ChemicalShiftTable
+from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget
+from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
-from ccpn.core.lib.CallBack import CallBack
-from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip, \
-    _getCurrentZoomRatio, navigateToNmrResidueInDisplay
-from ccpn.core.PeakList import PeakList
+from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
+from ccpn.ui.gui.modules.CcpnModule import CcpnModule
+from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
+from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip, _getCurrentZoomRatio, navigateToNmrResidueInDisplay
+from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Common import makeIterableList
-from PyQt5.QtWidgets import QAbstractScrollArea
-from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget
+from ccpn.util.Logging import getLogger
 
 
 logger = getLogger()
@@ -189,34 +191,42 @@ class AssignmentInspectorModule(CcpnModule):
                                                            actionCallback=self._navigateToPeak,
                                                            grid=(0, 0),
                                                            hiddenColumns=['Pid'])
-        self.chemicalShiftTable = ChemicalShiftTable(parent=self._chemicalShiftFrame,
-                                                     mainWindow=self.mainWindow,
-                                                     moduleParent=self,  # why uniqueId?  _moduleId not used?
-                                                     setLayout=True,
-                                                     actionCallback=self.navigateToNmrResidueCallBack,
-                                                     selectionCallback=self._selectionCallback,
-                                                     grid=(0, 0),
-                                                     # hiddenColumns=['Pid', 'Shift list peaks', 'All peaks']
-                                                     )
+
+        self._setWidgets()
+
+        # self.chemicalShiftTable = _NewChemicalShiftTable(parent=self._chemicalShiftFrame,
+        #                                              mainWindow=self.mainWindow,
+        #                                              moduleParent=self,  # why uniqueId?  _moduleId not used?
+        #                                              # setLayout=True,
+        #                                              # actionCallback=self.navigateToNmrResidueCallBack,
+        #                                              # selectionCallback=self._selectionCallback,
+        #                                              grid=(1, 0),
+        #                                              # hiddenColumns=['Pid', 'Shift list peaks', 'All peaks']
+        #                                              )
 
         # disable current callback - not required for assignmentInspector
         self.chemicalShiftTable.clearCurrentCallback()
         # notifier to handle deleting items
-        self.chemicalShiftTable._tableSelectionChanged.connect(self._tableSelectionCallback)
+        # self.chemicalShiftTable._tableSelectionChanged.connect(self._tableSelectionCallback)
 
-        # settingsWidget
+        # # settingsWidget
+        # if chemicalShiftList is not None:
+        #     self.chemicalShiftTable.selectChemicalShiftList(chemicalShiftList)
+        # elif selectFirstItem:
+        #     firstItemText = self.chemicalShiftTable._chemicalShiftListPulldown.getFirstItemText()
+        #     if firstItemText:
+        #         self.chemicalShiftTable._chemicalShiftListPulldown.selectFirstItem()
+        #         chemicalShiftList = self.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
+        #         if chemicalShiftList:
+        #
+        #             self.chemicalShiftTable._update(chemicalShiftList)
+        #             if chemicalShiftList.chemicalShifts:
+        #                 self._selectByChemicalShifts([chemicalShiftList.chemicalShifts[0]])
+
         if chemicalShiftList is not None:
-            self.chemicalShiftTable.selectChemicalShiftList(chemicalShiftList)
+            self._selectTable(chemicalShiftList)
         elif selectFirstItem:
-            firstItemText = self.chemicalShiftTable._chemicalShiftListPulldown.getFirstItemText()
-            if firstItemText:
-                self.chemicalShiftTable._chemicalShiftListPulldown.selectFirstItem()
-                chemicalShiftList = self.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
-                if chemicalShiftList:
-
-                    self.chemicalShiftTable._update(chemicalShiftList)
-                    if chemicalShiftList.chemicalShifts:
-                        self._selectByChemicalShifts([chemicalShiftList.chemicalShifts[0]])
+            self._modulePulldown.selectFirstItem()
 
         # install the event filter to handle maximising from floated dock
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
@@ -233,6 +243,58 @@ class AssignmentInspectorModule(CcpnModule):
         _temp.nmrResidues = nmrResidues
 
         self._highlightNmrResidues({CallBack.OBJECT: _temp})
+
+    def _setWidgets(self):
+        """Set up the widgets for the new chemicalShiftTable
+        """
+        _topWidget = self._chemicalShiftFrame
+
+        # main widgets at the top
+        row = 0
+        Spacer(_topWidget, 5, 5,
+               QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
+               grid=(0, 0), gridSpan=(1, 1))
+        row += 1
+
+        self._modulePulldown = ChemicalShiftListPulldown(parent=_topWidget,
+                                                         mainWindow=self.mainWindow, default=None,
+                                                         grid=(row, 0), gridSpan=(1, 1), minimumWidths=(0, 100),
+                                                         showSelectName=True,
+                                                         sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
+                                                         callback=self._selectionPulldownCallback,
+                                                         )
+        # fixed height
+        self._modulePulldown.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
+
+        row += 1
+        self.spacer = Spacer(_topWidget, 5, 5,
+                             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed,
+                             grid=(2, 1), gridSpan=(1, 1))
+        _topWidget.getLayout().setColumnStretch(1, 2)
+
+        # # main window
+        # _hidden = [CS_UNIQUEID, CS_ISDELETED, CS_FIGUREOFMERIT, CS_ALLPEAKS, CS_CHAINCODE,
+        #            CS_SEQUENCECODE, CS_STATE, CS_ORPHAN]
+
+        row += 1
+        self.chemicalShiftTable = _NewChemicalShiftTable(parent=_topWidget,
+                                                   mainWindow=self.mainWindow,
+                                                   moduleParent=self,
+                                                   grid=(row, 0), gridSpan=(1, 6),
+                                                   # hiddenColumns=_hidden
+                                                   )
+
+    def _selectTable(self, chemicalShiftList=None):
+        """Manually select a ChemicalShiftList from the pullDown
+        """
+        if chemicalShiftList is None:
+            self._modulePulldown.selectFirstItem()
+        else:
+            if not isinstance(chemicalShiftList, ChemicalShiftList):
+                getLogger().warning('select: Object is not of type ChemicalShiftList')
+                raise TypeError('select: Object is not of type ChemicalShiftList')
+            else:
+                self._modulePulldown.select(chemicalShiftList.pid)
 
     def _calculateMinHeight(self):
         contentsMargins = self._settingsScrollArea.contentsMargins()
@@ -266,6 +328,18 @@ class AssignmentInspectorModule(CcpnModule):
         self.assignedPeaksTable._close()
         self.chemicalShiftTable._close()
         super()._closeModule()
+
+    def _selectionPulldownCallback(self, item):
+        """Notifier Callback for selecting ChemicalShiftList from the pull down menu
+        """
+        self._table = self._modulePulldown.getSelectedObject()
+        self.chemicalShiftTable._table = self._table
+
+        if self._table is not None:
+            self.chemicalShiftTable.populateTable(rowObjects=self._table.chemicalShifts,
+                                            selectedObjects=self.current.chemicalShifts)
+        else:
+            self.chemicalShiftTable.populateEmptyTable()
 
     def _setNmrAtomListVisible(self, visible=None):
         """change the visibility of the nmrAtom list in the peak tables widget
@@ -402,10 +476,10 @@ class AssignmentInspectorModule(CcpnModule):
         """
         Highlight chemical shifts in the table
         """
-        if self.chemicalShiftTable.chemicalShiftList:
+        if self.chemicalShiftTable._table:
             getLogger().debug('_highlightChemicalShifts ', nmrResidues)
 
-            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemicalShifts
+            chemicalShifts = self.chemicalShiftTable._table.chemicalShifts
             residues = set(nmrResidues)
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in residues]
 
@@ -466,10 +540,10 @@ class AssignmentInspectorModule(CcpnModule):
 
         objList = data[CallBack.OBJECT]
 
-        if self.chemicalShiftTable.chemicalShiftList:
+        if self.chemicalShiftTable._table:
             getLogger().debug('_highlightNmrResidues ', objList)
 
-            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemicalShifts
+            chemicalShifts = self.chemicalShiftTable._table.chemicalShifts
             nmrResidues = set(objList.nmrResidues)  #        set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
@@ -488,10 +562,10 @@ class AssignmentInspectorModule(CcpnModule):
 
         objList = data[CallBack.OBJECT]
 
-        if self.chemicalShiftTable.chemicalShiftList:
+        if self.chemicalShiftTable._table:
             getLogger().debug('_highlightNmrAtoms ', objList)
 
-            chemicalShifts = self.chemicalShiftTable.chemicalShiftList.chemicalShifts
+            chemicalShifts = self.chemicalShiftTable._table.chemicalShifts
             nmrResidues = set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
             highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
@@ -508,7 +582,7 @@ class AssignmentInspectorModule(CcpnModule):
         """
         objList = data[CallBack.OBJECT]
 
-        if self.chemicalShiftTable.chemicalShiftList:
+        if self.chemicalShiftTable._table:
             getLogger().debug('_refreshNmrAtoms ', objList)
 
             self.assignedPeaksTable._updateModuleCallback(None, updateFromNmrResidues=False)
@@ -710,7 +784,7 @@ class AssignmentInspectorTable(GuiTable):
 
         self._peakList = _emptyObject()
         allPeaks = list(set([pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks]))
-        chemicalShiftList = self.moduleParent.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
+        chemicalShiftList = self.moduleParent._modulePulldown.getSelectedObject()
         if chemicalShiftList:
             spectra = chemicalShiftList.spectra  #show peaks only for spectra currently available for the selected CSL
             peaks = [peak for peak in allPeaks if peak.peakList.spectrum in spectra]
