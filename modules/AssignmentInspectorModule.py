@@ -1,7 +1,7 @@
 """This file contains AssignmentInspectorModule class
 
 modified by Geerten 1-9/12/2016:
-- intialisation with 'empty' settings possible,
+- initialisation with 'empty' settings possible,
 - now responsive to current.nmrResidues
 """
 #=========================================================================================
@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-30 10:08:35 +0100 (Wed, March 30, 2022) $"
+__dateModified__ = "$dateModified: 2022-04-05 12:05:13 +0100 (Tue, April 05, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -80,7 +80,7 @@ class AssignmentInspectorModule(CcpnModule):
     are displayed.
     """
 
-    # overide in specific module implementations
+    # override in specific module implementations
     className = 'AssignmentInspectorModule'
     attributeName = 'peaks'
 
@@ -194,34 +194,12 @@ class AssignmentInspectorModule(CcpnModule):
 
         self._setWidgets()
 
-        # self.chemicalShiftTable = _NewChemicalShiftTable(parent=self._chemicalShiftFrame,
-        #                                              mainWindow=self.mainWindow,
-        #                                              moduleParent=self,  # why uniqueId?  _moduleId not used?
-        #                                              # setLayout=True,
-        #                                              # actionCallback=self.navigateToNmrResidueCallBack,
-        #                                              # selectionCallback=self._selectionCallback,
-        #                                              grid=(1, 0),
-        #                                              # hiddenColumns=['Pid', 'Shift list peaks', 'All peaks']
-        #                                              )
-
         # disable current callback - not required for assignmentInspector
+        # responds to changes in current nmrAtoms and nmrResidues?
         self.chemicalShiftTable.clearCurrentCallback()
+
         # notifier to handle deleting items
         # self.chemicalShiftTable._tableSelectionChanged.connect(self._tableSelectionCallback)
-
-        # # settingsWidget
-        # if chemicalShiftList is not None:
-        #     self.chemicalShiftTable.selectChemicalShiftList(chemicalShiftList)
-        # elif selectFirstItem:
-        #     firstItemText = self.chemicalShiftTable._chemicalShiftListPulldown.getFirstItemText()
-        #     if firstItemText:
-        #         self.chemicalShiftTable._chemicalShiftListPulldown.selectFirstItem()
-        #         chemicalShiftList = self.chemicalShiftTable._chemicalShiftListPulldown.getSelectedObject()
-        #         if chemicalShiftList:
-        #
-        #             self.chemicalShiftTable._update(chemicalShiftList)
-        #             if chemicalShiftList.chemicalShifts:
-        #                 self._selectByChemicalShifts([chemicalShiftList.chemicalShifts[0]])
 
         if chemicalShiftList is not None:
             self._selectTable(chemicalShiftList)
@@ -272,17 +250,12 @@ class AssignmentInspectorModule(CcpnModule):
                              grid=(2, 1), gridSpan=(1, 1))
         _topWidget.getLayout().setColumnStretch(1, 2)
 
-        # # main window
-        # _hidden = [CS_UNIQUEID, CS_ISDELETED, CS_FIGUREOFMERIT, CS_ALLPEAKS, CS_CHAINCODE,
-        #            CS_SEQUENCECODE, CS_STATE, CS_ORPHAN]
-
         row += 1
-        self.chemicalShiftTable = _NewChemicalShiftTable(parent=_topWidget,
-                                                   mainWindow=self.mainWindow,
-                                                   moduleParent=self,
-                                                   grid=(row, 0), gridSpan=(1, 6),
-                                                   # hiddenColumns=_hidden
-                                                   )
+        self.chemicalShiftTable = _AssignmentInspectorTable(parent=_topWidget,
+                                                            mainWindow=self.mainWindow,
+                                                            moduleParent=self,
+                                                            grid=(row, 0), gridSpan=(1, 6),
+                                                            )
 
     def _selectTable(self, chemicalShiftList=None):
         """Manually select a ChemicalShiftList from the pullDown
@@ -314,8 +287,6 @@ class AssignmentInspectorModule(CcpnModule):
         """
         self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrResidue._pluralLinkName,
                          callback=self._highlightNmrResidues)
-        self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrAtom._pluralLinkName,
-                         callback=self._highlightNmrAtoms)
         self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
                          NmrAtom.__name__, self._updateNmrAtoms, onceOnly=True)
 
@@ -337,7 +308,7 @@ class AssignmentInspectorModule(CcpnModule):
 
         if self._table is not None:
             self.chemicalShiftTable.populateTable(rowObjects=self._table.chemicalShifts,
-                                            selectedObjects=self.current.chemicalShifts)
+                                                  selectedObjects=self.current.chemicalShifts)
         else:
             self.chemicalShiftTable.populateEmptyTable()
 
@@ -586,6 +557,62 @@ class AssignmentInspectorModule(CcpnModule):
             getLogger().debug('_refreshNmrAtoms ', objList)
 
             self.assignedPeaksTable._updateModuleCallback(None, updateFromNmrResidues=False)
+
+
+class _AssignmentInspectorTable(_NewChemicalShiftTable):
+    """ChemicalShift table in AssignmentInspector module with modified behaviour
+    """
+
+    def actionCallback(self, data):
+        """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
+        """
+        from ccpn.AnalysisAssign.modules.BackboneAssignmentModule import markNmrAtoms
+
+        cShifts = self.getSelectedObjects()
+        if len(self.mainWindow.marks):
+            if self.moduleParent.autoClearMarksWidget.checkBox.isChecked():
+                self.mainWindow.clearMarks()
+        if cShifts:
+            nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
+            markNmrAtoms(self.mainWindow, nmrAtoms)
+
+    def selectionCallback(self, data):
+        """Notifier Callback for selecting rows in the table
+        """
+        objs = data[CallBack.OBJECT]
+        self.current.chemicalShifts = objs or []
+
+        if objs:
+            nmrResidues = tuple(set(cs.nmrAtom.nmrResidue for cs in objs if cs.nmrAtom))
+        else:
+            nmrResidues = []
+
+        if nmrResidues:
+            # set the associated nmrResidue and nmrAtoms
+            nmrAtoms = tuple(set(nmrAtom for nmrRes in nmrResidues for nmrAtom in nmrRes.nmrAtoms))
+            self.current.nmrAtoms = nmrAtoms
+            self.current.nmrResidues = nmrResidues
+
+        else:
+            self.current.nmrAtoms = []
+            self.current.nmrResidues = []
+
+    def _selectionChangedCallback(self, selected, deselected):
+        """Handle item selection as changed in table - call user callback
+        Includes checking for clicking below last row
+        """
+        cShifts = self.getSelectedObjects()
+        if cShifts:
+            nmrResidues = list(set(cs.nmrAtom.nmrResidue for cs in cShifts if cs.nmrAtom))
+            nmrAtoms = [nmrAt for nmrRes in nmrResidues for nmrAt in nmrRes.nmrAtoms]
+
+            # get all the chemicalShifts linked by nmrResidue
+            allShifts = list(filter(None, set(cs for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
+
+            # highlight all the chemicalShifts linked to the nmrResidues
+            self._highLightObjs(allShifts, scrollToSelection=False)
+
+        super()._selectionChangedCallback(selected, deselected)
 
 
 class AssignmentInspectorTable(GuiTable):
