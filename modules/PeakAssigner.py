@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-17 15:25:24 +0000 (Thu, March 17, 2022) $"
+__dateModified__ = "$dateModified: 2022-04-08 11:25:42 +0100 (Fri, April 08, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -59,6 +59,8 @@ from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER, LABEL_WARNINGFOREGROUND
 from ccpn.util.Logging import getLogger
 from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
+from ccpn.util.UpdateScheduler import UpdateScheduler
+from ccpn.util.UpdateQueue import UpdateQueue
 from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
 
 
@@ -162,13 +164,20 @@ class PeakAssigner(CcpnModule):
 
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
-        self._queuePending = Queue()
-        self._queueActive = Queue()
-        self._qTimer = _qTimer = QtCore.QTimer()
-        _qTimer.timeout.connect(self._queueProcess)
-        _qTimer.setSingleShot(True)
-        _qTimer._busy = False
-        _qTimer._restart = False
+        # self._queuePending = Queue()
+        # self._queueActive = Queue()
+        # self._qTimer = _qTimer = QtCore.QTimer()
+        # _qTimer.timeout.connect(self._queueProcess)
+        # _qTimer.setSingleShot(True)
+        # _qTimer._busy = False
+        # _qTimer._restart = False
+        # self._lock = QtCore.QMutex()
+
+        # notifier queue handling
+        self._scheduler = UpdateScheduler(self._queueProcess, name='PandasTableNotifierHandler',
+                                          startOnAdd=False, log=False, completeCallback=self.update)
+        self._queuePending = UpdateQueue()
+        self._queueActive = None
         self._lock = QtCore.QMutex()
 
         self._chemShifts = {}
@@ -294,52 +303,46 @@ class PeakAssigner(CcpnModule):
                          callback=self._updateNmrResidue,
                          onceOnly=True)
 
+    #=========================================================================================
+    # Notifier queue handling
+    #=========================================================================================
+
     def _queueProcess(self):
         """Process current items in the queue
         """
-        # set busy flag
-        self._qTimer._busy = True
+        with QtCore.QMutexLocker(self._lock):
+            # protect the queue switching
+            self._queueActive = self._queuePending
+            self._queuePending = UpdateQueue()
 
-        try:
-            with QtCore.QMutexLocker(self._lock):
-                # protect the queue switching
-                self._queueActive = self._queuePending
-                self._queuePending = Queue()
+        # check length of queue?
+        _lastItm = None
+        for itm in self._queueActive.items():
+            # process item if different from previous
+            try:
+                func, data, trigger = itm
+                if _lastItm is None or func != _lastItm[0]:
+                    func(data)
+            except Exception as es:
+                getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
 
-            # check length of queue?
-
-            _lastItm = None
-            while not self._queueActive.empty():
-                itm = self._queueActive.get()
-                # process item if different from previous
-                try:
-                    func, data, trigger = itm
-                    if _lastItm is None or func != _lastItm[0]:
-                        func(data)
-                except Exception as es:
-                    getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
-
-                finally:
-                    _lastItm = itm
-
-        finally:
-            # release busy and restart if required
-            self._qTimer._busy = False
-            if self._qTimer._restart:
-                self._qTimer._restart = False
-                self._qTimer.start(0)
+            finally:
+                _lastItm = itm
 
     def _queueAppend(self, itm):
         """Append a new item to the queue
         """
         self._queuePending.put(itm)
-        if not self._qTimer.isActive() and not self._qTimer._busy:
-            self._qTimer._restart = False
-            self._qTimer.start(0)
+        if not self._scheduler.isActive and not self._scheduler.isBusy:
+            self._scheduler.start()
 
-        elif self._qTimer._busy:
-            # caught during the queue processing, need to restart
-            self._qTimer._restart = True
+        elif self._scheduler.isBusy:
+            # caught during the queue processing event, need to restart
+            self._scheduler.restart = True
+
+    #=========================================================================================
+    # Notifier queue handling
+    #=========================================================================================
 
     def _updateCurrent(self, data):
         # not a very efficient way of doing this
@@ -1783,137 +1786,3 @@ class AxisAssignmentObject(Frame):
             return [True if a == b else False for a, b in zip(atom1, atom2)]
         else:
             return [False]
-
-
-def mainTest():
-    """Testing
-    """
-
-    import random
-    import time
-    import datetime
-    from queue import Queue
-
-    class Application(QtWidgets.QApplication):
-        """Simple application class with timer to process a queue when not busy
-        """
-
-        def __init__(self, applicationName='Testing', applicationVersion='0.0.1', organizationName='CCPN', organizationDomain='ccpn.ac.uk'):
-            super().__init__([applicationName, ])
-
-            self.setApplicationVersion(applicationVersion)
-            self.setOrganizationName(organizationName)
-            self.setOrganizationDomain(organizationDomain)
-
-            self._queuePending = Queue()
-            self._queueActive = Queue()
-            self._qTimer = _qTimer = QtCore.QTimer()
-            _qTimer.timeout.connect(self._queueProcess)
-            _qTimer.setSingleShot(True)
-            _qTimer._busy = False
-            _qTimer._restart = False
-
-            self._lock = QtCore.QMutex()
-            self._counter = 0
-            self._worldEvents = []
-
-        def start(self):
-            # start loading stuff on the queue
-            QtCore.QTimer.singleShot(0, self._startStuff)
-            QtCore.QTimer.singleShot(0, self._startStuff2)
-            self.exec_()
-
-        def _queueProcess(self):
-            """Process current items in the queue
-            """
-            # # NOTE:ED - check busy-state of app at top-level
-            # #   defer processing again until not busy
-            # if app_busy:
-            #     self._qTimer.start(0)
-
-            # set busy flag
-            self._qTimer._busy = True
-
-            try:
-                print(f'   processing                 {datetime.datetime.now()}')
-                with QtCore.QMutexLocker(self._lock):
-
-                    # protect the queue switching
-                    self._queueActive = self._queuePending
-                    self._queuePending = Queue()
-
-                print(f'   len {self._queueActive.qsize()}')
-                vals = []
-                while not self._queueActive.empty():
-                    _val = self._queueActive.get()
-                    vals.append(_val)
-                print(f'       {vals}')
-
-                # pause for 2 seconds whilst processing events (may happen in qui)
-                for ii in range(100):
-                    self.processEvents()
-                    time.sleep(2 / 100)
-                self._worldEvents.extend(vals)
-
-                print(f'       {vals} - end sleep')
-
-            finally:
-                # release busy and restart if required
-                self._qTimer._busy = False
-                if self._qTimer._restart:
-                    self._qTimer._restart = False
-                    self._qTimer.start(0)
-
-        def _queueAppend(self, itm):
-            """Append a new item to the queue
-            """
-            self._queuePending.put(itm)
-            if not self._qTimer.isActive() and not self._qTimer._busy:
-                print(f'   append                     {datetime.datetime.now()}      {itm}')
-                self._qTimer.start(0)
-
-            elif self._qTimer._busy:
-                print(f'   append busy                {datetime.datetime.now()}      {itm}')
-                self._qTimer._restart = True
-
-        def _startStuff(self, val=0):
-            """Randomly add items to the queue
-            """
-            self._queueAppend(f'number - {val}')
-            if val < 15:
-                QtCore.QTimer.singleShot(int(random.random() * 1000), partial(self._startStuff, val + 1))
-
-        def _startStuff2(self, val=0):
-            """Randomly add items to the queue
-            """
-            self._queueAppend(f'again - {val}')
-            if val < 18:
-                QtCore.QTimer.singleShot(int(random.random() * 1000), partial(self._startStuff2, val + 1))
-
-        def _buttonClicked(self, *args):
-            """Handle user clicking button
-            """
-            if self._counter < 30:
-                self._queueAppend(self._counter)
-                self._counter += 1
-
-
-    app = Application()
-
-    window = QtWidgets.QMainWindow()
-    fr1 = QtWidgets.QFrame()
-    _layout = QtWidgets.QGridLayout()
-    fr1.setLayout(_layout)
-    window.setCentralWidget(fr1)
-    _button = QtWidgets.QPushButton('HELP')
-    _layout.addWidget(_button, 0, 0)
-    _button.clicked.connect(app._buttonClicked)
-
-    window.show()
-    app.start()
-
-    print('\n'.join([str(val) for val in app._worldEvents]))
-
-
-if __name__ == '__main__':
-    mainTest()
