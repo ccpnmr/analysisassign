@@ -41,7 +41,7 @@ from ccpn.core.lib import CcpnSorting
 from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, PROTEIN_NEF_ATOM_NAMES, NEF_ATOM_NAMES
 from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
 from ccpn.core.lib.Pid import Pid
-from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.Notifiers import Notifier, _removeDuplicatedNotifiers
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.ButtonList import ButtonList, Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
@@ -164,17 +164,8 @@ class PeakAssigner(CcpnModule):
 
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
-        # self._queuePending = Queue()
-        # self._queueActive = Queue()
-        # self._qTimer = _qTimer = QtCore.QTimer()
-        # _qTimer.timeout.connect(self._queueProcess)
-        # _qTimer.setSingleShot(True)
-        # _qTimer._busy = False
-        # _qTimer._restart = False
-        # self._lock = QtCore.QMutex()
-
         # notifier queue handling
-        self._scheduler = UpdateScheduler(self._queueProcess, name='PandasTableNotifierHandler',
+        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PandasTableNotifierHandler',
                                           startOnAdd=False, log=False, completeCallback=self.update)
         self._queuePending = UpdateQueue()
         self._queueActive = None
@@ -315,9 +306,8 @@ class PeakAssigner(CcpnModule):
             self._queueActive = self._queuePending
             self._queuePending = UpdateQueue()
 
-        # check length of queue?
-        lastItm = None
-        for itm in self._queueActive.items():
+        executeQueue = _removeDuplicatedNotifiers(self._queueActive)
+        for itm in executeQueue:
             # process item if different from previous
             if self.application and self.application._disableQueueException:
                 func, data, trigger = itm
@@ -345,7 +335,7 @@ class PeakAssigner(CcpnModule):
 
         elif self._scheduler.isBusy:
             # caught during the queue processing event, need to restart
-            self._scheduler.restart = True
+            self._scheduler.signalRestart()
 
     #=========================================================================================
     # Notifier queue handling
@@ -354,22 +344,22 @@ class PeakAssigner(CcpnModule):
     def _updateCurrent(self, data):
         # not a very efficient way of doing this
         # self._updateInterface(data, action=data[Notifier.TRIGGER])
-        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
+        self._queueAppend([self._updateInterface, data])
 
     def _updatePeak(self, data):
         # not a very efficient way of doing this
         # self._updateInterface(data, action=data[Notifier.TRIGGER])
-        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
+        self._queueAppend([self._updateInterface, data])
 
     def _updateNmrAtom(self, data):
         # not a very efficient way of doing this
         # self._updateInterface(data, action=data[Notifier.TRIGGER])
-        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
+        self._queueAppend([self._updateInterface, data])
 
     def _updateNmrResidue(self, data):
         # not a very efficient way of doing this
         # self._updateInterface(data, action=data[Notifier.TRIGGER])
-        self._queueAppend([self._updateInterface, data, data[Notifier.TRIGGER]])
+        self._queueAppend([self._updateInterface, data])
 
     def _updateInterface(self, data=None, action=None):
         """Updates the whole module, including recalculation
