@@ -31,21 +31,19 @@ import numpy as np
 from functools import partial
 from PyQt5 import QtGui, QtWidgets, QtCore
 from collections import OrderedDict
-from itertools import product
-from ccpn.util.OrderedSet import OrderedSet
 from contextlib import contextmanager
+
 from ccpn.core.lib.Pid import Pid
 from ccpn.core.NmrAtom import NmrAtom
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.Peak import Peak
 from ccpn.core.Spectrum import Spectrum
+from ccpn.core.NmrChain import NmrChain
 from ccpn.core.lib.AssignmentLib import getNmrResiduePrediction
-from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.Notifiers import Notifier, _removeDuplicatedNotifiers
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
-from ccpn.ui.gui.widgets.Frame import Frame
-from ccpn.ui.gui.widgets.Widget import Widget
 # from ccpn.ui.gui.guiSettings import textFontSmall, textFontSmallBold, textFont
 from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS
 from ccpn.ui.gui.guiSettings import GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, \
@@ -53,14 +51,10 @@ from ccpn.ui.gui.guiSettings import GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED,
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Icon import Icon
-from ccpn.ui.gui.widgets.ToolBar import ToolBar
+# from ccpn.ui.gui.widgets.ToolBar import ToolBar
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown, ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.core.NmrChain import NmrChain
-from ccpn.util.Common import makeIterableList, greekKey
-from ccpn.util.Logging import getLogger
-from ccpn.util import Colour
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.Frame import Frame
@@ -70,6 +64,12 @@ from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget, \
     ChainSelectionWidget, SpectrumDisplaySelectionWidget
 from ccpn.core.lib.AssignmentLib import getAllSpinSystems
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+from ccpn.util.Common import makeIterableList, greekKey
+from ccpn.util.Logging import getLogger
+from ccpn.util import Colour
+from ccpn.util.UpdateScheduler import UpdateScheduler
+from ccpn.util.UpdateQueue import UpdateQueue
+from ccpn.util.OrderedSet import OrderedSet
 from ccpnc.clibrary import Clibrary
 
 
@@ -1784,7 +1784,7 @@ class SequenceGraphModule(CcpnModule):
                                                           'kwds'    : {'texts'      : [],
                                                                        'displayText': [],
                                                                        'defaults'   : [],
-                                                                       'objectName' : 'SpectrumDisplaysSelection'}, #objectName is used to save to layout
+                                                                       'objectName' : 'SpectrumDisplaysSelection'},  #objectName is used to save to layout
                                                           }),
                                     ('ChainSelection', {'label'   : '',
                                                         'tipText' : '',
@@ -1798,15 +1798,15 @@ class SequenceGraphModule(CcpnModule):
                                                                      'objectName' : 'ChainSelection'},
                                                         }),
                                     ('ChemicalShiftList', {'label'   : 'ChemicalShiftListSelection',
-                                                'tipText' : '',
-                                                'callBack': self.showShiftListPulldown,
-                                                'enabled'  : True,
-                                                '_init'    : None,
-                                                'type'     : ChemicalShiftListPulldown,
-                                                'kwds'     : {'showSelectName': False,
-                                                              'labelText'   : 'Select ChemicalShiftList',
-                                                              'hAlign'      :'left'},
-                                                }),
+                                                           'tipText' : '',
+                                                           'callBack': self.showShiftListPulldown,
+                                                           'enabled' : True,
+                                                           '_init'   : None,
+                                                           'type'    : ChemicalShiftListPulldown,
+                                                           'kwds'    : {'showSelectName': False,
+                                                                        'labelText'     : 'Select ChemicalShiftList',
+                                                                        'hAlign'        : 'left'},
+                                                           }),
                                     ('showPredictions', {'label'   : 'Show Predictions',
                                                          'tipText' : 'Show predictions and calculate predicted sequences.',
                                                          'callBack': self.showPredictions,
@@ -1983,6 +1983,13 @@ class SequenceGraphModule(CcpnModule):
 
         self.selectSequence(nmrChain)
 
+        # notifier queue handling
+        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='SequenceGraphHandler',
+                                          startOnAdd=False, log=False, completeCallback=self.update)
+        self._queuePending = UpdateQueue()
+        self._queueActive = None
+        self._lock = QtCore.QMutex()
+
     def _sceneMouseRelease(self, event):
         """Add a mouse handler to popupa menu from the contained scene
         """
@@ -2067,38 +2074,45 @@ class SequenceGraphModule(CcpnModule):
                                               [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
                                               Peak.className,
                                               self._updatePeaks,
+                                              # partial(self._queueGeneralNotifier, self._updatePeaks),
                                               onceOnly=True)
 
         # not required
         # self._nmrChainNotifier = self.setNotifier(self.project,
         #                                           [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
         #                                           NmrChain.className,
-        #                                           self._updateNmrChains,
+        #                                           # self._updateNmrChains,
+        #                                           partial(self._queueGeneralNotifier, self._updateNmrChains),
         #                                           onceOnly=True)
 
         self._nmrResidueNotifier = self.setNotifier(self.project,
                                                     [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                     NmrResidue.className,
                                                     self._updateNmrResidues,
+                                                    # partial(self._queueGeneralNotifier, self._updateNmrResidues),
                                                     onceOnly=True)
 
         self._nmrResidueChangeNotifier = self.setNotifier(self.project,
                                                           [Notifier.CHANGE],
                                                           NmrResidue.className,
                                                           self._changeNmrResidues,
+                                                          # partial(self._queueGeneralNotifier, self._changeNmrResidues),
                                                           onceOnly=True)
 
         self._nmrAtomNotifier = self.setNotifier(self.project,
                                                  [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
                                                  NmrAtom.className,
                                                  self._updateNmrAtoms,
+                                                 # partial(self._queueGeneralNotifier, self._updateNmrAtoms),
                                                  onceOnly=True)
 
         # notifier to change the magnetisationTransfer list when new spectrum added
         self._spectrumListNotifier = self.setNotifier(self.project,
                                                       [Notifier.CREATE, Notifier.DELETE],
                                                       Spectrum.className,
-                                                      self._updateSpectra)
+                                                      self._updateSpectra,
+                                                      # partial(self._queueGeneralNotifier, self._updateSpectra),
+                                                      onceOnly=True)
 
         self._currentNmrResidueNotifier = self.setNotifier(self.current,
                                                            [Notifier.CURRENT],
@@ -2937,7 +2951,6 @@ class SequenceGraphModule(CcpnModule):
         else:
             self._sequenceWidgetFrame.show()
 
-
     def navigateToNmrResidue(self, selectedNmrResidue=None):
         """Navigate in selected displays to nmrResidue; skip if none defined
         """
@@ -3267,6 +3280,43 @@ class SequenceGraphModule(CcpnModule):
                 'CD': (-1 * (atomSpacing + (atomSpacing * cos72)), -1 * (atomSpacing * sin72) + atomSpacing),
                 }
             }
+
+    #=========================================================================================
+    # Notifier queue handling
+    #=========================================================================================
+
+    def _queueGeneralNotifier(self, func, data):
+        """Add the notifier to the queue handler
+        """
+        self._queueAppend([func, data])
+
+    def _queueProcess(self):
+        """Process current items in the queue
+        """
+        with QtCore.QMutexLocker(self._lock):
+            # protect the queue switching
+            self._queueActive = self._queuePending
+            self._queuePending = UpdateQueue()
+
+        executeQueue = _removeDuplicatedNotifiers(self._queueActive)
+        for itm in executeQueue:
+            # process item if different from previous
+            try:
+                func, data = itm
+                func(data)
+            except Exception as es:
+                getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
+
+    def _queueAppend(self, itm):
+        """Append a new item to the queue
+        """
+        self._queuePending.put(itm)
+        if not self._scheduler.isActive and not self._scheduler.isBusy:
+            self._scheduler.start()
+
+        elif self._scheduler.isBusy:
+            # caught during the queue processing event, need to restart
+            self._scheduler.signalRestart()
 
 
 # if residueType == 'ALA':
