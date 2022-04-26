@@ -3343,11 +3343,11 @@ class SequenceGraphModule(CcpnModule):
             executeQueue = _removeDuplicatedNotifiers(self._queueActive)
             for itm in executeQueue:
                 # process item if different from previous
-                # try:
-                func, data = itm
-                func(data)
-                # except Exception as es:
-                #     getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
+                try:
+                    func, data = itm
+                    func(data)
+                except Exception as es:
+                    getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
 
         if self._logQueueTime:
             getLogger().debug(f'elapsed time {(time_ns() - _startTime) / 1e9}')
