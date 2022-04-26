@@ -86,12 +86,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             self.current = mainWindow.application.current
             self.nmrChains = self.application.project.nmrChains
 
-        self.matchCheckBoxWidget = CheckBox(self.nmrResidueTable._widget,
+        self.matchCheckBoxWidget = CheckBox(self.tableFrame,
                                             grid=(1, 2), checked=True, text='Find matches')
 
         ### Settings ###
 
-        # change some of the defaults setting inherited from NmrResidueTableModule
+        # change defaults setting inherited from NmrResidueTableModule
         self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(True)
         if self.nmrResidueTableSettings.displaysWidget:
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
@@ -225,10 +225,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         #self.moduleList = self.matchWidget.listWidget
 
         self._stripNotifiers = []  # list to store GuiNotifiers for strips
-        self.nmrResidueTable.multiSelect = True
-        self.nmrResidueTable.setSelectionMode(self.nmrResidueTable.SingleSelection)
+        self.tableWidget.multiSelect = True
+        self.tableWidget.setSelectionMode(self.tableWidget.SingleSelection)
 
-        #self.nmrResidueTable._setWidgetHeight(48)
+        self.tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
+
+        #self.tableWidget._setWidgetHeight(48)
 
         self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
         self.layout.setContentsMargins(0, 1, 0, 0)
@@ -283,8 +285,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         return displays
 
     def navigateToNmrResidueCallBack(self, data):
-        """
-        Navigate in selected displays to nmrResidue; skip if none defined
+        """Navigate in selected displays to nmrResidue; skip if none defined
         """
         from ccpn.core.lib.CallBack import CallBack
 
@@ -301,8 +302,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
     @logCommand(get='self')
     def navigateToNmrResidue(self, nmrResidue, row=None, col=None):
-        """
-        Navigate in selected displays to nmrResidue; skip if no displays defined
+        """Navigate in selected displays to nmrResidue; skip if no displays defined
         If matchCheckbox is checked, also call findAndDisplayMatches
         """
         displays = self._getDisplays()
@@ -682,12 +682,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
                 except Exception as es:
                     getLogger().warning(str(es))
-                    # raise es
-                finally:
-                    pass
 
-        # update the NmrResidueTable - outside of the undoBlock for notifiers to catch up
-        self.nmrResidueTable.displayTableForNmrChain(droppedNmrResidue.nmrChain)
+        # # update the NmrResidueTable - outside of the undoBlock for notifiers to catch up
+        # print(f'   dropped {droppedNmrResidue.nmrChain.pid}')
+        # self.tableFrame._modulePulldown.select(droppedNmrResidue.nmrChain.pid)
+        # self.tableWidget._update(useSelected=True)  # droppedNmrResidue.nmrChain)
 
         from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
 
@@ -727,7 +726,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
     #         except Exception as es:
     #             getLogger().debugGL('OpenGL widget not instantiated')
 
-    def _centreCcpnStripsForNmrResidue(self, nmrResidue, strips):
+    @staticmethod
+    def _centreCcpnStripsForNmrResidue(nmrResidue, strips):
         """
         Centre y-axis of strip based on chemical shifts of from NmrResidue.nmrAtoms
         """
