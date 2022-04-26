@@ -32,6 +32,7 @@ from functools import partial
 from PyQt5 import QtGui, QtWidgets, QtCore
 from collections import OrderedDict
 from contextlib import contextmanager
+from time import time_ns
 
 from ccpn.core.lib.Pid import Pid
 from ccpn.core.NmrAtom import NmrAtom
@@ -1735,6 +1736,10 @@ class SequenceGraphModule(CcpnModule):
     # consistent with nmrResidueTable - move to generic class later
     activePulldownClass = NmrChain
 
+    # set the queue handling parameters - move to ccpModule?
+    _maximumQueueLength = 25
+    _logQueueTime = False
+
     def __init__(self, mainWindow=None, name='Sequence Graph', nmrChain=None):
 
         CcpnModule.__init__(self, mainWindow=mainWindow, name=name)
@@ -2073,8 +2078,8 @@ class SequenceGraphModule(CcpnModule):
         self._peakNotifier = self.setNotifier(self.project,
                                               [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
                                               Peak.className,
-                                              self._updatePeaks,
-                                              # partial(self._queueGeneralNotifier, self._updatePeaks),
+                                              # self._updatePeaks,
+                                              partial(self._queueGeneralNotifier, self._updatePeaks),
                                               onceOnly=True)
 
         # not required
@@ -2088,22 +2093,22 @@ class SequenceGraphModule(CcpnModule):
         self._nmrResidueNotifier = self.setNotifier(self.project,
                                                     [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                     NmrResidue.className,
-                                                    self._updateNmrResidues,
-                                                    # partial(self._queueGeneralNotifier, self._updateNmrResidues),
+                                                    # self._updateNmrResidues,
+                                                    partial(self._queueGeneralNotifier, self._updateNmrResidues),
                                                     onceOnly=True)
 
         self._nmrResidueChangeNotifier = self.setNotifier(self.project,
                                                           [Notifier.CHANGE],
                                                           NmrResidue.className,
-                                                          self._changeNmrResidues,
-                                                          # partial(self._queueGeneralNotifier, self._changeNmrResidues),
+                                                          # self._changeNmrResidues,
+                                                          partial(self._queueGeneralNotifier, self._changeNmrResidues),
                                                           onceOnly=True)
 
         self._nmrAtomNotifier = self.setNotifier(self.project,
                                                  [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
                                                  NmrAtom.className,
-                                                 self._updateNmrAtoms,
-                                                 # partial(self._queueGeneralNotifier, self._updateNmrAtoms),
+                                                 # self._updateNmrAtoms,
+                                                 partial(self._queueGeneralNotifier, self._updateNmrAtoms),
                                                  onceOnly=True)
 
         # notifier to change the magnetisationTransfer list when new spectrum added
@@ -2335,41 +2340,44 @@ class SequenceGraphModule(CcpnModule):
         """Update the nmrResidues in the display.
         """
         nmrResidue = data[Notifier.OBJECT]
-        try:
-            with self.sceneBlocking():
-                showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
-                showSideChain = self._SGwidget.checkBoxes['showSideChain']['widget'].isChecked()
+        # try:
+        # print(f'>>> change nmrResidue           {nmrResidue}')
 
-                if nmrResidue in self.nmrChain.nmrResidues and nmrResidue not in self.nmrResidueList.guiNmrResidues:
-                    # print('>>>change nmrResidue - create', nmrResidue)
-                    if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
-                        # print('>>>error? redraw list')
-                        # self.setNmrChainDisplay(self.nmrChain)
-                        pass
+        with self.sceneBlocking():
+            showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
+            showSideChain = self._SGwidget.checkBoxes['showSideChain']['widget'].isChecked()
 
-                elif nmrResidue in self.nmrResidueList.guiNmrResidues and nmrResidue not in self.nmrChain.nmrResidues:
-                    # not in chain, but in residues as other chain
-                    self._deleteGuiNmrResidues(nmrResidue, showPredictions)
-                    # self._deleteNmrResidues(nmrResidue)
+            if nmrResidue in self.nmrChain.nmrResidues and nmrResidue not in self.nmrResidueList.guiNmrResidues:
+                # print('>>>change nmrResidue - create', nmrResidue)
+                if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
+                    # print('>>>error? redraw list')
+                    # self.setNmrChainDisplay(self.nmrChain)
+                    pass
 
-                else:
-                    # print('>>>change2 nmrResidue - create **** rename', nmrResidue)
+            elif nmrResidue in self.nmrResidueList.guiNmrResidues and nmrResidue not in self.nmrChain.nmrResidues:
+                # not in chain, but in residues as other chain
+                self._deleteGuiNmrResidues(nmrResidue, showPredictions)
+                # self._deleteNmrResidues(nmrResidue)
 
-                    # this is the event that fires on a name change
-                    # self._deleteBadNmrResidues(nmrResidue)
-                    self._deleteNmrResidues(nmrResidue)
-                    if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
-                        # print('>>>error? redraw list')
-                        # self.setNmrChainDisplay(self.nmrChain)
-                        pass
+            else:
+                # print('>>>change2 nmrResidue - create **** rename', nmrResidue)
 
-        except Exception as es:
-            # strange error not traced yet, interesting, but not fatal if trapped - think I've found it
-            getLogger().warning(str(es))
+                # this is the event that fires on a name change
+                # self._deleteBadNmrResidues(nmrResidue)
+                self._deleteNmrResidues(nmrResidue)
+                if not self._createNmrResidues(nmrResidue, showPredictions, showSideChain):
+                    # print('>>>error? redraw list')
+                    # self.setNmrChainDisplay(self.nmrChain)
+                    pass
+
+        # except Exception as es:
+        #     # strange error not traced yet, interesting, but not fatal if trapped - think I've found it
+        #     getLogger().warning(str(es))
 
     def _updateNmrAtoms(self, data):
         """Update the nmrAtoms in the display.
         """
+        # print('>>>            _updateNmrAtoms')
 
         # Done
         nmrAtom = data[Notifier.OBJECT]
@@ -2388,6 +2396,7 @@ class SequenceGraphModule(CcpnModule):
     def _renameNmrResidue(self, nmrResidue, oldPid: str, showPredictions):
         """Reset pid for NmrResidue and all offset NmrResidues
         """
+        # print(f'>>>  _renameNmrResidue   {nmrResidue}     {oldPid}')
 
         with self.sceneBlocking():
             if nmrResidue in self.nmrResidueList.guiNmrResidues:
@@ -2431,7 +2440,17 @@ class SequenceGraphModule(CcpnModule):
         nmrResidues = makeIterableList(nmrResidues)
 
         for nmrChainId in self.nmrResidueList.nmrChains.keys():
-            thisResList = [nmrResidue for nmrResidue in nmrResidues if nmrResidue.nmrChain.pid == nmrChainId]
+
+            # thisResList = [nmrResidue for nmrResidue in nmrResidues if nmrResidue._oldNmrChain.pid == nmrChainId]
+            thisResList = []
+            for nmrRes in nmrResidues:
+                if nmrRes.isDeleted:
+                    if nmrRes._oldNmrChain.pid == nmrChainId:
+                        thisResList.append(nmrRes)
+                else:
+                    if nmrRes.nmrChain.pid == nmrChainId:
+                        thisResList.append(nmrRes)
+
             if thisResList:
                 self._removeNmrResidues(nmrChainId, thisResList)
 
@@ -2440,7 +2459,7 @@ class SequenceGraphModule(CcpnModule):
     def _removeNmrResidues(self, nmrChainId, nmrResidues):
         """Delete the nmrResidue from the scene
         """
-        # print('>>>  _removeNmrResidues')
+        # print('>>>     _removeNmrResidues')
 
         nmrResidues = makeIterableList(nmrResidues)
 
@@ -2473,7 +2492,9 @@ class SequenceGraphModule(CcpnModule):
         """remove guiNmrAtoms and guiNmrResidue from scene
         Clean up dicts in nmrResidueList
         """
-        guiNmrAtomSet = set([self.nmrResidueList.guiNmrAtoms[nmrAtom] for nmrAtom in nmrResidue.nmrAtoms
+        _nmrAtoms = nmrResidue._oldNmrAtoms if nmrResidue.isDeleted else nmrResidue.nmrAtoms
+
+        guiNmrAtomSet = set([self.nmrResidueList.guiNmrAtoms[nmrAtom] for nmrAtom in _nmrAtoms
                              if nmrAtom in self.nmrResidueList.guiNmrAtoms])
 
         for guiAtom in guiNmrAtomSet:
@@ -2503,7 +2524,7 @@ class SequenceGraphModule(CcpnModule):
         self.scene.removeItem(self.nmrResidueList.guiNmrResidues[nmrResidue])
 
         del self.nmrResidueList.guiNmrResidues[nmrResidue]
-        for nmrAtom in nmrResidue.nmrAtoms:
+        for nmrAtom in _nmrAtoms:
             if nmrAtom in self.nmrResidueList.guiNmrAtoms:
                 del self.nmrResidueList.guiNmrAtoms[nmrAtom]
 
@@ -3290,6 +3311,12 @@ class SequenceGraphModule(CcpnModule):
         """
         self._queueAppend([func, data])
 
+    def queueFull(self):
+        """Method that is called when the queue is deemed to be too big.
+        Apply overall operation instead of all individual notifiers.
+        """
+        self.showNmrChainFromPulldown()
+
     def _queueProcess(self):
         """Process current items in the queue
         """
@@ -3298,14 +3325,32 @@ class SequenceGraphModule(CcpnModule):
             self._queueActive = self._queuePending
             self._queuePending = UpdateQueue()
 
-        executeQueue = _removeDuplicatedNotifiers(self._queueActive)
-        for itm in executeQueue:
-            # process item if different from previous
+        _startTime = time_ns()
+        _useQueueFull = (self._maximumQueueLength not in [0, None] and len(self._queueActive) > self._maximumQueueLength)
+        if self._logQueueTime:
+            # log the queue-time if required
+            getLogger().debug(f'_queueProcess  {self}  len: {len(self._queueActive)}  useQueueFull: {_useQueueFull}')
+
+        if _useQueueFull:
+            # rebuild from scratch if the queue is too big
             try:
+                self._queueActive = None
+                self.queueFull()
+            except Exception as es:
+                getLogger().debug(f'Error in {self.__class__.__name__} update queueFull: {es}')
+
+        else:
+            executeQueue = _removeDuplicatedNotifiers(self._queueActive)
+            for itm in executeQueue:
+                # process item if different from previous
+                # try:
                 func, data = itm
                 func(data)
-            except Exception as es:
-                getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
+                # except Exception as es:
+                #     getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
+
+        if self._logQueueTime:
+            getLogger().debug(f'elapsed time {(time_ns() - _startTime) / 1e9}')
 
     def _queueAppend(self, itm):
         """Append a new item to the queue
