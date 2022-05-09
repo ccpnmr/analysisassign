@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-03-09 11:00:02 +0000 (Wed, March 09, 2022) $"
+__dateModified__ = "$dateModified: 2022-05-09 11:38:22 +0100 (Mon, May 09, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -80,13 +80,13 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         # Main widget
         self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick, )
-        self.nmrResidueTable.addWidgetToPos(self.restrictedPickButton, row=1, col=2)
+        self.tableFrame.addWidgetToPos(self.restrictedPickButton, row=1, col=2)
 
         self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
-        self.nmrResidueTable.addWidgetToPos(self.assignSelectedButton, row=1, col=3)
+        self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=1, col=3)
 
         self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=self.restrictedPickAndAssign)
-        self.nmrResidueTable.addWidgetToPos(self.restrictedPickAndAssignButton, row=1, col=4)
+        self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=1, col=4)
 
         self.restrictedPickButton.setEnabled(True)
         self.assignSelectedButton.setEnabled(True)
@@ -99,7 +99,7 @@ class PickAndAssignModule(NmrResidueTableModule):
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)  # select the <all> option
 
         self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s):')
-        self.nmrResidueTable._setWidgetHeight(3.0 * getFontHeight())
+        # self.tableFrame._setWidgetHeight(3.0 * getFontHeight())
 
         # need to feedback to current.nmrResidueTable
         self._selectOnTableCurrentNmrResiduesNotifier = None
@@ -205,7 +205,8 @@ class PickAndAssignModule(NmrResidueTableModule):
 
             # self.application.current.peaks = []
             # update the NmrResidue table
-            self.nmrResidueTable._update(self.application.current.nmrResidue.nmrChain)
+            self.tableWidget._table = self.application.current.nmrResidue.nmrChain
+            self.tableWidget._update()
 
             # reset to the last selected nmrResidue - stops other tables messing up
             self.application.current.nmrResidue = lastNmrResidue
@@ -293,8 +294,10 @@ class PickAndAssignModule(NmrResidueTableModule):
             #             #     axisCodes = [axis for ]
 
             self.application.current.peaks = peaks
+
             # update the NmrResidue table
-            self.nmrResidueTable._update(nmrResidue.nmrChain)
+            self.tableWidget._table = nmrResidue.nmrChain
+            self.tableWidget._update()
 
     # from ccpn.util.decorators import profile
     # @profile
