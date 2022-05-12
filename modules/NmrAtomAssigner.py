@@ -32,8 +32,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Luca Mureddu $"
-__dateModified__ = "$dateModified: 2022-02-25 18:55:30 +0000 (Fri, February 25, 2022) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2022-05-12 16:21:50 +0100 (Thu, May 12, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -598,7 +598,7 @@ class NmrAtomAssignerModule(CcpnModule):
 
     def _setCheckedButtonOfAssignedAtoms(self, nmrResidue, offSet='0'):
         """setChecked the radioButton Of Assigned Nmr Atoms.
-        This makes sure that if a peak is selected and and assigned to an nmrAtom, the relative button is checked """
+        This makes sure that if a peak is selected and assigned to an nmrAtom, the relative button is checked """
 
         if not self.current.peak: return
         if not nmrResidue: return
@@ -657,7 +657,7 @@ class NmrAtomAssignerModule(CcpnModule):
         """Get the valid axis code from the buttons, numChars is included as this may be needed for DNA/RNA
         """
         code = self.axisCodeOptions.getSelectedText()
-        return code[0:numChars]
+        return code[0:numChars] if code else ''
 
         # if code:
         #     for cc in code:
