@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-05-19 11:39:57 +0100 (Thu, May 19, 2022) $"
+__dateModified__ = "$dateModified: 2022-05-19 12:52:14 +0100 (Thu, May 19, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -975,8 +975,8 @@ class NmrResidueList():
         # iterate through the adjacent pairs
         for prevRes, thisRes in zip(mainNmrResidues[:-1], mainNmrResidues[1:]):
 
-            thisGroup = self.guiNmrResidues[prevRes]
-            if thisGroup.connected:
+            thisGroup = self.guiNmrResidues.get(prevRes)
+            if not thisGroup or thisGroup.connected:
                 continue
 
             # add the connection the minus residue and point to the right - may need to change for +1 residues
@@ -1299,13 +1299,13 @@ class NmrResidueList():
 
             # for nmrAtom in nmrResidue.nmrAtoms:
             #
-            #     if nmrAtom._flaggedForDelete or nmrAtom.isDeleted:
+            #     if nmrAtom.isDeleted:
             #         continue
             #
             #     for peak in nmrAtom.assignedPeaks:
             #
             #         # ignore peaks that are due for delete (can probably also use the notifier list)
-            #         if peak._flaggedForDelete or peak.isDeleted:
+            #         if peak.isDeleted:
             #             continue
             #
             #         spec = peak.peakList.spectrum
@@ -2022,7 +2022,7 @@ class SequenceGraphModule(CcpnModule):
         """
         # self.magnetisationTransfers = OrderedDict()
         # for spec in self.project.spectra:
-        #     if not (spec.isDeleted or spec._flaggedForDelete):
+        #     if not spec.isDeleted:
         #         self.magnetisationTransfers[spec] = {}
         #         for mt in spec.magnetisationTransfers:
         #             self.magnetisationTransfers[spec][mt] = set()
@@ -3333,21 +3333,29 @@ class SequenceGraphModule(CcpnModule):
 
         if _useQueueFull:
             # rebuild from scratch if the queue is too big
-            try:
+            if self.application and self.application._disableModuleException:
                 self._queueActive = None
                 self.queueFull()
-            except Exception as es:
-                getLogger().debug(f'Error in {self.__class__.__name__} update queueFull: {es}')
+            else:
+                try:
+                    self._queueActive = None
+                    self.queueFull()
+                except Exception as es:
+                    getLogger().debug(f'Error in {self.__class__.__name__} update queueFull: {es}')
 
         else:
             executeQueue = _removeDuplicatedNotifiers(self._queueActive)
             for itm in executeQueue:
-                # process item if different from previous
-                try:
+                if self.application and self.application._disableModuleException:
                     func, data = itm
                     func(data)
-                except Exception as es:
-                    getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
+                else:
+                    # process item if different from previous
+                    try:
+                        func, data = itm
+                        func(data)
+                    except Exception as es:
+                        getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
 
         if self._logQueueTime:
             getLogger().debug(f'elapsed time {(time_ns() - _startTime) / 1e9}')
