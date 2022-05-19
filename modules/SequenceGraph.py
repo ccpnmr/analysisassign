@@ -4,19 +4,19 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
                  "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2021-12-23 15:18:23 +0000 (Thu, December 23, 2021) $"
-__version__ = "$Revision: 3.0.4 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2022-05-19 11:39:57 +0100 (Thu, May 19, 2022) $"
+__version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1072,7 +1072,7 @@ class NmrResidueList():
         # mainNmrResidues = self.nmrChains[nmrChainId]  #[resPair[0] for resPair in self.nmrChains[nmrChainId]]
 
         mainNmrResidues = [nmrResidue for nmrResidue in self.nmrChains[nmrChainId] if nmrResidue.nmrChain.pid == nmrChainId and
-                           not nmrResidue._flaggedForDelete]
+                           not nmrResidue.isDeleted]
 
         for ii, nmrResidue in enumerate(mainNmrResidues):
             # nmrResidue, guiAtoms = item
@@ -1290,8 +1290,8 @@ class NmrResidueList():
         nmrChain = nmrResidue.nmrChain
 
         assignments = [(assignment, peak, peak.peakList.spectrum)
-                       for nmrAtom in nmrResidue.nmrAtoms if not (nmrAtom._flaggedForDelete or nmrAtom.isDeleted)
-                       for peak in nmrAtom.assignedPeaks if not (peak._flaggedForDelete or peak.isDeleted)
+                       for nmrAtom in nmrResidue.nmrAtoms if not nmrAtom.isDeleted
+                       for peak in nmrAtom.assignedPeaks if not peak.isDeleted
                        for assignment in peak.assignments
                        ]
         for assignment, peak, spec in assignments:
@@ -1360,8 +1360,8 @@ class NmrResidueList():
             for mag in self._module.magnetisationTransfers[spec]:
                 nmrAtom0 = assignment[mag[0] - 1]
                 nmrAtom1 = assignment[mag[1] - 1]
-                nmrAtom0 = nmrAtom0 if nmrAtom0 and not (nmrAtom0.isDeleted or nmrAtom0._flaggedForDelete) else None
-                nmrAtom1 = nmrAtom1 if nmrAtom1 and not (nmrAtom1.isDeleted or nmrAtom1._flaggedForDelete) else None
+                nmrAtom0 = nmrAtom0 if nmrAtom0 and not nmrAtom0.isDeleted else None
+                nmrAtom1 = nmrAtom1 if nmrAtom1 and not nmrAtom1.isDeleted else None
 
                 if not None in (nmrAtom0, nmrAtom1):
 
@@ -1510,7 +1510,7 @@ class NmrResidueList():
 
         else:
             # make a new list for creating a peak; necessary for undo of delete peak as the assignedNmrAtom list exists
-            assignmentAtoms = set([nmrAtom for peak in peaks
+            assignmentAtoms = set([nmrAtom for peak in peaks if not peak.isDeleted
                                    for assignment in peak.assignments
                                    for nmrAtom in assignment
                                    if nmrAtom in self.guiNmrAtoms])
@@ -1624,10 +1624,10 @@ class NmrResidueList():
         for lineList in self.assignmentLines.values():
             for line in lineList:
                 nmrAtom = line.guiAtom1.nmrAtom if line.guiAtom1 else None
-                if nmrAtom in nmrAtoms and (includeDeleted or not (nmrAtom.isDeleted or nmrAtom._flaggedForDelete)):
+                if nmrAtom in nmrAtoms and (includeDeleted or not nmrAtom.isDeleted):
                     peakLines.append(line)
                 nmrAtom = line.guiAtom2.nmrAtom if line.guiAtom2 else None
-                if nmrAtom in nmrAtoms and (includeDeleted or not (nmrAtom.isDeleted or nmrAtom._flaggedForDelete)):
+                if nmrAtom in nmrAtoms and (includeDeleted or not nmrAtom.isDeleted):
                     peakLines.append(line)
 
         return peakLines
@@ -2016,7 +2016,7 @@ class SequenceGraphModule(CcpnModule):
         #             self.magnetisationTransfers[spec][mt] = set()
 
         self.magnetisationTransfers = {spec: {mt: set() for mt in spec.magnetisationTransfers}
-                                       for spec in self.project.spectra if not (spec.isDeleted or spec._flaggedForDelete)
+                                       for spec in self.project.spectra if not spec.isDeleted
                                        }
 
     @contextmanager
@@ -2174,8 +2174,8 @@ class SequenceGraphModule(CcpnModule):
         # assumes that the peakAssignments have changed - possibly use different notifier
         nmrResidues = makeIterableList(nmrResidues)
 
-        nmrAtomIncludeList = tuple(nmrAtom for nmrResidue in nmrResidues for nmrAtom in nmrResidue.nmrAtoms)
-        guiNmrAtomSet = set([self.nmrResidueList.guiNmrAtoms[nmrAtom] for nmrAtom in nmrAtomIncludeList])
+        nmrAtomIncludeList = tuple(nmrAtom for nmrResidue in nmrResidues if not nmrResidue.isDeleted for nmrAtom in nmrResidue.nmrAtoms)
+        guiNmrAtomSet = set([self.nmrResidueList.guiNmrAtoms.get(nmrAtom) for nmrAtom in nmrAtomIncludeList]) - {None}
 
         for guiAtom in guiNmrAtomSet:
             for peakLineList in self.nmrResidueList.assignmentLines.values():

@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-04-05 12:05:13 +0100 (Tue, April 05, 2022) $"
+__dateModified__ = "$dateModified: 2022-05-19 11:39:57 +0100 (Thu, May 19, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -745,7 +745,7 @@ class AssignmentInspectorTable(GuiTable):
                 self.attachedNmrAtomsList.clear()
 
                 # NOTE:ED - should we only display those nmrAtoms that are in the chemicalShift table? - similarly for peaks
-                self.ids = [atm.id for atm in nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
+                self.ids = [atm.id for atm in nmrAtoms if not atm.isDeleted]
 
                 self.attachedNmrAtomsList.addItems(self.ids)
                 self.attachedNmrAtomsList.selectItems(_select)
@@ -760,7 +760,7 @@ class AssignmentInspectorTable(GuiTable):
             # there is currently a hidden list widget containing the nmrAtom ids
             with self.blockWidgetSignals(self.attachedNmrAtomsList):
                 self.attachedNmrAtomsList.clear()
-                _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not (_nmrRes.isDeleted or _nmrRes._flaggedForDelete) for atm in _nmrRes.nmrAtoms if not (atm.isDeleted or atm._flaggedForDelete)]
+                _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not _nmrRes.isDeleted for atm in _nmrRes.nmrAtoms if not atm.isDeleted]
                 self.ids = [atm.id for atm in _nmrAtoms]
                 self.attachedNmrAtomsList.addItems(self.ids)
                 self.attachedNmrAtomsList.selectItems(_select)
