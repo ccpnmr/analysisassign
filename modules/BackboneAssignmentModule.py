@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-02-24 11:54:22 +0000 (Thu, February 24, 2022) $"
+__modifiedBy__ = "$modifiedBy: VickyAH $"
+__dateModified__ = "$dateModified: 2022-05-26 13:23:31 +0100 (Thu, May 26, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -99,8 +99,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # colWidth0 = 180
         texts = ['i-1 Matches to show:',
                  'i+1 Matches to show:',
-                 'Match module',
-                 'Search module',
+                 'Match SpectrumDisplay',
+                 'Search SpectrumDisplay',
                  'Match CA NmrAtoms',
                  'Match CB NmrAtoms',
                  'Match C NmrAtoms',
