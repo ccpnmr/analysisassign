@@ -165,7 +165,7 @@ class PeakAssigner(CcpnModule):
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
         # notifier queue handling
-        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PandasTableNotifierHandler',
+        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PeakAssigner',
                                           startOnAdd=False, log=False, completeCallback=self.update)
         self._queuePending = UpdateQueue()
         self._queueActive = None
