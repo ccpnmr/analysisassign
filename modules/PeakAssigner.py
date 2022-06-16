@@ -310,21 +310,16 @@ class PeakAssigner(CcpnModule):
         for itm in executeQueue:
             # process item if different from previous
             if self.application and self.application._disableQueueException:
-                func, data, trigger = itm
-                if _lastItm is None or func != _lastItm[0]:
-                    func(data)
+                func, data = itm
+                func(data)
                 _lastItm = itm
 
             else:
                 try:
-                    func, data, trigger = itm
-                    if _lastItm is None or func != _lastItm[0]:
-                        func(data)
+                    func, data = itm
+                    func(data)
                 except Exception as es:
                     getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
-
-                finally:
-                    _lastItm = itm
 
     def _queueAppend(self, itm):
         """Append a new item to the queue
