@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-06-16 11:17:37 +0100 (Thu, June 16, 2022) $"
+__dateModified__ = "$dateModified: 2022-06-21 12:35:36 +0100 (Tue, June 21, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -1142,16 +1142,21 @@ class AxisAssignmentObject(Frame):
                 # get the isotope code for the current dimension
                 isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
 
+                nmrChainName = self.chainPulldown.currentText()
+                seqCode = self.seqCodePulldown.currentText()
+                resType = self.resTypePulldown.currentText()
+                nmrAtomName = self.atomTypePulldown.currentText()
+
                 # search for an existing nmrAtom or create a new one
-                nmrChain = self.project.fetchNmrChain(shortName=self.chainPulldown.get() or defaultNmrChainCode)
-                if not (nmrResidue := _getNmrResidue(nmrChain, self.seqCodePulldown.get())):
-                    nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=self.seqCodePulldown.get(), residueType=self.resTypePulldown.get())
+                nmrChain = self.project.fetchNmrChain(shortName=nmrChainName or defaultNmrChainCode)
+                if not (nmrResidue := _getNmrResidue(nmrChain, seqCode)):
+                    nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=seqCode, residueType=resType)
                 else:
                     # if existing then check the residueType matches
-                    if nmrResidue.residueType != self.resTypePulldown.get():
+                    if nmrResidue.residueType != resType:
                         raise ValueError(f'residueType does not match existing nmrResidue {nmrResidue.id}')
 
-                self._acceptNmrAtom = nmrResidue.fetchNmrAtom(name=self.atomTypePulldown.get(), isotopeCode=isotopeCode)
+                self._acceptNmrAtom = nmrResidue.fetchNmrAtom(name=nmrAtomName, isotopeCode=isotopeCode)
                 nmrAtom = self._acceptNmrAtom
 
                 for peak in self.current.peaks:
