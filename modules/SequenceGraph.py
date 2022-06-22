@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-05-19 12:52:14 +0100 (Thu, May 19, 2022) $"
+__dateModified__ = "$dateModified: 2022-06-22 14:28:59 +0100 (Wed, June 22, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -1738,7 +1738,7 @@ class SequenceGraphModule(CcpnModule):
 
     # set the queue handling parameters - move to ccpModule?
     _maximumQueueLength = 25
-    _logQueueTime = False
+    _logQueue = False
 
     def __init__(self, mainWindow=None, name='Sequence Graph', nmrChain=None):
 
@@ -3327,7 +3327,7 @@ class SequenceGraphModule(CcpnModule):
 
         _startTime = time_ns()
         _useQueueFull = (self._maximumQueueLength not in [0, None] and len(self._queueActive) > self._maximumQueueLength)
-        if self._logQueueTime:
+        if self._logQueue:
             # log the queue-time if required
             getLogger().debug(f'_queueProcess  {self}  len: {len(self._queueActive)}  useQueueFull: {_useQueueFull}')
 
@@ -3357,7 +3357,7 @@ class SequenceGraphModule(CcpnModule):
                     except Exception as es:
                         getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
 
-        if self._logQueueTime:
+        if self._logQueue:
             getLogger().debug(f'elapsed time {(time_ns() - _startTime) / 1e9}')
 
     def _queueAppend(self, itm):

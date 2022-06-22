@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-06-21 12:35:36 +0100 (Tue, June 21, 2022) $"
+__dateModified__ = "$dateModified: 2022-06-22 14:28:59 +0100 (Wed, June 22, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -34,6 +34,7 @@ from queue import Queue
 from functools import partial
 from collections import OrderedDict
 from PyQt5 import QtGui, QtWidgets, QtCore
+from time import time_ns
 from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
 from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue
 from ccpn.core.Peak import Peak
@@ -125,6 +126,10 @@ class PeakAssigner(CcpnModule):
     className = 'PeakAssigner'
 
     activePulldownClass = None
+
+    # set the queue handling parameters
+    _maximumQueueLength = 10
+    _logQueue = True
 
 
     class _emptyObject():
@@ -298,6 +303,15 @@ class PeakAssigner(CcpnModule):
     # Notifier queue handling
     #=========================================================================================
 
+    def queueFull(self):
+        """Method that is called when the queue is deemed to be too big.
+        Apply overall operation instead of all individual notifiers.
+        """
+        if self._logQueue:
+            # log the queue-time if required
+            getLogger().debug(f'queueFull  {self.__class__.__name__}')
+        self._updateInterface()
+
     def _queueProcess(self):
         """Process current items in the queue
         """
@@ -306,20 +320,41 @@ class PeakAssigner(CcpnModule):
             self._queueActive = self._queuePending
             self._queuePending = UpdateQueue()
 
-        executeQueue = _removeDuplicatedNotifiers(self._queueActive)
-        for itm in executeQueue:
-            # process item if different from previous
-            if self.application and self.application._disableQueueException:
-                func, data = itm
-                func(data)
-                _lastItm = itm
+        startTime = 0.0
+        useQueueFull = (self._maximumQueueLength not in [0, None] and len(self._queueActive) > self._maximumQueueLength)
+        if self._logQueue:
+            # log the queue-time if required
+            startTime = time_ns()
+            getLogger().debug(f'_queueProcess  {self.__class__.__name__}  len: {len(self._queueActive)}  useQueueFull: {useQueueFull}')
 
-            else:
-                try:
+        if useQueueFull:
+            # rebuild from scratch if the queue is too big
+            try:
+                self._queueActive = None
+                self.queueFull()
+            except Exception as es:
+                getLogger().debug(f'Error in {self.__class__.__name__} update queueFull: {es}')
+
+        else:
+            executeQueue = _removeDuplicatedNotifiers(self._queueActive)
+            if self._logQueue:
+                getLogger().debug(f'execute-queue {self.__class__.__name__} len: {len(executeQueue)}')
+
+            for itm in executeQueue:
+                # process item if different from previous
+                if self.application and self.application._disableQueueException:
                     func, data = itm
                     func(data)
-                except Exception as es:
-                    getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
+
+                else:
+                    try:
+                        func, data = itm
+                        func(data)
+                    except Exception as es:
+                        getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
+
+        if self._logQueue:
+            getLogger().debug(f'elapsed time {self.__class__.__name__} - {(time_ns() - startTime) / 1e9}')
 
     def _queueAppend(self, itm):
         """Append a new item to the queue
