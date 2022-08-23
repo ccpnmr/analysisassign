@@ -28,7 +28,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 
 import typing
 from collections import OrderedDict
-from PyQt5 import QtGui, QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 from ccpn.core._OldChemicalShift import _OldChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
@@ -38,11 +38,10 @@ from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, PulldownListCompoundWidget, CheckBoxCompoundWidget
+from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, showYesNo
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.widgets.Font import getTextDimensionsFromFont
 from ccpn.util.decorators import logCommand
@@ -50,8 +49,10 @@ from ccpn.util.Logging import getLogger
 from ccpn.core.NmrAtom import NmrAtom
 from ccpn.ui.gui.widgets.PlaneToolbar import STRIPLABEL_CONNECTDIR, STRIPLABEL_CONNECTNONE, \
     STRIPCONNECT_LEFT, STRIPCONNECT_RIGHT
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, notificationEchoBlocking
-
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+from ccpn.ui.gui.widgets.Tabs import Tabs
+from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.HLine import HLine, LabeledHLine
 
 ALL = '<all>'
 MINMATCHES = 1
@@ -73,6 +74,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
     includeDisplaySettings = True
     activePulldownClass = NmrChain
+    registeredExtensions = set()
 
     def __init__(self, mainWindow=None, name='Backbone Assignment'):
 
@@ -89,6 +91,34 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.matchCheckBoxWidget = CheckBox(self.tableFrame,
                                             grid=(1, 2), checked=True, text='Find matches')
 
+        self._createSettingsWidgets()
+        self._stripNotifiers = []  # list to store GuiNotifiers for strips
+
+        ## main table options
+        self.tableWidget.multiSelect = True
+        self.tableWidget.setSelectionMode(self.tableWidget.SingleSelection)
+        self.tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
+        self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
+        self.layout.setContentsMargins(0, 1, 0, 0)
+    
+    def _createSettingsWidgets(self):
+        self.settingsWidget.setContentsMargins(5, 5, 5, 5)
+        self.settingsTabWidget = Tabs(self.settingsWidget, setLayout=True, grid=(0, 0))
+        ##  General Tab
+        self.generalSettingsFrame = Frame(self.settingsWidget, setLayout=True)
+        self.generalSettingsFrame.getLayout().setAlignment(QtCore.Qt.AlignTop)
+        self.settingsTabWidget.addTab(self.generalSettingsFrame, 'General')
+        self.generalSettingsFrame.getLayout().addWidget(self.nmrResidueTableSettings)
+        self._setupGeneralSettings()
+
+        ##  Extensions Tab
+        self.extensionsSettingsFrame = Frame(self.settingsWidget, setLayout=True)
+        self.extensionsSettingsFrame.getLayout().setAlignment(QtCore.Qt.AlignTop)
+        self.settingsTabWidget.addTab(self.extensionsSettingsFrame, 'Extensions')
+        self._addExtensionsToSettings()
+
+    def _setupGeneralSettings(self):
+        """ add to layout the general settings widgets"""
         ### Settings ###
 
         # change defaults setting inherited from NmrResidueTableModule
@@ -133,18 +163,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                                     default=DEFAULTMATCHES
                                                                     )
 
-        # Match module selection
-        # row += 1
-        # # cannot set a notifier for displays, as these are not (yet?) implemented
-        # self.matchWidget = ListCompoundWidget(self.nmrResidueTableSettings,
-        #                                       grid=(row, col), vAlign='top', hAlign='left',
-        #                                       fixedWidths=(colWidth0, colWidth0, colWidth0),
-        #                                       orientation='left',
-        #                                       labelText="Match module(s):",
-        #                                       texts=[display.pid for display in self.mainWindow.spectrumDisplays]
-        #                                       )
-        # self.matchWidget.setPreSelect(self._fillDisplayWidget)
-        # self.matchWidget.setFixedHeights((None, None, 40))
+
 
         # new match module pulldown list
         row += 1
@@ -217,23 +236,30 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                          callback=self._setupShiftDicts, default=None
                                                          )
         self._setupShiftDicts()
-        self._spacer = Spacer(self.settingsWidget, 5, 5,
-                              QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding,
-                              grid=(row + 20, 10), gridSpan=(1, 1))
 
-        # for compatibility with previous implementation
-        #self.moduleList = self.matchWidget.listWidget
+    @staticmethod
+    def registerExtension(cls, extension):
+        from ccpn.AnalysisAssign.modules.AssignExtensions.BackboneAssignmentExtensionABC import BackboneAssignmentExtensionFrame
+        if issubclass(extension, BackboneAssignmentExtensionFrame):
+            cls.registeredExtensions.add(extension)
+        else:
+            getLogger().warning('Cannot register Extension for this module. Ensure the format is correct')
 
-        self._stripNotifiers = []  # list to store GuiNotifiers for strips
-        self.tableWidget.multiSelect = True
-        self.tableWidget.setSelectionMode(self.tableWidget.SingleSelection)
 
-        self.tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
+    def _addExtensionsToSettings(self):
+        """ Add registered extensions to the Settings Panel. """
+        from ccpn.AnalysisAssign.modules.AssignExtensions import _loadAssignExtensions
+        try:
+            _loadAssignExtensions()
 
-        #self.tableWidget._setWidgetHeight(48)
-
-        self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-        self.layout.setContentsMargins(0, 1, 0, 0)
+            registeredExtensions = self.registeredExtensions
+            for extensionFrameObj in registeredExtensions:
+                extensionFrame = extensionFrameObj(guiModule=self)
+                hLine = LabeledHLine(self, text = extensionFrame.NAME)
+                self.extensionsSettingsFrame.getLayout().addWidget(hLine)
+                self.extensionsSettingsFrame.getLayout().addWidget(extensionFrame)
+        except Exception as err:
+            getLogger().warning("Some Extensions failed to load %s" % err)
 
     def _fillMatchWidget(self):
         ll = ['> select-to-add <'] + [display.pid for display in self.mainWindow.spectrumDisplays]
