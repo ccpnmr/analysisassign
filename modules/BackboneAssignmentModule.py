@@ -239,7 +239,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
     @staticmethod
     def registerExtension(cls, extension):
-        from ccpn.AnalysisAssign.modules.AssignExtensions.BackboneAssignmentExtensionABC import BackboneAssignmentExtensionFrame
+        from ccpn.AnalysisAssign.modules.backboneExtensions.BackboneAssignmentExtensionABC import BackboneAssignmentExtensionFrame
         if issubclass(extension, BackboneAssignmentExtensionFrame):
             cls.registeredExtensions.add(extension)
         else:
@@ -248,7 +248,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
     def _addExtensionsToSettings(self):
         """ Add registered extensions to the Settings Panel. """
-        from ccpn.AnalysisAssign.modules.AssignExtensions import _loadAssignExtensions
+        from ccpn.AnalysisAssign.modules.backboneExtensions import _loadAssignExtensions
         try:
             _loadAssignExtensions()
 
