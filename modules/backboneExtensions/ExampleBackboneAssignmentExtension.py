@@ -20,7 +20,7 @@ __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
-__author__ = "$Author: Harrison Wang $"
+__author__ = "$Author: Luca Mureddu $"
 __date__ = "$Date: 2022-05-20 12:59:02 +0100 (Fri, May 20, 2022) $"
 #=========================================================================================
 # Start of code
@@ -33,14 +33,13 @@ from ccpn.ui.gui.widgets.Label import Label
 
 class ExampleBackboneExtensionFrame(BackboneAssignmentExtensionFrame):
     """
-    Base class for Gui Extension panels.
+    An example of Extension panels.
     """
 
     NAME = 'Simple Example'
 
     def __init__(self, guiModule, *args, **Framekwargs):
         BackboneAssignmentExtensionFrame.__init__(self, guiModule, **Framekwargs)
-
 
     def registerNotifiers(self):
         pass
@@ -49,8 +48,10 @@ class ExampleBackboneExtensionFrame(BackboneAssignmentExtensionFrame):
 
         row = 0
         l = Label(self, text='This is an example', grid=(row,0))
-        r = RadioButtons(self, texts=['Test1', 'Test2'], grid=(row,1))
+        r = RadioButtons(self, texts=['Test1', 'Test2'], callback=self._radioButtonsCallback, grid=(row,1))
 
+    def _radioButtonsCallback(self, *args):
+        print(f'Clicked...')
 
     def onInstall(self):
         pass
@@ -64,4 +65,4 @@ class ExampleBackboneExtensionFrame(BackboneAssignmentExtensionFrame):
 
 ## Register the Extension in the BackboneAssignmentModule
 from ccpn.AnalysisAssign.modules.BackboneAssignmentModule import BackboneAssignmentModule
-BackboneAssignmentModule.registerExtension(BackboneAssignmentModule, ExampleBackboneExtensionFrame)
+# BackboneAssignmentModule.registerExtension(BackboneAssignmentModule, ExampleBackboneExtensionFrame) # uncomment to enable on the gui
