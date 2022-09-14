@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-14 16:38:02 +0100 (Wed, September 14, 2022) $"
+__dateModified__ = "$dateModified: 2022-09-14 17:02:35 +0100 (Wed, September 14, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -621,9 +621,7 @@ class AssignmentInspectorModule(CcpnModule):
             _maxCount, self._peakList.spectrum = specs[-1]
 
         self.assignedPeaksTable._table = self._peakList
-        self.assignedPeaksTable.populateTable(  #rowObjects=self._peakList.peaks,
-                # columnDefs=self.getColumns(),
-                )
+        self.assignedPeaksTable.populateTable()
 
         ids = [atm.id for atm in nmrAtoms]
 
@@ -681,19 +679,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             self.current.nmrAtoms = []
             self.current.nmrResidues = []
 
-    def _selectionChangedCallback(self, selected, deselected):
-        """Handle item selection as changed in table - call user callback
-        Includes checking for clicking below last row
-        """
-        cShifts = self.getSelectedObjects()
-        if cShifts:
-            nmrResidues = list(set(cs.nmrAtom.nmrResidue for cs in cShifts if cs.nmrAtom))
-            nmrAtoms = [nmrAt for nmrRes in nmrResidues for nmrAt in nmrRes.nmrAtoms]
+        # get all the chemicalShifts linked by nmrResidue
+        allShifts = list(filter(None, set(cs for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
 
-            # get all the chemicalShifts linked by nmrResidue
-            allShifts = list(filter(None, set(cs for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
-
-            # highlight all the chemicalShifts linked to the nmrResidues
-            self._highLightObjs(allShifts, scrollToSelection=False)
-
-        super()._selectionChangedCallback(selected, deselected)
+        # highlight all the chemicalShifts linked to the nmrResidues
+        self._highLightObjs(allShifts, scrollToSelection=False)
