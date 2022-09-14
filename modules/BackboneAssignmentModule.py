@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-01 18:15:11 +0100 (Thu, September 01, 2022) $"
+__dateModified__ = "$dateModified: 2022-09-14 16:38:22 +0100 (Wed, September 14, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -52,6 +52,7 @@ from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.HLine import LabeledHLine
+
 
 ALL = '<all>'
 MINMATCHES = 1
@@ -99,7 +100,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
         self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
         self.layout.setContentsMargins(0, 1, 0, 0)
-    
+
     def _createSettingsWidgets(self):
         self.settingsWidget.setContentsMargins(5, 5, 5, 5)
         self.settingsTabWidget = Tabs(self.settingsWidget, setLayout=True, grid=(0, 0))
@@ -161,8 +162,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                                     texts=[str(tt) for tt in range(MINMATCHES, MAXMATCHES)],
                                                                     default=DEFAULTMATCHES
                                                                     )
-
-
 
         # new match module pulldown list
         row += 1
@@ -239,22 +238,23 @@ class BackboneAssignmentModule(NmrResidueTableModule):
     @staticmethod
     def registerExtension(cls, extension):
         from ccpn.AnalysisAssign.modules.backboneExtensions.BackboneAssignmentExtensionABC import BackboneAssignmentExtensionFrame
+
         if issubclass(extension, BackboneAssignmentExtensionFrame):
             cls.registeredExtensions.add(extension)
         else:
             getLogger().warning('Cannot register Extension for this module. Ensure the format is correct')
 
-
     def _addExtensionsToSettings(self):
         """ Add registered extensions to the Settings Panel. """
         from ccpn.AnalysisAssign.modules.backboneExtensions import _loadAssignExtensions
+
         try:
             _loadAssignExtensions()
 
             registeredExtensions = self.registeredExtensions
             for extensionFrameObj in registeredExtensions:
                 extensionFrame = extensionFrameObj(guiModule=self)
-                hLine = LabeledHLine(self, text = extensionFrame.NAME)
+                hLine = LabeledHLine(self, text=extensionFrame.NAME)
                 self.extensionsSettingsFrame.getLayout().addWidget(hLine)
                 self.extensionsSettingsFrame.getLayout().addWidget(extensionFrame)
         except Exception as err:
@@ -309,24 +309,25 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         displays = [display for display in displays if display is not None]
         return displays
 
-    def navigateToNmrResidueCallBack(self, data):
+    def navigateToNmrResidueCallBack(self, selection, lastItem):
         """Navigate in selected displays to nmrResidue; skip if none defined
         """
-        from ccpn.core.lib.CallBack import CallBack
+        try:
+            if not (objs := list(lastItem[self._OBJECT])):
+                return
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.navigateToNmrResidueCallBack: No selection\n{es}')
+            return
 
-        # nmrResidue = data[CallBack.OBJECT]
-        # if not nmrResidue:
-        #     return
-        # if isinstance(nmrResidue, (tuple, list)):
-        #     nmrResidue = nmrResidue[0]
+        if isinstance(objs, (tuple, list)):
+            nmrResidue = objs[0]
+        else:
+            nmrResidue = objs
 
-        nmrResidue = data[CallBack.ROWOBJECT]  # the item clicked, not everything selected
-        row = data[CallBack.ROW]
-        col = data[CallBack.COL]
-        self.navigateToNmrResidue(nmrResidue, row=row, col=col)
+        self.navigateToNmrResidue(nmrResidue)
 
     @logCommand(get='self')
-    def navigateToNmrResidue(self, nmrResidue, row=None, col=None):
+    def navigateToNmrResidue(self, nmrResidue):
         """Navigate in selected displays to nmrResidue; skip if no displays defined
         If matchCheckbox is checked, also call findAndDisplayMatches
         """
