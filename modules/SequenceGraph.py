@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-08 16:33:04 +0100 (Thu, September 08, 2022) $"
+__dateModified__ = "$dateModified: 2022-09-15 16:42:59 +0100 (Thu, September 15, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -75,7 +75,8 @@ _getNmrIndex = Clibrary.getNmrResidueIndex
 
 logger = getLogger()
 ALL = '<Use all>'
-
+_EDIT_OPTION = 'Edit NmrResidue'
+_SHOW_OPTION = 'Show NmrResidue'
 
 #==========================================================================================
 # GuiNmrAtom
@@ -3080,6 +3081,10 @@ class SequenceGraphModule(CcpnModule):
                     self._deassignNmrChainActionMenu.setEnabled(assign)
 
                 contextMenu.addSeparator()
+                txt = f'{_EDIT_OPTION} {obj.nmrResidue.id if obj.nmrResidue else ""}'
+                self._editActionMenu = contextMenu.addAction(txt, partial(self.editNmrResidue, obj))
+                self._editActionMenu.setEnabled(True if obj.nmrResidue else False)
+
                 self._showActionMenu = contextMenu.addAction('Show nmrResidue', partial(self.showNmrResidue, obj))
 
                 prev = pressed.nmrResidue.previousNmrResidue is not None
@@ -3168,6 +3173,14 @@ class SequenceGraphModule(CcpnModule):
                                 subMenu.addAction(nmrAtom.id, partial(self.deassignPeak, peak, nmrAtom))
                             else:
                                 subMenu.addAction('(' + nmrAtom.id + ')', partial(self.deassignPeak, peak, nmrAtom))
+
+    def editNmrResidue(self, obj):
+        """Show popup to edit nmrResidue
+        """
+        from ccpn.ui.gui.popups.NmrResiduePopup import NmrResidueEditPopup
+
+        popup = NmrResidueEditPopup(parent=self.mainWindow, mainWindow=self.mainWindow, obj=obj.nmrResidue)
+        popup.exec_()
 
     def showNmrResidue(self, obj):
         self.navigateToNmrResidue(selectedNmrResidue=obj.nmrResidue)
