@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-15 16:27:59 +0100 (Thu, September 15, 2022) $"
+__dateModified__ = "$dateModified: 2022-09-20 09:21:46 +0100 (Tue, September 20, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -623,7 +623,7 @@ class AssignmentTable(_ProjectTableABC):
     search = False
 
     _enableSelectionCallback = False
-    _enableActionCallback = False
+    _enableActionCallback = True
 
     # set the queue handling parameters
     _maximumQueueLength = 10  # shouldn't be responding to any notifiers
@@ -714,8 +714,7 @@ class AssignmentTable(_ProjectTableABC):
         self._editMenuAction = menu.addAction(f'{_EDIT_OPTION}...', self._editNmrAtom)
         self._newMenuAction = menu.addAction(_NEW_OPTION, self._newNmrAtom)
 
-        _actions = menu.actions()
-        if _actions:
+        if (_actions := menu.actions()):
             _topMenuItem = _actions[0]
             _topSeparator = menu.insertSeparator(_topMenuItem)
 
