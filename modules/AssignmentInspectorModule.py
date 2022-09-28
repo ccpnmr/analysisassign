@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-14 17:02:35 +0100 (Wed, September 14, 2022) $"
+__dateModified__ = "$dateModified: 2022-09-28 12:20:08 +0100 (Wed, September 28, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -274,6 +274,7 @@ class AssignmentInspectorModule(CcpnModule):
                                                       mainWindow=self.mainWindow,
                                                       moduleParent=self,
                                                       grid=(1, 1), gridSpan=(1, 6),
+                                                      actionCallback=self._peakActionCallback,
                                                       )
 
     def _selectTable(self, chemicalShiftList=None):
@@ -586,7 +587,7 @@ class AssignmentInspectorModule(CcpnModule):
         # something has been selected, so get all selected items
         numTexts = self.attachedNmrAtomsList.count()
         selectedTexts = self.attachedNmrAtomsList.getSelectedTexts()
-        nmrAtoms = [self.project.getByPid('NA:' + id) for id in selectedTexts]
+        nmrAtoms = [self.project.getByPid('NA:' + _id) for _id in selectedTexts]
 
         # populate the table with valid nmrAtoms
         self._updatePeakTable([atm for atm in nmrAtoms if atm is not None],
@@ -599,7 +600,7 @@ class AssignmentInspectorModule(CcpnModule):
         """
         if not nmrAtoms:
             # get all items from the table
-            nmrAtoms = [self.project.getByPid('NA:' + id) for id in self.attachedNmrAtomsList.getTexts()]
+            nmrAtoms = [self.project.getByPid('NA:' + _id) for _id in self.attachedNmrAtomsList.getTexts()]
 
             # # populate the table with valid nmrAtoms
             # self._updatePeakTable([atm for atm in nmrAtoms if atm is not None], messageAll=True)
@@ -628,8 +629,43 @@ class AssignmentInspectorModule(CcpnModule):
         if messageAll:
             self.peaksLabel.setText('Peaks assigned to NmrAtom(s): %s' % ALL)
         else:
-            atomList = ', '.join([str(id) for id in ids])
+            atomList = ', '.join([str(_id) for _id in ids])
             self.peaksLabel.setText('Peaks assigned to NmrAtom(s): %s' % atomList)  # nmrAtom.id)
+
+    #=========================================================================================
+    # Peak-table callbacks
+    #=========================================================================================
+
+    def _peakActionCallback(self, selection, lastItem):
+        """If current strip contains the double-clicked peak will navigateToPositionInStrip
+        """
+        from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
+
+        try:
+            if not (objs := list(lastItem[self.assignedPeaksTable._OBJECT])):
+                return
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}._peakActionCallback: No selection\n{es}')
+            return
+
+        if isinstance(objs, (tuple, list)):
+            peak = objs[0]
+        else:
+            peak = objs
+
+        if self.current.strip is not None:
+            widths = None
+            if peak.peakList.spectrum.dimensionCount <= 2:
+                widths = _getCurrentZoomRatio(self.current.strip.viewRange())
+
+            navigateToPositionInStrip(strip=self.current.strip,
+                                      positions=peak.position,
+                                      axisCodes=peak.axisCodes,
+                                      widths=widths
+                                      )
+
+        else:
+            logger.warning('Impossible to navigate to peak position. Set a current strip first')
 
 
 #=========================================================================================
@@ -657,10 +693,12 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         """Notifier Callback for selecting rows in the table
         """
         try:
-            objs = list(selection[self._OBJECT])
+            if not (objs := list(selection[self._OBJECT])):
+                return
 
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
+            return
 
         self.current.chemicalShifts = objs or []
 
