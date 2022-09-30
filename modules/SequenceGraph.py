@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-30 15:30:40 +0100 (Fri, September 30, 2022) $"
+__dateModified__ = "$dateModified: 2022-09-30 15:34:18 +0100 (Fri, September 30, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -46,18 +46,21 @@ from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
 # from ccpn.ui.gui.guiSettings import textFontSmall, textFontSmallBold, textFont
-from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS
-from ccpn.ui.gui.guiSettings import GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, \
-    GUINMRRESIDUE, SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
+from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS, TOOLTIP_BACKGROUND, \
+    GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, GUINMRRESIDUE, \
+    SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Icon import Icon
 # from ccpn.ui.gui.widgets.ToolBar import ToolBar
+from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown, ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager
 from ccpn.ui.gui.widgets.Splitter import Splitter
+from ccpn.ui.gui.widgets.PulldownList import PulldownList
+from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.SequenceWidget import SequenceWidget
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, SEQUENCEGRAPHFONT
@@ -1716,6 +1719,111 @@ class NmrResidueList():
 
 
 #==========================================================================================
+# Sequence Graph scenes and graphics-views
+#==========================================================================================
+
+class _SequenceGraphScene(QtWidgets.QGraphicsScene):
+    """Scene with a right-mouse menu.
+    """
+
+    def mouseReleaseEvent(self, event: 'QGraphicsSceneMouseEvent') -> None:
+        """Raise a menu if the right-mouse button is pressed.
+        """
+        if event.button() == QtCore.Qt.RightButton and (obj := self.mouseGrabberItem()):
+            pos = QtGui.QCursor().pos()
+            self.parent()._raiseContextMenu(obj, pos)
+
+        super().mouseReleaseEvent(event)
+
+
+class _SequenceGraphGraphicsView(QtWidgets.QGraphicsView):
+    """Graphics-view with a left-mouse drag.
+    """
+    _lastDragMode = None
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        """Handle the press-event.
+        """
+        if event.button() == QtCore.Qt.LeftButton:
+            # set the drag-mode
+            self._lastDragMode = self.dragMode()
+            self.setDragMode(self.ScrollHandDrag)
+
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        """Handle the release-event.
+        """
+        super().mouseReleaseEvent(event)
+
+        if self._lastDragMode is not None:
+            # undo the drag-mode
+            self.setDragMode(self._lastDragMode)
+            self._lastDragMode = None
+
+    def dragMoveEvent(self, event: QtGui.QDragMoveEvent) -> None:
+        """Handle the drag-move-event.
+        """
+        super().dragMoveEvent(event)
+
+        if self._lastDragMode is not None:
+            # undo the drag-mode
+            self.setDragMode(self._lastDragMode)
+            self._lastDragMode = None
+
+
+#==========================================================================================
+# NewNmrChain popup
+#==========================================================================================
+
+class EditNmrChainBalloon(SpeechBalloon):
+    """Balloon to hold the pulldown list for editing/selecting the nmrChain
+    """
+
+    def __init__(self, parent, *args, **kwds):
+        """Initialise the class
+
+        :param parent: parent class from which popup is instanciated
+        :param newPulldown: func to create a new pulldown
+        :param args: values to pass on to SpeechBalloon
+        :param kwds: values to pass on to SpeechBalloon
+        """
+        super().__init__(*args, **kwds)
+
+        self._parent = parent
+
+        # simplest way to make the popup function as modal and disappear as required
+        self.setWindowFlags(int(self.windowFlags()) | QtCore.Qt.Popup)
+        self._metrics.corner_radius = 1
+        self._metrics.pointer_height = 0
+
+        # set the background/fontSize for the tooltips
+        _toolBG = getColours()[TOOLTIP_BACKGROUND]
+        self.setStyleSheet(f'QToolTip {{ background-color: {_toolBG}; font-size: {self.font().pointSize()}pt ; }}')
+
+        # add the widgets
+        _frame = Frame(self, setLayout=True, margins=(10, 10, 10, 10))
+        _label = Label(_frame, text='Select nmrChain', grid=(0, 0), gridSpan=(1, 2))
+        self._pulldownWidget = PulldownList(_frame, grid=(1, 0), gridSpan=(1, 2), editable=True)
+
+        # set to the class central widget
+        self.setCentralWidget(_frame)
+
+    # add methods for setting pulldown options
+    def setPulldownData(self, texts):
+        self._pulldownWidget.setData(texts=texts)
+
+    def setPulldownCallback(self, callback):
+        self._pulldownWidget.activated.connect(partial(callback, self._pulldownWidget, self))
+
+    @property
+    def centralWidgetSize(self):
+        """Return the sizeHint for the central widget
+        """
+        return self._central_widget_size()
+
+
+#==========================================================================================
 # Sequence Graph Main Module
 #==========================================================================================
 
@@ -2881,6 +2989,53 @@ class SequenceGraphModule(CcpnModule):
             if self.current.nmrResidue:
                 self.showNmrChainFromPulldown()
 
+    def deassignNmrChainNew(self, selectedNmrResidue=None):
+        if self.current.nmrResidue:
+            selected = str(self.current.nmrResidue.nmrChain.pid)
+
+            # create the popup for selecting an nmrChain
+            nmrData = self.project.nmrChains
+            nmrNames = [''] + [nmr.name for nmr in nmrData]
+
+            # create a small editor
+            editPopup = EditNmrChainBalloon(parent=self, on_top=True)
+            editPopup.setPulldownData(list(nmrNames))
+            editPopup.setPulldownCallback(self._deassignNmrChainNew)
+
+            # get the desired position of the popup
+            pos = QtGui.QCursor().pos()
+            _size = editPopup.centralWidgetSize / 2
+            popupPos = pos - QtCore.QPoint(_size.width(), _size.height())
+
+            # show the editPopup near the mouse position
+            editPopup.showAt(popupPos)
+
+    def _deassignNmrChainNew(self, pullDown, balloon, index):
+        """Deassign the nmrResdues to the selected nmrChain
+        """
+        nmrId = pullDown.getText()
+        nmrChain = self.project.getObjectsById(className='NmrChain', id=nmrId)
+        if nmrChain:
+            # There can only ever be one match
+            nmrChain = nmrChain[0]
+
+        balloon.hide()
+        balloon.deleteLater()
+
+        if self.current.nmrResidue:
+            selected = str(self.current.nmrResidue.nmrChain.pid)
+
+            with progressManager(self.mainWindow, 'deassigning nmrResidues in NmrChain:\n ' + selected):
+                try:
+                    self.current.nmrResidue.deassignNmrChainTo(nmrChain)
+                except Exception as es:
+                    showWarning(str(self.windowTitle()), str(es))
+                    if self.application._isInDebugMode:
+                        raise es
+
+            if self.current.nmrResidue:
+                self.showNmrChainFromPulldown()
+
     def deassignPeak(self, selectedPeak=None, selectedNmrAtom=None):
         """Deassign the peak by removing the assigned nmrAtoms from the list
         """
@@ -3050,10 +3205,12 @@ class SequenceGraphModule(CcpnModule):
                 self._disconnectAllActionMenu = contextMenu.addAction('disconnect all nmrResidues', partial(self.disconnectAllNmrResidues))
                 if obj.nmrResidue.residue:
                     contextMenu.addSeparator()
-                    self._deassignNmrChainActionMenu = contextMenu.addAction('deassign nmrChain', partial(self.deassignNmrChain))
+                    self._deassignNmrChainActionMenu = contextMenu.addAction('deassign connected nmrResidues', self.deassignNmrChain)
+                    # self._deassignNmrChainNewActionMenu = contextMenu.addAction('deassign to new nmrChain', self.deassignNmrChainNew)
 
                     assign = pressed.nmrResidue.residue is not None
                     self._deassignNmrChainActionMenu.setEnabled(assign)
+                    # self._deassignNmrChainNewActionMenu.setEnabled(assign)
 
                 contextMenu.addSeparator()
                 txt = f'{_EDIT_OPTION} {obj.nmrResidue.id if obj.nmrResidue else ""}'
