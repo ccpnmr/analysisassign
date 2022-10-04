@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-20 09:21:46 +0100 (Tue, September 20, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-04 17:36:44 +0100 (Tue, October 04, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -634,6 +634,13 @@ class AssignmentTable(_ProjectTableABC):
     _dim = None
     _enableSearch = False
 
+    def __init__(self, parent, dim=0, *args, **kwds):
+        """Intitialise the table and store as top-or-bottom table
+        """
+        self._dim = dim
+
+        super(AssignmentTable, self).__init__(parent, *args, **kwds)
+
     #=========================================================================================
     # Build the dataFrame for the table
     #=========================================================================================
@@ -711,6 +718,11 @@ class AssignmentTable(_ProjectTableABC):
         """
         super().addTableMenuOptions(menu)
 
+        if self._dim == 0:
+            self._peakMenuAction = menu.addAction(f'Deassign from Peak', self._peakActionCallback)
+        else:
+            self._peakMenuAction = menu.addAction(f'Assign to Peak', self._peakActionCallback)
+
         self._editMenuAction = menu.addAction(f'{_EDIT_OPTION}...', self._editNmrAtom)
         self._newMenuAction = menu.addAction(_NEW_OPTION, self._newNmrAtom)
 
@@ -721,6 +733,7 @@ class AssignmentTable(_ProjectTableABC):
             # move new actions to the top of the list
             menu.insertAction(_topSeparator, self._newMenuAction)
             menu.insertAction(_topSeparator, self._editMenuAction)
+            menu.insertAction(self._newMenuAction, self._peakMenuAction)
 
     def setTableMenuOptions(self, menu):
         """Update options in the right-mouse menu
@@ -734,11 +747,13 @@ class AssignmentTable(_ProjectTableABC):
             currentNmrAtom = selection[0]
             self._editMenuAction.setText(f'{_EDIT_OPTION}{" " + currentNmrAtom.id if currentNmrAtom else "..."}')
             self._editMenuAction.setEnabled(True if currentNmrAtom else False)
+            self._peakMenuAction.setEnabled(True if currentNmrAtom else False)
 
         else:
             # disabled but visible lets user know that menu items exist
             self._editMenuAction.setText(f'{_EDIT_OPTION}...')
             self._editMenuAction.setEnabled(False)
+            self._peakMenuAction.setEnabled(False)
 
         # hide the previous edit balloon (looks a little cleaner)
         self._owner.setEditPopupVisible(False)
@@ -757,6 +772,16 @@ class AssignmentTable(_ProjectTableABC):
         """
         # call the new popup balloon
         self._owner._newNmrAtomPopup(mode=1)
+
+    def _peakActionCallback(self):
+        """Assign/deassign the peak
+        """
+        if self._dim == 0:
+            # deAssign from top to bottom
+            self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
+        elif self._dim == 1:
+            # assign bottom - up
+            self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
 
     #=========================================================================================
     # Selection/action callbacks
@@ -893,13 +918,14 @@ class AxisAssignmentObject(Frame):
                                          mainWindow=mainWindow,
                                          grid=(row, 0), gridSpan=(1, 1),
                                          # tipText='Click to select; double-click to de-assign'
-                                         showVerticalHeader=False
+                                         showVerticalHeader=False,
+                                         dim=0
                                          )
 
         self.tables[0].moduleParent = self._parent
         self.tables[0]._owner = self
         self.tables[0].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
-        self.tables[0]._dim = 0
+        # self.tables[0]._dim = 0
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
@@ -909,13 +935,14 @@ class AxisAssignmentObject(Frame):
                                          mainWindow=mainWindow,
                                          grid=(row, 0), gridSpan=(1, 1),
                                          # tipText='Click to select; double-click to assign'
-                                         showVerticalHeader=False
+                                         showVerticalHeader=False,
+                                         dim=1
                                          )
 
         self.tables[1].moduleParent = self._parent
         self.tables[1]._owner = self
         self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
-        self.tables[1]._dim = 1
+        # self.tables[1]._dim = 1
 
         row += 1
         _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
