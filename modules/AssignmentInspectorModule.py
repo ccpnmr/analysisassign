@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-28 12:20:08 +0100 (Wed, September 28, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-04 18:24:50 +0100 (Tue, October 04, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -37,13 +37,14 @@ from typing import Optional
 
 from ccpn.core.NmrAtom import NmrAtom, NmrResidue
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
+from ccpn.ui._implementation.Strip import Strip
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
-from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget
+from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget, IncludeCurrent
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
@@ -52,6 +53,7 @@ from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay  #, _getCurrentZoomRatio
+from ccpn.ui.gui.lib.SpectrumDisplay import navigateToNmrResidueInStrip
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.AttrDict import AttrDict
@@ -132,8 +134,9 @@ class AssignmentInspectorModule(CcpnModule):
                                                              orientation='left',
                                                              labelText='Display(s):',
                                                              tipText='SpectrumDisplay modules to respond to double-click',
-                                                             texts=[ALL] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
-                                                             defaults=[ALL]
+                                                             # texts=[ALL, UseCurrent] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
+                                                             defaults=[ALL],
+                                                             standardListItems=[ALL, IncludeCurrent]
                                                              )
 
         self.sequentialStripsWidget = CheckBoxCompoundWidget(
@@ -393,6 +396,7 @@ class AssignmentInspectorModule(CcpnModule):
             return
 
         from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+        from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
 
         with undoBlockWithoutSideBar():
             # optionally clear the marks
@@ -401,7 +405,16 @@ class AssignmentInspectorModule(CcpnModule):
 
             # navigate the displays
             for display in displays:
-                if len(display.strips) > 0:
+                if isinstance(display, Strip):
+                    strip = display
+                    display = strip.spectrumDisplay
+                    newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
+                    navigateToNmrResidueInStrip(display, strip=strip,
+                                                nmrResidue=nmrResidue,
+                                                widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
+                                                markPositions=self.markPositionsWidget.checkBox.isChecked()
+                                                )
+                elif len(display.strips) > 0:
                     newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
                     navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
                                                   widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
@@ -653,19 +666,33 @@ class AssignmentInspectorModule(CcpnModule):
         else:
             peak = objs
 
-        if self.current.strip is not None:
-            widths = None
-            if peak.peakList.spectrum.dimensionCount <= 2:
-                widths = _getCurrentZoomRatio(self.current.strip.viewRange())
+        dpObjs = self.displaysWidget.getDisplays()
+        if dpObjs:
+            # check which spectrumDisplays to navigate to
+            for dp in dpObjs:
+                if isinstance(dp, Strip):
+                    widths = None
+                    if peak.peakList.spectrum.dimensionCount <= 2:
+                        widths = _getCurrentZoomRatio(dp.viewRange())
 
-            navigateToPositionInStrip(strip=self.current.strip,
-                                      positions=peak.position,
-                                      axisCodes=peak.axisCodes,
-                                      widths=widths
-                                      )
+                    navigateToPositionInStrip(strip=dp,
+                                              positions=peak.position,
+                                              axisCodes=peak.axisCodes,
+                                              widths=widths
+                                              )
+                elif dp.strips:
+                    widths = None
+                    if peak.peakList.spectrum.dimensionCount <= 2:
+                        widths = _getCurrentZoomRatio(dp.strips[0].viewRange())
+
+                    navigateToPositionInStrip(strip=dp.strips[0],
+                                              positions=peak.position,
+                                              axisCodes=peak.axisCodes,
+                                              widths=widths
+                                              )
 
         else:
-            logger.warning('Impossible to navigate to peak position. Set a current strip first')
+            logger.warning('Impossible to navigate to peak position. Set a current strip first or select spectrumDisplays in gearbox settings')
 
 
 #=========================================================================================
