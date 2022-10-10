@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-04 17:36:44 +0100 (Tue, October 04, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-10 18:34:40 +0100 (Mon, October 10, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -52,7 +52,7 @@ from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.table._ProjectTable import _ProjectTableABC
-from ccpn.ui.gui.widgets.Column import ColumnClass
+from ccpn.ui.gui.widgets.Column import ColumnClass, Column
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNo
 from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
@@ -112,6 +112,7 @@ PulldownFill = '--'
 OtherNames = PulldownFill + ' Other Options ' + PulldownFill
 OtherByIC = PulldownFill + ' Name Options ' + PulldownFill
 OtherByResType = PulldownFill + ' nmrResidue Options ' + PulldownFill
+
 
 # small object to facilitate passing data to peakTable
 @dataclass
@@ -628,7 +629,7 @@ class AssignmentTable(_ProjectTableABC):
     # set the queue handling parameters
     _maximumQueueLength = 10  # shouldn't be responding to any notifiers
 
-    _hiddenColumns = ['Pid', 'Shift']
+    _hiddenColumns = ['Pid']
     _internalColumns = ['_object']
 
     _dim = None
@@ -697,14 +698,14 @@ class AssignmentTable(_ProjectTableABC):
         """
 
         # set column definitions and hidden columns for each table
-        self._columnDefs = ColumnClass([('NmrAtom', lambda nmrAtom: str(nmrAtom.id), 'NmrAtom identifier', None, None),
-                                        ('Pid', lambda nmrAtom: str(nmrAtom.pid), 'Pid of the nmrAtom', None, None),
-                                        ('_object', lambda nmrAtom: nmrAtom, 'Object', None, None),
-                                        ('Shift', lambda nmrAtom: self.moduleParent._getShift(nmrAtom), 'Chemical shift',
-                                         None, '%8.3f'),
-                                        ('Delta', lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex),
-                                         'Delta shift', None, '%6.3f')])
-
+        self._columnDefs = ColumnClass([])
+        self._columnDefs._columns = [
+            Column('NmrAtom', lambda nmrAtom: str(nmrAtom.id), tipText='NmrAtom identifier'),
+            Column('Pid', lambda nmrAtom: str(nmrAtom.pid), tipText='Pid of the nmrAtom'),
+            Column('_object', lambda nmrAtom: nmrAtom, tipText='Object'),
+            Column('Delta', lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex), tipText='Delta-shift', format='%6.3f'),
+            Column('Shift', lambda nmrAtom: self.moduleParent._getShift(nmrAtom), tipText='Chemical-shift', format='%8.3f'),
+            ]
         return self._columnDefs
 
     def _clearSelectionCallback(self):
