@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-04 18:24:50 +0100 (Tue, October 04, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-10 18:32:52 +0100 (Mon, October 10, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -183,6 +183,7 @@ class AssignmentInspectorModule(CcpnModule):
         minHeight = self._calculateMinHeight()
         self._settingsScrollArea.setMinimumSizes((self._settingsScrollArea.minimumWidth(), minHeight))
         self.nmrAtomBlocking = True
+        self._nmrResidues = []
 
         # main window
         # AssignedPeaksTable need to be initialised before chemicalShiftTable, as the callback of the latter requires
