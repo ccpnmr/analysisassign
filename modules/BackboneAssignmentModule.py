@@ -10,12 +10,12 @@ __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliz
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: VickyAH $"
-__dateModified__ = "$dateModified: 2022-05-26 13:23:31 +0100 (Thu, May 26, 2022) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2022-10-12 15:27:02 +0100 (Wed, October 12, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -28,9 +28,9 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 
 import typing
 from collections import OrderedDict
-from PyQt5 import QtGui, QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
-from ccpn.core._OldChemicalShift import _OldChemicalShift
+from ccpn.core.ChemicalShift import ChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot
@@ -38,11 +38,9 @@ from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.CompoundWidgets import ListCompoundWidget, PulldownListCompoundWidget, CheckBoxCompoundWidget
+from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, showYesNo
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
-from ccpn.ui.gui.widgets.Spacer import Spacer
-from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.widgets.Font import getTextDimensionsFromFont
 from ccpn.util.decorators import logCommand
@@ -50,7 +48,10 @@ from ccpn.util.Logging import getLogger
 from ccpn.core.NmrAtom import NmrAtom
 from ccpn.ui.gui.widgets.PlaneToolbar import STRIPLABEL_CONNECTDIR, STRIPLABEL_CONNECTNONE, \
     STRIPCONNECT_LEFT, STRIPCONNECT_RIGHT
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, notificationEchoBlocking
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+from ccpn.ui.gui.widgets.Tabs import Tabs
+from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.HLine import LabeledHLine
 
 
 ALL = '<all>'
@@ -73,6 +74,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
     includeDisplaySettings = True
     activePulldownClass = NmrChain
+    registeredExtensions = set()
 
     def __init__(self, mainWindow=None, name='Backbone Assignment'):
 
@@ -89,6 +91,34 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.matchCheckBoxWidget = CheckBox(self.tableFrame,
                                             grid=(1, 2), checked=True, text='Find matches')
 
+        self._createSettingsWidgets()
+        self._stripNotifiers = []  # list to store GuiNotifiers for strips
+
+        ## main table options
+        self.tableWidget.multiSelect = True
+        self.tableWidget.setSelectionMode(self.tableWidget.SingleSelection)
+        self.tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
+        self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
+        self.layout.setContentsMargins(0, 1, 0, 0)
+
+    def _createSettingsWidgets(self):
+        self.settingsWidget.setContentsMargins(5, 5, 5, 5)
+        self.settingsTabWidget = Tabs(self.settingsWidget, setLayout=True, grid=(0, 0))
+        ##  General Tab
+        self.generalSettingsFrame = Frame(self.settingsWidget, setLayout=True)
+        self.generalSettingsFrame.getLayout().setAlignment(QtCore.Qt.AlignTop)
+        self.settingsTabWidget.addTab(self.generalSettingsFrame, 'General')
+        self.generalSettingsFrame.getLayout().addWidget(self.nmrResidueTableSettings)
+        self._setupGeneralSettings()
+
+        ##  Extensions Tab
+        self.extensionsSettingsFrame = Frame(self.settingsWidget, setLayout=True)
+        self.extensionsSettingsFrame.getLayout().setAlignment(QtCore.Qt.AlignTop)
+        self.settingsTabWidget.addTab(self.extensionsSettingsFrame, 'Extensions')
+        self._addExtensionsToSettings()
+
+    def _setupGeneralSettings(self):
+        """ add to layout the general settings widgets"""
         ### Settings ###
 
         # change defaults setting inherited from NmrResidueTableModule
@@ -132,19 +162,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                                     texts=[str(tt) for tt in range(MINMATCHES, MAXMATCHES)],
                                                                     default=DEFAULTMATCHES
                                                                     )
-
-        # Match module selection
-        # row += 1
-        # # cannot set a notifier for displays, as these are not (yet?) implemented
-        # self.matchWidget = ListCompoundWidget(self.nmrResidueTableSettings,
-        #                                       grid=(row, col), vAlign='top', hAlign='left',
-        #                                       fixedWidths=(colWidth0, colWidth0, colWidth0),
-        #                                       orientation='left',
-        #                                       labelText="Match module(s):",
-        #                                       texts=[display.pid for display in self.mainWindow.spectrumDisplays]
-        #                                       )
-        # self.matchWidget.setPreSelect(self._fillDisplayWidget)
-        # self.matchWidget.setFixedHeights((None, None, 40))
 
         # new match module pulldown list
         row += 1
@@ -217,23 +234,31 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                          callback=self._setupShiftDicts, default=None
                                                          )
         self._setupShiftDicts()
-        self._spacer = Spacer(self.settingsWidget, 5, 5,
-                              QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding,
-                              grid=(row + 20, 10), gridSpan=(1, 1))
 
-        # for compatibility with previous implementation
-        #self.moduleList = self.matchWidget.listWidget
+    @staticmethod
+    def registerExtension(cls, extension):
+        from ccpn.AnalysisAssign.modules.backboneExtensions.BackboneAssignmentExtensionABC import BackboneAssignmentExtensionFrame
 
-        self._stripNotifiers = []  # list to store GuiNotifiers for strips
-        self.tableWidget.multiSelect = True
-        self.tableWidget.setSelectionMode(self.tableWidget.SingleSelection)
+        if issubclass(extension, BackboneAssignmentExtensionFrame):
+            cls.registeredExtensions.add(extension)
+        else:
+            getLogger().warning('Cannot register Extension for this module. Ensure the format is correct')
 
-        self.tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
+    def _addExtensionsToSettings(self):
+        """ Add registered extensions to the Settings Panel. """
+        from ccpn.AnalysisAssign.modules.backboneExtensions import _loadAssignExtensions
 
-        #self.tableWidget._setWidgetHeight(48)
+        try:
+            _loadAssignExtensions()
 
-        self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-        self.layout.setContentsMargins(0, 1, 0, 0)
+            registeredExtensions = self.registeredExtensions
+            for extensionFrameObj in registeredExtensions:
+                extensionFrame = extensionFrameObj(guiModule=self)
+                hLine = LabeledHLine(self, text=extensionFrame.NAME)
+                self.extensionsSettingsFrame.getLayout().addWidget(hLine)
+                self.extensionsSettingsFrame.getLayout().addWidget(extensionFrame)
+        except Exception as err:
+            getLogger().warning("Some Extensions failed to load %s" % err)
 
     def _fillMatchWidget(self):
         ll = ['> select-to-add <'] + [display.pid for display in self.mainWindow.spectrumDisplays]
@@ -284,24 +309,25 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         displays = [display for display in displays if display is not None]
         return displays
 
-    def navigateToNmrResidueCallBack(self, data):
+    def navigateToNmrResidueCallBack(self, selection, lastItem):
         """Navigate in selected displays to nmrResidue; skip if none defined
         """
-        from ccpn.core.lib.CallBack import CallBack
+        try:
+            if not (objs := list(lastItem[self.tableWidget._OBJECT])):
+                return
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.navigateToNmrResidueCallBack: No selection\n{es}')
+            return
 
-        # nmrResidue = data[CallBack.OBJECT]
-        # if not nmrResidue:
-        #     return
-        # if isinstance(nmrResidue, (tuple, list)):
-        #     nmrResidue = nmrResidue[0]
+        if isinstance(objs, (tuple, list)):
+            nmrResidue = objs[0]
+        else:
+            nmrResidue = objs
 
-        nmrResidue = data[CallBack.ROWOBJECT]  # the item clicked, not everything selected
-        row = data[CallBack.ROW]
-        col = data[CallBack.COL]
-        self.navigateToNmrResidue(nmrResidue, row=row, col=col)
+        self.navigateToNmrResidue(nmrResidue)
 
     @logCommand(get='self')
-    def navigateToNmrResidue(self, nmrResidue, row=None, col=None):
+    def navigateToNmrResidue(self, nmrResidue):
         """Navigate in selected displays to nmrResidue; skip if no displays defined
         If matchCheckbox is checked, also call findAndDisplayMatches
         """
@@ -794,7 +820,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if self.matchC.isChecked():
             self.nmrAtomsToMatch.append('C')
 
-    def _createMatchStrips(self, assignMatrix: typing.Tuple[typing.Dict[NmrResidue, typing.List[_OldChemicalShift]], typing.List[float]]):
+    def _createMatchStrips(self, assignMatrix: typing.Tuple[typing.Dict[NmrResidue, typing.List[ChemicalShift]], typing.List[float]]):
         """
         Creates strips in match module corresponding to the best assignment possibilities
         in the assignMatrix.

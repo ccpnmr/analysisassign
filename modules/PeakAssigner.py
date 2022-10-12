@@ -12,12 +12,12 @@ __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliz
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-06-22 14:28:59 +0100 (Wed, June 22, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-12 15:27:02 +0100 (Wed, October 12, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -30,10 +30,11 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 import typing
 import numpy as np
-from queue import Queue
+import pandas as pd
+from dataclasses import dataclass
 from functools import partial
 from collections import OrderedDict
-from PyQt5 import QtGui, QtWidgets, QtCore
+from PyQt5 import QtGui, QtCore
 from time import time_ns
 from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
 from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue
@@ -41,17 +42,17 @@ from ccpn.core.Peak import Peak
 from ccpn.core.lib import CcpnSorting
 from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, PROTEIN_NEF_ATOM_NAMES, NEF_ATOM_NAMES
 from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
-from ccpn.core.lib.Pid import Pid
 from ccpn.core.lib.Notifiers import Notifier, _removeDuplicatedNotifiers
+from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.ButtonList import ButtonList, Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
-from ccpn.ui.gui.widgets.HLine import HLine, LabeledHLine
+from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
-from ccpn.ui.gui.widgets.GuiTable import GuiTable
-from ccpn.ui.gui.widgets.Column import ColumnClass
+from ccpn.ui.gui.widgets.table._ProjectTable import _ProjectTableABC
+from ccpn.ui.gui.widgets.Column import ColumnClass, Column
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNo
 from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
@@ -113,6 +114,12 @@ OtherByIC = PulldownFill + ' Name Options ' + PulldownFill
 OtherByResType = PulldownFill + ' nmrResidue Options ' + PulldownFill
 
 
+# small object to facilitate passing data to peakTable
+@dataclass
+class _emptyObject:
+    nmrAtoms = []
+
+
 class PeakAssigner(CcpnModule):
     """Module for assignment of nmrAtoms to the different axes of a peak.
     Module responds to current.peak
@@ -158,9 +165,6 @@ class PeakAssigner(CcpnModule):
         # add widgets to the module
         self._setWidgets()
 
-        # set notifiers to respond to peaks
-        self._registerNotifiers()
-
         # install event filter to track changes in width
         self.mainWidget.installEventFilter(self)
 
@@ -170,13 +174,16 @@ class PeakAssigner(CcpnModule):
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
         # notifier queue handling
-        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PeakAssigner',
-                                          startOnAdd=False, log=False, completeCallback=self.update)
         self._queuePending = UpdateQueue()
         self._queueActive = None
         self._lock = QtCore.QMutex()
+        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PeakAssigner',
+                                          log=False, completeCallback=self.update)
 
         self._chemShifts = {}
+
+        # set notifiers to respond to peaks
+        self._registerNotifiers()
 
     def eventFilter(self, target, event):
         """Event filter to handle a mainWidget resizing
@@ -239,7 +246,7 @@ class PeakAssigner(CcpnModule):
                                )
 
         row += 1
-        # setup a frame for the dimension frames - scrollable frame not resizing correctly
+        # set up a frame for the dimension frames - scrollable frame not resizing correctly
         self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
                                                acceptDrops=True, grid=(row, 0),
                                                )
@@ -286,7 +293,7 @@ class PeakAssigner(CcpnModule):
                          targetName=Peak.__name__,
                          callback=self._updatePeak,  # self._updateInterface,
                          onceOnly=True)
-        self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.CREATE],
+        self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
                          targetName=NmrAtom.__name__,
                          callback=self._updateNmrAtom,
                          onceOnly=True)
@@ -449,7 +456,7 @@ class PeakAssigner(CcpnModule):
         doubleTolerance = self.doubleToleranceCheckbox.isChecked()
         intraResidual = self.intraCheckbox.isChecked()
 
-        validNmrAtoms = [nmrAtom for nmrAtom in self.project.nmrAtoms if not nmrAtom.nmrResidue.isDeleted]
+        validNmrAtoms = [nmrAtom for nmrAtom in self.project.nmrAtoms if not nmrAtom.nmrResidue.isDeleted or not nmrAtom.isDeleted]
         nmrAtomsForTables = nmrAtomsForPeaks(peaks, validNmrAtoms,
                                              doubleTolerance=doubleTolerance,
                                              intraResidual=intraResidual)
@@ -462,8 +469,8 @@ class PeakAssigner(CcpnModule):
         _sizes = []
         for dim, nmrAtoms in zip(range(Ndimensions), nmrAtomsForTables):
             ll = [set(peak.dimensionNmrAtoms[dim]) for peak in peaks]
-            self.nmrAtoms = list(sorted(set.intersection(*ll)))  # was intersection
-            self.nmrAtoms = [nmrAtom for nmrAtom in self.nmrAtoms if not nmrAtom.nmrResidue.isDeleted]
+            self.nmrAtoms = list(sorted(set.intersection(*ll)))
+            self.nmrAtoms = [nmrAtom for nmrAtom in self.nmrAtoms if not nmrAtom.nmrResidue.isDeleted or not nmrAtom.isDeleted]
 
             self.currentList.append([str(a.pid) for a in self.nmrAtoms])  # ejb - keep another list
             self.dimensionTabs[dim].setAssignedTable(self.nmrAtoms)
@@ -496,10 +503,8 @@ class PeakAssigner(CcpnModule):
 
         deltas = []
         for peak in self.current.peaks:
-            shiftList = peak.peakList.spectrum.chemicalShiftList
-            if shiftList:
-                shift = self._getCachedShift(shiftList, nmrAtom)  # shiftList.getChemicalShift(nmrAtom)
-                if shift:
+            if (shiftList := peak.peakList.spectrum.chemicalShiftList):
+                if (shift := self._getCachedShift(shiftList, nmrAtom)):  # shiftList.getChemicalShift(nmrAtom)
                     _value = shift.value
                     if _value is not None:
                         position = peak.position[dim]
@@ -525,10 +530,8 @@ class PeakAssigner(CcpnModule):
             return self._cachedTableShifts[nmrAtom]
 
         for peak in self.current.peaks:
-            shiftList = peak.peakList.spectrum.chemicalShiftList
-            if shiftList:
-                shift = self._getCachedShift(shiftList, nmrAtom)  # shiftList.getChemicalShift(nmrAtom)
-                if shift:
+            if (shiftList := peak.peakList.spectrum.chemicalShiftList):
+                if (shift := self._getCachedShift(shiftList, nmrAtom)):  # shiftList.getChemicalShift(nmrAtom)
                     _val = shift.value  # '%8.3f' % shift.value
                     self._cachedTableShifts[nmrAtom] = _val
                     return _val
@@ -602,39 +605,108 @@ class NotOnLine(object):
 
 
 NOL = NotOnLine()
+_EDIT_OPTION = 'Edit nmrAtom'
+_NEW_OPTION = 'New nmrAtom'
 
 
-class AssignmentTable(GuiTable):
+class AssignmentTable(_ProjectTableABC):
     """Subclassed for some added functionality"""
 
-    def __init__(self, parent=None,
-                 mainWindow=None,
-                 dataFrameObject=None,  # collate into a single object that can be changed quickly
-                 actionCallback=None,
-                 selectionCallback=None,
-                 checkBoxCallback=None,
-                 clearSelectionCallback=None,
-                 _pulldownKwds=None, enableMouseMoveEvent=True,
-                 multiSelect=False, selectRows=True, numberRows=False, autoResize=False,
-                 enableExport=True, enableDelete=True, enableSearch=True, allowRowDragAndDrop=True,
-                 hideIndex=True, stretchLastSection=True,
-                 **kwds):
+    # define the notifiers that are required for the specific table-type
+    tableClass = None
+    rowClass = None
+    cellClass = None
+    tableName = 'assignedPeaks'
+    rowName = None
+    cellClassNames = None
+    selectCurrent = True
+    callBackClass = NmrAtom
+    search = False
 
-        super().__init__(parent=parent,
-                         mainWindow=mainWindow,
-                         dataFrameObject=dataFrameObject,
-                         actionCallback=actionCallback,
-                         selectionCallback=selectionCallback,
-                         checkBoxCallback=checkBoxCallback,
-                         _pulldownKwds=_pulldownKwds, enableMouseMoveEvent=enableMouseMoveEvent,
-                         allowRowDragAndDrop=allowRowDragAndDrop,
-                         multiSelect=multiSelect, selectRows=selectRows,
-                         numberRows=numberRows, autoResize=autoResize,
-                         enableExport=enableExport, enableDelete=enableDelete, enableSearch=enableSearch,
-                         hideIndex=hideIndex, stretchLastSection=stretchLastSection,
-                         **kwds)
+    _enableSelectionCallback = False
+    _enableActionCallback = True
 
-        self._clearSelectionCallbackFunction = clearSelectionCallback
+    # set the queue handling parameters
+    _maximumQueueLength = 10  # shouldn't be responding to any notifiers
+
+    _hiddenColumns = ['Pid']
+    _internalColumns = ['_object']
+
+    _dim = None
+    _enableSearch = False
+
+    def __init__(self, parent, dim=0, *args, **kwds):
+        """Intitialise the table and store as top-or-bottom table
+        """
+        self._dim = dim
+
+        super(AssignmentTable, self).__init__(parent, *args, **kwds)
+
+    #=========================================================================================
+    # Build the dataFrame for the table
+    #=========================================================================================
+
+    def buildTableDataFrame(self):
+        """Return a Pandas dataFrame from an internal list of objects
+        """
+        """Return a Pandas dataFrame from an internal list of objects.
+        The columns are based on the 'func' functions in the columnDefinitions.
+        :return pandas dataFrame
+        """
+        allItems = []
+        objects = []
+
+        if self._table:
+            self._columnDefs = self._getTableColumns(self._table)
+
+            for col, obj in enumerate(self._table):
+                listItem = OrderedDict()
+                for header in self._columnDefs.columns:
+                    try:
+                        listItem[header.headerText] = header.getValue(obj)
+                    except Exception as es:
+                        # NOTE:ED - catch any nasty surprises in tables
+                        getLogger().debug2(f'Error creating table information {es}')
+                        listItem[header.headerText] = None
+
+                allItems.append(listItem)
+                objects.append(obj)
+
+            df = pd.DataFrame(allItems, columns=self._columnDefs.headings)
+
+        else:
+            self._columnDefs = self._getTableColumns()
+            df = pd.DataFrame(columns=self._columnDefs.headings)
+
+        # use the object as the index, object always exists even if isDeleted
+        df.set_index(df[self.OBJECTCOLUMN], inplace=True, )
+
+        _dfObject = DataFrameObject(dataFrame=df,
+                                    columnDefs=self._columnDefs or [],
+                                    table=self)
+
+        return _dfObject
+
+    #=========================================================================================
+    # Table functions
+    #=========================================================================================
+
+    def _getTableColumns(self, nmrAtoms=None):
+        """Add default columns plus the ones according to peakList.spectrum dimension
+        format of column = ( Header Name, value, tipText, editOption)
+        editOption allows the user to modify the value content by doubleclick
+        """
+
+        # set column definitions and hidden columns for each table
+        self._columnDefs = ColumnClass([])
+        self._columnDefs._columns = [
+            Column('NmrAtom', lambda nmrAtom: str(nmrAtom.id), tipText='NmrAtom identifier'),
+            Column('Pid', lambda nmrAtom: str(nmrAtom.pid), tipText='Pid of the nmrAtom'),
+            Column('_object', lambda nmrAtom: nmrAtom, tipText='Object'),
+            Column('Delta', lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex), tipText='Delta-shift', format='%6.3f'),
+            Column('Shift', lambda nmrAtom: self.moduleParent._getShift(nmrAtom), tipText='Chemical-shift', format='%8.3f'),
+            ]
+        return self._columnDefs
 
     def _clearSelectionCallback(self):
         super(AssignmentTable, self)._clearSelectionCallback()
@@ -642,47 +714,57 @@ class AssignmentTable(GuiTable):
             data = {}
             self._clearSelectionCallbackFunction(data)
 
-    def _setContextMenu(self, enableExport=True, enableDelete=True):
-        """Subclass guiTable to add new item to top of context menu
+    def addTableMenuOptions(self, menu):
+        """Add options to the right-mouse menu
         """
-        super()._setContextMenu(enableExport=enableExport, enableDelete=enableDelete)
-        _actions = self.tableMenu.actions()
-        if _actions:
-            _topMenuItem = _actions[0]
-            _topSeparator = self.tableMenu.insertSeparator(_topMenuItem)
-            self._editMenuAction = self.tableMenu.addAction('Edit nmrAtom ...', self._editNmrAtom)
-            self._newMenuAction = self.tableMenu.addAction('New nmrAtom', self._newNmrAtom)
-            # move new actions to the top of the list
-            self.tableMenu.insertAction(_topSeparator, self._newMenuAction)
-            self.tableMenu.insertAction(_topSeparator, self._editMenuAction)
+        super().addTableMenuOptions(menu)
 
-    def _raiseTableContextMenu(self, pos):
-        """Create a new menu and popup at cursor position
-        Update text for edit nmrAtom
+        if self._dim == 0:
+            self._peakMenuAction = menu.addAction(f'Deassign from Peak', self._peakActionCallback)
+        else:
+            self._peakMenuAction = menu.addAction(f'Assign to Peak', self._peakActionCallback)
+
+        self._editMenuAction = menu.addAction(f'{_EDIT_OPTION}...', self._editNmrAtom)
+        self._newMenuAction = menu.addAction(_NEW_OPTION, self._newNmrAtom)
+
+        if (_actions := menu.actions()):
+            _topMenuItem = _actions[0]
+            _topSeparator = menu.insertSeparator(_topMenuItem)
+
+            # move new actions to the top of the list
+            menu.insertAction(_topSeparator, self._newMenuAction)
+            menu.insertAction(_topSeparator, self._editMenuAction)
+            menu.insertAction(self._newMenuAction, self._peakMenuAction)
+
+    def setTableMenuOptions(self, menu):
+        """Update options in the right-mouse menu
         """
+        super().setTableMenuOptions(menu)
+
         selection = self.getSelectedObjects()
         data = self.getRightMouseItem()
-        if data and selection:
+        if data is not None and not data.empty and selection:
             # add more information to the edit nmrAtom option in the menu
             currentNmrAtom = selection[0]
-            self._editMenuAction.setText('Edit NmrAtom {}'.format(currentNmrAtom.id if currentNmrAtom else '...'))
+            self._editMenuAction.setText(f'{_EDIT_OPTION}{" " + currentNmrAtom.id if currentNmrAtom else "..."}')
             self._editMenuAction.setEnabled(True if currentNmrAtom else False)
+            self._peakMenuAction.setEnabled(True if currentNmrAtom else False)
 
         else:
             # disabled but visible lets user know that menu items exist
-            self._editMenuAction.setText('Edit NmrAtom ...')
+            self._editMenuAction.setText(f'{_EDIT_OPTION}...')
             self._editMenuAction.setEnabled(False)
+            self._peakMenuAction.setEnabled(False)
 
         # hide the previous edit balloon (looks a little cleaner)
         self._owner.setEditPopupVisible(False)
-        super()._raiseTableContextMenu(pos)
 
     def _editNmrAtom(self):
         """Edit the nmrAtom from the parent widget
         """
         selection = self.getSelectedObjects()
         data = self.getRightMouseItem()
-        if data and selection:
+        if data is not None and not data.empty and selection:
             # call the edit popup balloon
             self._owner._reassignNmrAtomPopup(mode=1)
 
@@ -692,6 +774,71 @@ class AssignmentTable(GuiTable):
         # call the new popup balloon
         self._owner._newNmrAtomPopup(mode=1)
 
+    def _peakActionCallback(self):
+        """Assign/deassign the peak
+        """
+        if self._dim == 0:
+            # deAssign from top to bottom
+            self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
+        elif self._dim == 1:
+            # assign bottom - up
+            self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
+
+    #=========================================================================================
+    # Selection/action callbacks
+    #=========================================================================================
+
+    def actionCallback(self, selection, lastItem):
+        """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
+        """
+        try:
+            objs = list(lastItem[self._OBJECT])
+
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.actionCallback: No selection\n{es}')
+
+        else:
+            if isinstance(objs, (list, tuple)):
+                nmrAtom = objs[0]
+            else:
+                nmrAtom = objs
+
+            if self._dim == 0:
+                # deAssign from top to bottom
+                self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
+            elif self._dim == 1:
+                # assign bottom - up
+                self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
+
+    def selectionCallback(self, selected, deselected, selection, lastItem):
+        """Notifier Callback for selecting rows in the table
+        """
+        try:
+            objs = list(selection[self._OBJECT])
+
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
+
+        else:
+            # don't do anything yet
+            pass
+
+    def _selectCurrentCallBack(self, data):
+        """Callback from a current changed notifier to highlight the current objects
+        :param data
+        """
+        pass
+
+    # def _updateRowCallback(self, data):
+    #     """Notifier callback for updating the table for change in chemicalShifts
+    #     :param data: notifier content
+    #     """
+    #     _CoreTableWidgetABC._updateRowCallback(self, data)
+
+
+#=========================================================================================
+# EditNmrAtomBalloon
+#=========================================================================================
 
 class EditNmrAtomBalloon(SpeechBalloon):
     """Balloon to hold the pulldown lists for editing the nmrAtom
@@ -705,6 +852,10 @@ class EditNmrAtomBalloon(SpeechBalloon):
         self._mainWindow = mainWindow
         self._project = project
 
+
+#=========================================================================================
+# AxisAssignmentObject
+#=========================================================================================
 
 class AxisAssignmentObject(Frame):
     """
@@ -766,25 +917,16 @@ class AxisAssignmentObject(Frame):
         row += 1
         self.tables[0] = AssignmentTable(parent=self._assignmentsFrame,
                                          mainWindow=mainWindow,
-                                         dataFrameObject=None,
-                                         setLayout=True,
-                                         autoResize=False, multiSelect=False,
-                                         actionCallback=partial(self._assignDeassignNmrAtom, 0),
-                                         selectionCallback=partial(self._clickedTableCallback, 0),
-                                         clearSelectionCallback=partial(self._clearTableCallback, 0),
                                          grid=(row, 0), gridSpan=(1, 1),
-                                         # **settings,
-                                         stretchLastSection=True,
-                                         enableSearch=False,
-                                         acceptDrops=True,
-                                         enableExport=False,
-                                         tipText='Click to select; double-click to de-assign')
+                                         # tipText='Click to select; double-click to de-assign'
+                                         showVerticalHeader=False,
+                                         dim=0
+                                         )
+
+        self.tables[0].moduleParent = self._parent
         self.tables[0]._owner = self
         self.tables[0].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
-        self._parent.setGuiNotifier(self.tables[0], [GuiNotifier.DROPEVENT], [DropBase.PIDS],
-                                    callback=partial(self._handleDroppedItems, 0))
-        self._parent.setGuiNotifier(self.tables[0], [GuiNotifier.DRAGMOVEEVENT], [DropBase.PIDS],
-                                    callback=partial(self._handleDragMoveEvent, 0))
+        # self.tables[0]._dim = 0
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
@@ -792,25 +934,16 @@ class AxisAssignmentObject(Frame):
         row += 1
         self.tables[1] = AssignmentTable(parent=self._assignmentsFrame,
                                          mainWindow=mainWindow,
-                                         dataFrameObject=None,
-                                         setLayout=True,
-                                         autoResize=False, multiSelect=False,
-                                         actionCallback=partial(self._assignDeassignNmrAtom, 1),
-                                         selectionCallback=partial(self._clickedTableCallback, 1),
-                                         clearSelectionCallback=partial(self._clearTableCallback, 1),
                                          grid=(row, 0), gridSpan=(1, 1),
-                                         # **settings,
-                                         stretchLastSection=True,
-                                         enableSearch=False,
-                                         enableExport=False,
-                                         acceptDrops=True,
-                                         tipText='Click to select; double-click to assign')
-        self._parent.setGuiNotifier(self.tables[1], [GuiNotifier.DROPEVENT],
-                                    [DropBase.PIDS], callback=partial(self._handleDroppedItems, 1))
-        self._parent.setGuiNotifier(self.tables[1], [GuiNotifier.DRAGMOVEEVENT],
-                                    [DropBase.PIDS], callback=partial(self._handleDragMoveEvent, 1))
+                                         # tipText='Click to select; double-click to assign'
+                                         showVerticalHeader=False,
+                                         dim=1
+                                         )
+
+        self.tables[1].moduleParent = self._parent
         self.tables[1]._owner = self
         self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
+        # self.tables[1]._dim = 1
 
         row += 1
         _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
@@ -830,45 +963,6 @@ class AxisAssignmentObject(Frame):
         self.notAlignedLabel = Label(parent=self.notAlignedFrame, text='peaks\nnot aligned', grid=(0, 0),
                                      hPolicy='minimal', hAlign='centre',
                                      textColour=getColours()[LABEL_WARNINGFOREGROUND])
-
-        #===========================================
-        # set up notifiers to changes to peaks, nmrAtoms and assignments
-        #===========================================
-        self.tables[0].setTableNotifiers(tableClass=Peak,
-                                         rowClass=NmrAtom,
-                                         cellClassNames=None,
-                                         tableName='assignedPeaks', rowName='nmrAtom',
-                                         changeFunc=parentModule._updateInterface,
-                                         className='peakLists',
-                                         updateFunc=parentModule._updateInterface,
-                                         tableSelection=None,
-                                         pullDownWidget=None,
-                                         callBackClass=NmrAtom,
-                                         moduleParent=self)
-        self.tables[1].setTableNotifiers(tableClass=Peak,
-                                         rowClass=NmrAtom,
-                                         cellClassNames=None,
-                                         tableName='assignedPeaks', rowName='nmrAtom',
-                                         changeFunc=parentModule._updateInterface,
-                                         className='peakLists',
-                                         updateFunc=parentModule._updateInterface,
-                                         tableSelection=None,
-                                         pullDownWidget=None,
-                                         callBackClass=NmrAtom,
-                                         moduleParent=self)  # self.tables)  # just to give a unique id
-
-        # set column definitions and hidden columns for each table
-        self.columnDefs = ColumnClass([('NmrAtom', lambda nmrAtom: str(nmrAtom.id), 'NmrAtom identifier', None, None),
-                                       ('Pid', lambda nmrAtom: str(nmrAtom.pid), 'Pid of the nmrAtom', None, None),
-                                       ('_object', lambda nmrAtom: nmrAtom, 'Object', None, None),
-                                       ('Shift', lambda nmrAtom: parentModule._getShift(nmrAtom), 'Chemical shift',
-                                        None, '%8.3f'),
-                                       ('Delta', lambda nmrAtom: parentModule._getDeltaShift(nmrAtom, self.dimIndex),
-                                        'Delta shift', None, '%6.3f')])
-        self._hiddenColumns = [['Pid', 'Shift'], ['Pid', 'Shift']]
-
-        self.tables[0]._hiddenColumns = ['Pid', 'Shift']
-        self.tables[1]._hiddenColumns = ['Pid', 'Shift']
 
         self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
                                                      setLayout=True, showBorder=_showBorders, grid=(0, 0))
@@ -944,10 +1038,11 @@ class AxisAssignmentObject(Frame):
             self._setAtomNames()
             self._resetPulldownColours()
 
-    def _setPulldownTextColour(self, combo):
+    @staticmethod
+    def _setPulldownTextColour(combo):
         """Set the colour of the pulldown text
         """
-        # NOTE:ED - should move this the the pulldown widget
+        # NOTE:ED - should move this to the pulldown widget
         ind = combo.currentIndex()
         model = combo.model()
         item = model.item(ind)
@@ -1052,7 +1147,7 @@ class AxisAssignmentObject(Frame):
 
     def _assignDeassignNmrAtom(self, tableNum: int, data):
         """
-        Assign/Deassign the nmrAtom that is double clicked to the
+        Assign/Deassign the nmrAtom that is double-clicked to
         the corresponding dimension of the selected
         peaks.
         """
@@ -1186,7 +1281,7 @@ class AxisAssignmentObject(Frame):
                         peak.assignDimension(axisCode, newAssignments)
 
                 # highlight on the table and populate the pulldowns
-                self.tables[0].selectObjects([nmrAtom], setUpdatesEnabled=False)
+                self.tables[0].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
                 self.tables[1].clearSelection()
 
                 # No need for update, as this will be done by the callback on the newNmrAtom/newNmrResidue
@@ -1458,7 +1553,7 @@ class AxisAssignmentObject(Frame):
 
             self._parent._updateInterface()
 
-            self.tables[0].selectObjects([nmrAtom], setUpdatesEnabled=False)
+            self.tables[0].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
 
             if nmrAtom:
                 # self._updateAssignmentWidget(0, nmrAtom)
@@ -1506,7 +1601,7 @@ class AxisAssignmentObject(Frame):
                     showWarning(str(self.windowTitle()), str(es))
 
                 self._parent._updateInterface()
-                self.tables[1].selectObjects([nmrAtom], setUpdatesEnabled=False)
+                self.tables[1].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
                 nextAtom = self.tables[1].getSelectedObjects()
                 if nextAtom:
                     # self._updateAssignmentWidget(1, currentObject[0])
@@ -1528,17 +1623,21 @@ class AxisAssignmentObject(Frame):
 
     def setAssignedTable(self, atomList: list):
 
-        self.tables[0].populateTable(rowObjects=atomList,
-                                     columnDefs=self.columnDefs
-                                     )
-        self.tables[0].sortByColumn(4, QtCore.Qt.AscendingOrder)
+        self.tables[0]._table = atomList
+        self.tables[0].populateTable(
+                # rowObjects=atomList,
+                #                      columnDefs=self.columnDefs
+                )
+        # self.tables[0].sortByColumn(4, QtCore.Qt.AscendingOrder)
 
     def setAlternativesTable(self, atomList: list):
 
-        self.tables[1].populateTable(rowObjects=atomList,
-                                     columnDefs=self.columnDefs
-                                     )
-        self.tables[1].sortByColumn(4, QtCore.Qt.AscendingOrder)
+        self.tables[1]._table = atomList
+        self.tables[1].populateTable(
+                # rowObjects=atomList,
+                #                      columnDefs=self.columnDefs
+                )
+        # self.tables[1].sortByColumn(4, QtCore.Qt.AscendingOrder)
 
     def _updateAssignmentWidget(self, tableNum: int, item: object):
         """

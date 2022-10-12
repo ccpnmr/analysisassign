@@ -10,12 +10,12 @@ __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliz
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-30 15:34:18 +0100 (Fri, September 30, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-12 15:27:02 +0100 (Wed, October 12, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -32,7 +32,6 @@ from functools import partial
 from PyQt5 import QtGui, QtWidgets, QtCore
 from collections import OrderedDict
 from contextlib import contextmanager
-from time import time_ns
 
 from ccpn.core.lib.Pid import Pid
 from ccpn.core.NmrAtom import NmrAtom
@@ -40,19 +39,18 @@ from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.Peak import Peak
 from ccpn.core.Spectrum import Spectrum
 from ccpn.core.NmrChain import NmrChain
+from ccpn.core.Chain import Chain
 from ccpn.core.lib.AssignmentLib import getNmrResiduePrediction
-from ccpn.core.lib.Notifiers import Notifier, _removeDuplicatedNotifiers
+from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
-# from ccpn.ui.gui.guiSettings import textFontSmall, textFontSmallBold, textFont
 from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS, TOOLTIP_BACKGROUND, \
     GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, GUINMRRESIDUE, \
     SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Icon import Icon
-# from ccpn.ui.gui.widgets.ToolBar import ToolBar
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
 from ccpn.ui.gui.widgets.PulldownListsForObjects import NmrChainPulldown, ChemicalShiftListPulldown
@@ -71,8 +69,7 @@ from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.util.Common import makeIterableList, greekKey
 from ccpn.util.Logging import getLogger
 from ccpn.util import Colour
-from ccpn.util.UpdateScheduler import UpdateScheduler
-from ccpn.util.UpdateQueue import UpdateQueue
+from ccpn.ui._implementation.QueueHandler import QueueHandler
 from ccpn.util.OrderedSet import OrderedSet
 from ccpnc.clibrary import Clibrary
 
@@ -473,7 +470,8 @@ class GuiSelectionBoxes(QtWidgets.QGraphicsItemGroup):
 
     def clear(self):
         for item in self.selectionBoxes.values():
-            self._scene.removeItem(item)
+            if item in self._scene.items():
+                self._scene.removeItem(item)
         self.selectionBoxes = {}
 
 
@@ -1849,6 +1847,11 @@ class SequenceGraphModule(CcpnModule):
     _maximumQueueLength = 25
     _logQueue = False
 
+    # define icons
+    disconnectPreviousIcon = Icon('icons/disconnectPrevious')
+    disconnectIcon = Icon('icons/disconnect')
+    disconnectNextIcon = Icon('icons/disconnectNext')
+
     def __init__(self, mainWindow=None, name='Sequence Graph', nmrChain=None):
 
         CcpnModule.__init__(self, mainWindow=mainWindow, name=name)
@@ -1880,6 +1883,7 @@ class SequenceGraphModule(CcpnModule):
 
         ###frame = Frame(parent=self.mainWidget)
         self._sequenceGraphScrollArea = QtWidgets.QScrollArea()
+
         self._sequenceGraphScrollArea.setWidgetResizable(True)
         self._sequenceGraphScrollArea.setMinimumHeight(80)
 
@@ -1888,6 +1892,45 @@ class SequenceGraphModule(CcpnModule):
         self.splitter.setStretchFactor(0, 5)
         self.splitter.setChildrenCollapsible(False)
 
+        # set up the widgets for the settings and the main widget-area
+        self._setSettingsWidgets()
+        self._setWidgets()
+
+        self.initialiseScene()
+        self.residueCount = 0
+
+        self.defineAtoms()
+        self.nmrResidueList = NmrResidueList(self.mainWindow, self._SGwidget, self._lineColour, self._textColour,
+                                             self.atomSpacing, self.lineSpacing, self.lineWidth, self.lineConnectWidth,
+                                             self.scene, self, self.DEFAULT_RESIDUE_ATOMS, self.ATOM_POSITION_DICT)
+        self._deleteStore = {}
+
+        self._chains = self.project.chains  # this must match the sequence module init and the chains pulldown init
+        self._chemicalShiftList = self.project.chemicalShiftLists[0] if self.project.chemicalShiftLists else None
+
+        # calculate the connections between axes based on experiment types
+        self._updateMagnetisationTransfers()
+
+        # initialise notifiers
+        self._registerNotifiers()
+        self._setQueueHandler()
+
+        self.selectSequence(nmrChain)
+
+    def _setQueueHandler(self):
+        """Set up the handler for notifier-queue
+        """
+        # notifier queue handling
+        self._queueHandler = QueueHandler(self,
+                                          completeCallback=self.update,
+                                          queueFullCallback=self.queueFull,
+                                          name=f'SequenceGraphHandler-{self}',
+                                          maximumQueueLength=self._maximumQueueLength,
+                                          log=self._logQueue)
+
+    def _setSettingsWidgets(self):
+        """Set up the settings widget
+        """
         # add the settings widgets defined from the following orderedDict - test for refactored
         settingsDict = OrderedDict((('SpectrumDisplays', {'label'   : '',
                                                           'tipText' : '',
@@ -1987,18 +2030,14 @@ class SequenceGraphModule(CcpnModule):
 
         # NOTE:ED - need to clean this up
         self._SGwidget.chainsWidget = self._SGwidget.checkBoxes['ChainSelection']['widget']
-        # self._SGwidget.chainsWidget.listWidget.changed.connect(self.showChainsChanged)
         self._SGwidget.displaysWidget = self._SGwidget.checkBoxes['SpectrumDisplays']['widget']
+        self.shiftListPulldown = self._SGwidget.checkBoxes['ChemicalShiftList']['widget']
 
-        self.initialiseScene()
-        self.residueCount = 0
+        self._SGwidget.chainsWidget.listWidget.changed.connect(self.showChainsChanged)
 
-        self.defineAtoms()
-        self.nmrResidueList = NmrResidueList(self.mainWindow, self._SGwidget, self._lineColour, self._textColour,
-                                             self.atomSpacing, self.lineSpacing, self.lineWidth, self.lineConnectWidth,
-                                             self.scene, self, self.DEFAULT_RESIDUE_ATOMS, self.ATOM_POSITION_DICT)
-        self._deleteStore = {}
-
+    def _setWidgets(self):
+        """Set up the main widgets
+        """
         # seems to need nested frames to enforce the sizeConstraint
         self._MWwidgetFrame2 = Frame(self.mainWidget, setLayout=True,
                                      grid=(0, 0), vAlign='top', hAlign='left',
@@ -2064,55 +2103,6 @@ class SequenceGraphModule(CcpnModule):
 
         self._MWwidget.setContentsMargins(5, 5, 5, 5)
         self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
-
-        # self.disconnectPreviousAction = self.editingToolbar.addAction("disconnectPrevious", self.disconnectPreviousNmrResidue)
-        self.disconnectPreviousIcon = Icon('icons/disconnectPrevious')
-        # self.disconnectPreviousAction.setIcon(self.disconnectPreviousIcon)
-        # self.disconnectAction = self.editingToolbar.addAction("disconnect", self.disconnectNmrResidue)
-        self.disconnectIcon = Icon('icons/disconnect')
-        # self.disconnectAction.setIcon(self.disconnectIcon)
-        # self.disconnectNextAction = self.editingToolbar.addAction("disconnectNext", self.disconnectNextNmrResidue)
-        self.disconnectNextIcon = Icon('icons/disconnectNext')
-        # self.disconnectNextAction.setIcon(self.disconnectNextIcon)
-
-        # self.shiftListPulldown = ChemicalShiftListPulldown(self._MWwidget, self.mainWindow, grid=(1, 0), gridSpan=(1, 1),
-        #                                                    showSelectName=True,
-        #                                                    # fixedWidths=(colwidth, colwidth, colwidth),
-        #                                                    callback=self.showShiftListPulldown)
-
-        self.shiftListPulldown = self._SGwidget.checkBoxes['ChemicalShiftList']['widget']
-
-        self._chains = self.project.chains  # this must match the sequence module init and the chains pulldown init
-        self._chemicalShiftList = self.project.chemicalShiftLists[0] if self.project.chemicalShiftLists else None
-
-        # add mouse handler for the QGraphicsLineItems
-        self._preMouserelease = self.scene.mouseReleaseEvent
-        self.scene.mouseReleaseEvent = self._sceneMouseRelease
-
-        # calculate the connections between axes based on experiment types
-        self._updateMagnetisationTransfers()
-
-        # initialise notifiers
-        self._registerNotifiers()
-
-        self.selectSequence(nmrChain)
-
-        # notifier queue handling
-        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='SequenceGraphHandler',
-                                          startOnAdd=False, log=False, completeCallback=self.update)
-        self._queuePending = UpdateQueue()
-        self._queueActive = None
-        self._lock = QtCore.QMutex()
-
-    def _sceneMouseRelease(self, event):
-        """Add a mouse handler to popupa menu from the contained scene
-        """
-        if event.button() == QtCore.Qt.RightButton:
-            obj = self.scene.mouseGrabberItem()
-            if obj:
-                pos = QtGui.QCursor().pos()
-                self._raiseContextMenu(obj, pos)
-        self._preMouserelease(event)
 
     # def _checkLayoutInit(self):
     #     """This is a hack so that the state changes when the layout loads
@@ -2191,13 +2181,12 @@ class SequenceGraphModule(CcpnModule):
                                               partial(self._queueGeneralNotifier, self._updatePeaks),
                                               onceOnly=True)
 
-        # not required
-        # self._nmrChainNotifier = self.setNotifier(self.project,
-        #                                           [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
-        #                                           NmrChain.className,
-        #                                           # self._updateNmrChains,
-        #                                           partial(self._queueGeneralNotifier, self._updateNmrChains),
-        #                                           onceOnly=True)
+        # explicitly update the sequence-widget
+        self._chainNotifier = self.setNotifier(self.project,
+                                               [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+                                               Chain.className,
+                                               partial(self._queueGeneralNotifier, self.showChainsChanged),
+                                               onceOnly=True)
 
         self._nmrResidueNotifier = self.setNotifier(self.project,
                                                     [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
@@ -2378,24 +2367,6 @@ class SequenceGraphModule(CcpnModule):
                 # print('>>>_updatePeaks change', peak)
                 self.nmrResidueList.rebuildPeakLines(peak, rebuildPeakLines=True, makeListFromPeak=True)
 
-    # def _updateNmrChains(self, data):
-    #     """Update the nmrChains in the display.
-    #     """
-    #     nmrChain = data[Notifier.OBJECT]
-    #
-    #     # print('>>>_updateNmrChains', nmrChain)
-    #     trigger = data[Notifier.TRIGGER]
-    #
-    #     # with self.sceneBlocking():
-    #     #     if trigger == Notifier.DELETE:
-    #     #         print('>>>delete nmrChain - no action', nmrChain)
-    #     #
-    #     #     elif trigger == Notifier.CREATE:
-    #     #         print('>>>create nmrChain - no action', nmrChain)
-    #     #
-    #     #     elif trigger == Notifier.CHANGE:
-    #     #         print('>>>change nmrChain - no action', nmrChain)
-
     def _selectCurrentNmrResidues(self, data):
         """
         Notifier Callback for selecting current nmrResidue
@@ -2438,12 +2409,6 @@ class SequenceGraphModule(CcpnModule):
             elif trigger == Notifier.RENAME:
                 oldPid = data[Notifier.OLDPID]
                 self._renameNmrResidue(nmrResidue, oldPid, showPredictions)
-
-            # elif trigger == Notifier.CHANGE:
-            #     print('>>>change nmrResidue - no action', nmrResidue)
-            #
-            # elif trigger == Notifier.OBSERVE:
-            #     print('>>>observe nmrResidue - no action', nmrResidue)
 
     def _changeNmrResidues(self, data):
         """Update the nmrResidues in the display.
@@ -2810,8 +2775,12 @@ class SequenceGraphModule(CcpnModule):
     def showChainsChanged(self, data=None):
         """Respond to a change in the chains list
         """
-        objs = self._SGwidget.chainsWidget._getObjects()
         showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
+
+        # check the contents of the chain-list
+        objs = [obj for obj in self._SGwidget.chainsWidget._getObjects() if not obj.isDeleted]
+        if ALL in self._SGwidget.chainsWidget.getTexts():
+            objs = self.project.chains
 
         self._chains = objs
         self.thisSequenceWidget.setChains(objs)
@@ -3062,19 +3031,6 @@ class SequenceGraphModule(CcpnModule):
                     if self.application._isInDebugMode:
                         raise es
 
-    def initialiseScene(self):
-        """Replace the scene with a new one to reset the size of the scrollbars.
-        """
-        # Only needed to be done the first time, scene is resized at the end of setNmrChainDisplay
-        self.scene = QtWidgets.QGraphicsScene(self)
-        self.scrollContents = QtWidgets.QGraphicsView(self.scene)
-        self.scrollContents.setRenderHints(QtGui.QPainter.Antialiasing)
-        self.scrollContents.setInteractive(True)
-        self.scrollContents.setGeometry(QtCore.QRect(0, 0, 300, 400))
-        self.scrollContents.setAlignment(QtCore.Qt.AlignCenter)
-        self._sequenceGraphScrollArea.setWidget(self.scrollContents)
-        self._setFocusColour()
-
     def _setFocusColour(self, focusColour=None, noFocusColour=None):
         """Set the focus/noFocus colours for the widget
         """
@@ -3090,6 +3046,22 @@ class SequenceGraphModule(CcpnModule):
                      "border-radius: 1px; " \
                      "}" % (noFocusColour, focusColour)
         self.scrollContents.setStyleSheet(styleSheet)
+
+    def initialiseScene(self):
+        """Replace the scene with a new one to reset the size of the scrollbars.
+        """
+        # Only needed to be done the first time, scene is resized at the end of setNmrChainDisplay
+        self.scene = _SequenceGraphScene(self)
+
+        self.scrollContents = _SequenceGraphGraphicsView(self.scene)
+        self.scrollContents.setRenderHints(QtGui.QPainter.Antialiasing)
+        self.scrollContents.setInteractive(True)
+        self.scrollContents.setGeometry(QtCore.QRect(0, 0, 300, 400))
+        self.scrollContents.setAlignment(QtCore.Qt.AlignCenter)
+
+        self._sequenceGraphScrollArea.setWidget(self.scrollContents)
+
+        self._setFocusColour()
 
     def predictSequencePosition(self, nmrResidueList: list, showPredictions=True):
         """
@@ -3107,20 +3079,19 @@ class SequenceGraphModule(CcpnModule):
 
                 checkDict = getAllSpinSystems(self.project, nmrResidues, self._chains, [self._chemicalShiftList])
 
-                for chainNum in checkDict.keys():
-
-                    self.thisSequenceWidget._clearStretches(chainNum)
-                    possibleMatches = checkDict[chainNum]
+                for chain, possibleMatches in checkDict.items():
+                    self.thisSequenceWidget._clearStretches(chain)
+                    # possibleMatches = checkDict[chain]
 
                     if possibleMatches:
                         for chemList in possibleMatches:
                             for possibleMatch in chemList:
                                 if possibleMatch[0] > 1 and not len(possibleMatch[1]) < len(nmrResidues):
-                                    self.thisSequenceWidget._highlightPossibleStretches(chainNum, possibleMatch[1])
+                                    self.thisSequenceWidget._highlightPossibleStretches(chain, possibleMatch[1])
 
             else:
                 for chNum, chain in enumerate(self._chains):
-                    self.thisSequenceWidget._clearStretches(chNum)
+                    self.thisSequenceWidget._clearStretches(chain)
 
     def _toggleSequence(self):
         if not self.sequenceCheckBox.isChecked():
@@ -3479,67 +3450,13 @@ class SequenceGraphModule(CcpnModule):
     def _queueGeneralNotifier(self, func, data):
         """Add the notifier to the queue handler
         """
-        self._queueAppend([func, data])
+        self._queueHandler.queueAppend([func, data])
 
     def queueFull(self):
         """Method that is called when the queue is deemed to be too big.
         Apply overall operation instead of all individual notifiers.
         """
         self.showNmrChainFromPulldown()
-
-    def _queueProcess(self):
-        """Process current items in the queue
-        """
-        with QtCore.QMutexLocker(self._lock):
-            # protect the queue switching
-            self._queueActive = self._queuePending
-            self._queuePending = UpdateQueue()
-
-        _startTime = time_ns()
-        _useQueueFull = (self._maximumQueueLength not in [0, None] and len(self._queueActive) > self._maximumQueueLength)
-        if self._logQueue:
-            # log the queue-time if required
-            getLogger().debug(f'_queueProcess  {self}  len: {len(self._queueActive)}  useQueueFull: {_useQueueFull}')
-
-        if _useQueueFull:
-            # rebuild from scratch if the queue is too big
-            if self.application and self.application._disableModuleException:
-                self._queueActive = None
-                self.queueFull()
-            else:
-                try:
-                    self._queueActive = None
-                    self.queueFull()
-                except Exception as es:
-                    getLogger().debug(f'Error in {self.__class__.__name__} update queueFull: {es}')
-
-        else:
-            executeQueue = _removeDuplicatedNotifiers(self._queueActive)
-            for itm in executeQueue:
-                if self.application and self.application._disableModuleException:
-                    func, data = itm
-                    func(data)
-                else:
-                    # process item if different from previous
-                    try:
-                        func, data = itm
-                        func(data)
-                    except Exception as es:
-                        getLogger().debug(f'Error in {self.__class__.__name__} update - {es}')
-
-        if self._logQueue:
-            getLogger().debug(f'elapsed time {(time_ns() - _startTime) / 1e9}')
-
-    def _queueAppend(self, itm):
-        """Append a new item to the queue
-        """
-        self._queuePending.put(itm)
-        if not self._scheduler.isActive and not self._scheduler.isBusy:
-            self._scheduler.start()
-
-        elif self._scheduler.isBusy:
-            # caught during the queue processing event, need to restart
-            self._scheduler.signalRestart()
 
 
 # if residueType == 'ALA':
@@ -3586,11 +3503,10 @@ class SequenceGraphModule(CcpnModule):
 #       self._addConnectingLine(cg, cd, 'white', 1.0, 0.0)
 
 
-if __name__ == '__main__':
+def main():
     from ccpn.ui.gui.widgets.Application import TestApplication
     from ccpn.ui.gui.widgets.TextEditor import TextEditor
     from ccpnmodel.ccpncore.lib.assignment.ChemicalShift import PROTEIN_ATOM_NAMES, ALL_ATOMS_SORTED
-
 
     isotopes = ['13C', '1H', '15N']
     axisCodes = ['C', 'H', 'N']
@@ -3610,3 +3526,7 @@ if __name__ == '__main__':
     # popup.show()
     # popup.raise_()
     # app.start()
+
+
+if __name__ == '__main__':
+    main()

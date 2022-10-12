@@ -13,12 +13,12 @@ __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliz
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-07-27 12:46:05 +0100 (Wed, July 27, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-12 15:27:02 +0100 (Wed, October 12, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -37,13 +37,14 @@ from typing import Optional
 
 from ccpn.core.NmrAtom import NmrAtom, NmrResidue
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
+from ccpn.ui._implementation.Strip import Strip
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
-from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget
+from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget, IncludeCurrent
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
@@ -52,6 +53,7 @@ from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay  #, _getCurrentZoomRatio
+from ccpn.ui.gui.lib.SpectrumDisplay import navigateToNmrResidueInStrip
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.AttrDict import AttrDict
@@ -132,8 +134,9 @@ class AssignmentInspectorModule(CcpnModule):
                                                              orientation='left',
                                                              labelText='Display(s):',
                                                              tipText='SpectrumDisplay modules to respond to double-click',
-                                                             texts=[ALL] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
-                                                             defaults=[ALL]
+                                                             # texts=[ALL, UseCurrent] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
+                                                             defaults=[ALL],
+                                                             standardListItems=[ALL, IncludeCurrent]
                                                              )
 
         self.sequentialStripsWidget = CheckBoxCompoundWidget(
@@ -180,6 +183,7 @@ class AssignmentInspectorModule(CcpnModule):
         minHeight = self._calculateMinHeight()
         self._settingsScrollArea.setMinimumSizes((self._settingsScrollArea.minimumWidth(), minHeight))
         self.nmrAtomBlocking = True
+        self._nmrResidues = []
 
         # main window
         # AssignedPeaksTable need to be initialised before chemicalShiftTable, as the callback of the latter requires
@@ -274,6 +278,7 @@ class AssignmentInspectorModule(CcpnModule):
                                                       mainWindow=self.mainWindow,
                                                       moduleParent=self,
                                                       grid=(1, 1), gridSpan=(1, 6),
+                                                      actionCallback=self._peakActionCallback,
                                                       )
 
     def _selectTable(self, chemicalShiftList=None):
@@ -360,13 +365,17 @@ class AssignmentInspectorModule(CcpnModule):
             # reset notifiers
             self.setBlankingAllNotifiers(False)
 
-    def navigateToNmrResidueCallBack(self, data):
+    def navigateToNmrResidueCallBack(self, selection, lastItem):
         """Navigate in selected displays to nmrResidue; skip if none defined
         """
         # handle a single chemicalShift - SHOULD always contain an object
-        objs = data[CallBack.OBJECT]
-        if not objs:
+        try:
+            if not (objs := list(lastItem[self._OBJECT])):
+                return
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.navigateToNmrResidueCallBack: No selection\n{es}')
             return
+
         if isinstance(objs, (tuple, list)):
             chemicalShift = objs[0]
         else:
@@ -388,6 +397,7 @@ class AssignmentInspectorModule(CcpnModule):
             return
 
         from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+        from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
 
         with undoBlockWithoutSideBar():
             # optionally clear the marks
@@ -396,7 +406,16 @@ class AssignmentInspectorModule(CcpnModule):
 
             # navigate the displays
             for display in displays:
-                if len(display.strips) > 0:
+                if isinstance(display, Strip):
+                    strip = display
+                    display = strip.spectrumDisplay
+                    newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
+                    navigateToNmrResidueInStrip(display, strip=strip,
+                                                nmrResidue=nmrResidue,
+                                                widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
+                                                markPositions=self.markPositionsWidget.checkBox.isChecked()
+                                                )
+                elif len(display.strips) > 0:
                     newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
                     navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
                                                   widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
@@ -582,7 +601,7 @@ class AssignmentInspectorModule(CcpnModule):
         # something has been selected, so get all selected items
         numTexts = self.attachedNmrAtomsList.count()
         selectedTexts = self.attachedNmrAtomsList.getSelectedTexts()
-        nmrAtoms = [self.project.getByPid('NA:' + id) for id in selectedTexts]
+        nmrAtoms = [self.project.getByPid('NA:' + _id) for _id in selectedTexts]
 
         # populate the table with valid nmrAtoms
         self._updatePeakTable([atm for atm in nmrAtoms if atm is not None],
@@ -595,7 +614,7 @@ class AssignmentInspectorModule(CcpnModule):
         """
         if not nmrAtoms:
             # get all items from the table
-            nmrAtoms = [self.project.getByPid('NA:' + id) for id in self.attachedNmrAtomsList.getTexts()]
+            nmrAtoms = [self.project.getByPid('NA:' + _id) for _id in self.attachedNmrAtomsList.getTexts()]
 
             # # populate the table with valid nmrAtoms
             # self._updatePeakTable([atm for atm in nmrAtoms if atm is not None], messageAll=True)
@@ -617,17 +636,64 @@ class AssignmentInspectorModule(CcpnModule):
             _maxCount, self._peakList.spectrum = specs[-1]
 
         self.assignedPeaksTable._table = self._peakList
-        self.assignedPeaksTable.populateTable(  #rowObjects=self._peakList.peaks,
-                # columnDefs=self.getColumns(),
-                )
+        self.assignedPeaksTable.populateTable()
 
         ids = [atm.id for atm in nmrAtoms]
 
         if messageAll:
             self.peaksLabel.setText('Peaks assigned to NmrAtom(s): %s' % ALL)
         else:
-            atomList = ', '.join([str(id) for id in ids])
+            atomList = ', '.join([str(_id) for _id in ids])
             self.peaksLabel.setText('Peaks assigned to NmrAtom(s): %s' % atomList)  # nmrAtom.id)
+
+    #=========================================================================================
+    # Peak-table callbacks
+    #=========================================================================================
+
+    def _peakActionCallback(self, selection, lastItem):
+        """If current strip contains the double-clicked peak will navigateToPositionInStrip
+        """
+        from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
+
+        try:
+            if not (objs := list(lastItem[self.assignedPeaksTable._OBJECT])):
+                return
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}._peakActionCallback: No selection\n{es}')
+            return
+
+        if isinstance(objs, (tuple, list)):
+            peak = objs[0]
+        else:
+            peak = objs
+
+        dpObjs = self.displaysWidget.getDisplays()
+        if dpObjs:
+            # check which spectrumDisplays to navigate to
+            for dp in dpObjs:
+                if isinstance(dp, Strip):
+                    widths = None
+                    if peak.peakList.spectrum.dimensionCount <= 2:
+                        widths = _getCurrentZoomRatio(dp.viewRange())
+
+                    navigateToPositionInStrip(strip=dp,
+                                              positions=peak.position,
+                                              axisCodes=peak.axisCodes,
+                                              widths=widths
+                                              )
+                elif dp.strips:
+                    widths = None
+                    if peak.peakList.spectrum.dimensionCount <= 2:
+                        widths = _getCurrentZoomRatio(dp.strips[0].viewRange())
+
+                    navigateToPositionInStrip(strip=dp.strips[0],
+                                              positions=peak.position,
+                                              axisCodes=peak.axisCodes,
+                                              widths=widths
+                                              )
+
+        else:
+            logger.warning('Impossible to navigate to peak position. Set a current strip first or select spectrumDisplays in gearbox settings')
 
 
 #=========================================================================================
@@ -638,7 +704,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
     """ChemicalShift table in AssignmentInspector module with modified behaviour
     """
 
-    def actionCallback(self, data):
+    def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
         """
         from ccpn.AnalysisAssign.modules.BackboneAssignmentModule import markNmrAtoms
@@ -651,10 +717,17 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
             markNmrAtoms(self.mainWindow, nmrAtoms)
 
-    def selectionCallback(self, data):
+    def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
         """
-        objs = data[CallBack.OBJECT]
+        try:
+            if not (objs := list(selection[self._OBJECT])):
+                return
+
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
+            return
+
         self.current.chemicalShifts = objs or []
 
         if objs:
@@ -672,19 +745,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             self.current.nmrAtoms = []
             self.current.nmrResidues = []
 
-    def _selectionChangedCallback(self, selected, deselected):
-        """Handle item selection as changed in table - call user callback
-        Includes checking for clicking below last row
-        """
-        cShifts = self.getSelectedObjects()
-        if cShifts:
-            nmrResidues = list(set(cs.nmrAtom.nmrResidue for cs in cShifts if cs.nmrAtom))
-            nmrAtoms = [nmrAt for nmrRes in nmrResidues for nmrAt in nmrRes.nmrAtoms]
+        # get all the chemicalShifts linked by nmrResidue
+        allShifts = list(filter(None, set(cs for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
 
-            # get all the chemicalShifts linked by nmrResidue
-            allShifts = list(filter(None, set(cs for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
-
-            # highlight all the chemicalShifts linked to the nmrResidues
-            self._highLightObjs(allShifts, scrollToSelection=False)
-
-        super()._selectionChangedCallback(selected, deselected)
+        # highlight all the chemicalShifts linked to the nmrResidues
+        self._highLightObjs(allShifts, scrollToSelection=False)
