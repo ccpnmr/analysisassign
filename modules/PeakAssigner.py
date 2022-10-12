@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:17:56 +0100 (Wed, October 12, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-12 18:40:01 +0100 (Wed, October 12, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -161,6 +161,7 @@ class PeakAssigner(CcpnModule):
         self.dimensionTabs = []
         self.currentAtoms = None
         self._visibleDims = 0
+        self._chemShifts = {}
 
         # add widgets to the module
         self._setWidgets()
@@ -179,8 +180,6 @@ class PeakAssigner(CcpnModule):
         self._lock = QtCore.QMutex()
         self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PeakAssigner',
                                           log=False, completeCallback=self.update)
-
-        self._chemShifts = {}
 
         # set notifiers to respond to peaks
         self._registerNotifiers()
@@ -276,7 +275,7 @@ class PeakAssigner(CcpnModule):
                 wid = self.axisFrameWidget.scrollArea.verticalScrollBar()
                 visible = wid.isVisible()
                 offset = wid.width() if visible else 0
-            except:
+            except Exception:
                 offset = 0
             w = (width - 6 - offset) / min(self.Ndims, 4)
             for tab in self.dimensionTabs:
@@ -412,12 +411,13 @@ class PeakAssigner(CcpnModule):
             self.peakLabel.setText('Current Peak: ' + MSG)
         else:
 
-            # update the peaksLabel
-            peaksIds = ' , '.join([str(pp.id) for pp in self.current.peaks])
             if len(self.current.peaks) < 2:
-                self.peakLabel.setText('Current Peak: %s' % self.current.peak.id)
+                self.peakLabel.setText(f'Current Peak: {self.current.peak.id if self.current.peak else ""}')
+
             else:
-                self.peakLabel.setText('Current Peaks: %s' % _truncateText(peaksIds, maxWords=6))
+                # update the peaksLabel
+                peaksIds = ' , '.join([str(pp.id) for pp in self.current.peaks])
+                self.peakLabel.setText(f'Current Peaks: {_truncateText(peaksIds, maxWords=6)}')
                 self.peakLabel.setToolTip(peaksIds)
 
             self.Ndims = self.current.peak.spectrum.dimensionCount
