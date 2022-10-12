@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-10 18:34:40 +0100 (Mon, October 10, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-12 15:17:56 +0100 (Wed, October 12, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -165,9 +165,6 @@ class PeakAssigner(CcpnModule):
         # add widgets to the module
         self._setWidgets()
 
-        # set notifiers to respond to peaks
-        self._registerNotifiers()
-
         # install event filter to track changes in width
         self.mainWidget.installEventFilter(self)
 
@@ -177,13 +174,16 @@ class PeakAssigner(CcpnModule):
         self.installMaximiseEventHandler(self._maximise, self._closeModule)
 
         # notifier queue handling
-        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PeakAssigner',
-                                          log=False, completeCallback=self.update)
         self._queuePending = UpdateQueue()
         self._queueActive = None
         self._lock = QtCore.QMutex()
+        self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PeakAssigner',
+                                          log=False, completeCallback=self.update)
 
         self._chemShifts = {}
+
+        # set notifiers to respond to peaks
+        self._registerNotifiers()
 
     def eventFilter(self, target, event):
         """Event filter to handle a mainWidget resizing
