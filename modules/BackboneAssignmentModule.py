@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-30 12:37:13 +0100 (Fri, September 30, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-24 14:59:53 +0100 (Mon, October 24, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -118,7 +118,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self._addExtensionsToSettings()
 
     def _setupGeneralSettings(self):
-        """ add to layout the general settings widgets"""
+        """add to the layout of the general settings widgets"""
         ### Settings ###
 
         # change defaults setting inherited from NmrResidueTableModule
@@ -258,7 +258,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 self.extensionsSettingsFrame.getLayout().addWidget(hLine)
                 self.extensionsSettingsFrame.getLayout().addWidget(extensionFrame)
         except Exception as err:
-            getLogger().warning("Some Extensions failed to load %s" % err)
+            getLogger().warning(f"Some Extensions failed to load {err}")
 
     def _fillMatchWidget(self):
         ll = ['> select-to-add <'] + [display.pid for display in self.mainWindow.spectrumDisplays]
@@ -279,16 +279,17 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         displays = []
 
         if self.nmrResidueTableSettings.displaysWidget:
-            dGids = self.nmrResidueTableSettings.displaysWidget.getTexts()  # gid's of displays
+            dGids = self.nmrResidueTableSettings.displaysWidget.getTexts()  # gids of displays
             if len(dGids) == 0: return displays
 
             matchGids = self.matchWidget.getText()  # gid of the match module
-            targetGids = self.targetWidget.getText()  # gid of the targets module - don't discard for the minute
+            targetGids = self.targetWidget.getText()  # gid of the target module - don't discard for the minute
 
             if ALL in dGids:
                 displays = [dp for dp in self.application.ui.mainWindow.spectrumDisplays if dp.pid not in (matchGids, targetGids)]
             else:
-                displays = [self.application.getByGid(gid) for gid in dGids if (gid != ALL and gid not in (matchGids, targetGids))]
+                displays = [self.application.getByGid(gid) for gid in dGids if gid not in (ALL, matchGids, targetGids)]
+
             displays = [display for display in displays if display is not None]
 
         return displays
