@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-24 18:04:56 +0100 (Mon, October 24, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-25 15:59:09 +0100 (Tue, October 25, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -88,8 +88,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             self.current = mainWindow.application.current
             self.nmrChains = self.application.project.nmrChains
 
-        self.matchCheckBoxWidget = CheckBox(self.tableFrame,
-                                            grid=(1, 2), checked=True, text='Find matches')
+        # add a new checkbox to the header in the main-widget area
+        self.matchCheckBoxWidget = CheckBox(self.tableFrame, grid=(1, 2), checked=True, text='Find matches')
+        self.tableFrame.addWidgetToPos(self.matchCheckBoxWidget, row=0, col=2)
 
         self._createSettingsWidgets()
         self._stripNotifiers = []  # list to store GuiNotifiers for strips
@@ -689,14 +690,14 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                         if matchNmrResidue:
                             self.navigateToNmrResidue(matchNmrResidue)
 
-                                # # update the NmrResidueTable
-                                # getLogger().info('>>>DISPLAYTABLE', droppedNmrResidue.nmrChain, self.project.nmrChains)
-                                # self.nmrResidueTable.displayTableForNmrChain(droppedNmrResidue.nmrChain)
+                            # # update the NmrResidueTable
+                            # getLogger().info('>>>DISPLAYTABLE', droppedNmrResidue.nmrChain, self.project.nmrChains)
+                            # self.nmrResidueTable.displayTableForNmrChain(droppedNmrResidue.nmrChain)
 
-                                # from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
-                                #
-                                # GLSignals = GLNotifier(parent=self)
-                                # GLSignals.emitEvent(triggers=[GLNotifier.GLMARKS])
+                            # from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
+                            #
+                            # GLSignals = GLNotifier(parent=self)
+                            # GLSignals.emitEvent(triggers=[GLNotifier.GLMARKS])
 
                 except Exception as es:
                     getLogger().warning(str(es))

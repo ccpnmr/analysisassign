@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-24 18:51:45 +0100 (Mon, October 24, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-25 15:59:09 +0100 (Tue, October 25, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -80,13 +80,13 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         # Main widget
         self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick, )
-        self.tableFrame.addWidgetToPos(self.restrictedPickButton, row=1, col=2)
+        self.tableFrame.addWidgetToPos(self.restrictedPickButton, row=0, col=2)
 
         self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
-        self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=1, col=3)
+        self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
 
         self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=self.restrictedPickAndAssign)
-        self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=1, col=4)
+        self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
 
         self.restrictedPickButton.setEnabled(True)
         self.assignSelectedButton.setEnabled(True)
