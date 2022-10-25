@@ -33,7 +33,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-17 14:55:29 +0100 (Mon, October 17, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-25 17:13:25 +0100 (Tue, October 25, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -1288,6 +1288,9 @@ class NmrAtomAssignerModule(CcpnModule):
                     isotopeCode = peak.peakList.spectrum.getByAxisCodes('isotopeCodes', [axisCode], exactMatch=True)[-1]
                     if nmrAtom.isotopeCode in [UnknownIsotopeCode, None]:
                         nmrAtom._setIsotopeCode(isotopeCode)
+
+                    # update the label after the assignment has completed, otherwise notifier is too early for shift update?
+                    self._updatePeakShiftLabel(peak)
 
     def deassignAtomFromSelectedPeaks(self, peaks, nmrAtom):
         """Deassign the nmrAtom from the dimension
