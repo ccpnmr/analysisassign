@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-25 15:59:09 +0100 (Tue, October 25, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-25 17:39:51 +0100 (Tue, October 25, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -144,7 +144,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # new match module pulldown list
         row += 1
-        # TODO replace with SpectrumDisplayPulldown
         self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[2],
                                                       fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2),
                                                       vAlign='top', hAlign='left',
@@ -482,7 +481,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # finally:
         #     self.application._endCommandBlock()
 
-    def _setDisplayPosWidth(self, matchDisplays, targetDisplays):
+    @staticmethod
+    def _setDisplayPosWidth(matchDisplays, targetDisplays):
 
         if matchDisplays and matchDisplays[0].strips:
             # get the current position/width of the first match display
@@ -933,8 +933,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """
         Re-implementation of the closeModule method of the CcpnModule class required
         """
-        # TODO: use proper subclassing
-
         for display in self._getDisplays() + self._getMatchDisplays():
             if display:
                 display.hideAllStripHeaders(handle=STRIPBACKBONE)
@@ -953,12 +951,10 @@ def nmrAtomsFromResidue(nmrResidue):
     """
     # nmrResidue = nmrResidue.mainNmrResidue
     nmrResidues = []
-    previousNmrResidue = nmrResidue.previousNmrResidue
-    if previousNmrResidue:
+    if previousNmrResidue := nmrResidue.previousNmrResidue:
         nmrResidues.append(previousNmrResidue)
     nmrResidues.append(nmrResidue)
-    nextNmrResidue = nmrResidue.nextNmrResidue
-    if nextNmrResidue:
+    if nextNmrResidue := nmrResidue.nextNmrResidue:
         nmrResidues.append(nextNmrResidue)
 
     nmrAtoms = []
@@ -992,9 +988,9 @@ def markNmrAtoms(mainWindow, nmrAtoms: typing.List[NmrAtom]):
     # project = mainWindow.application.project
     # current = mainWindow.application.current
 
-    displays = [dp for dp in mainWindow.spectrumDisplays]
+    displays = list(mainWindow.spectrumDisplays)
 
-    if len(displays) == 0:
+    if not displays:
         getLogger().warning('No Spectrum Displays')
         showWarning('markNmrAtoms', 'No spectrum Displays')
         return
@@ -1002,9 +998,7 @@ def markNmrAtoms(mainWindow, nmrAtoms: typing.List[NmrAtom]):
     # mainWindow.clearMarks()     # clear the marks for the minute
 
     for display in displays:
-        strips = display.strips
-
-        if strips:
+        if strips := display.strips:
             strip = strips[0]
 
             # for strip in strips:
