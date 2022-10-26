@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 15:27:02 +0100 (Wed, October 12, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-26 15:40:24 +0100 (Wed, October 26, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -132,7 +132,7 @@ class AssignmentInspectorModule(CcpnModule):
                                                              grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
                                                              vPolicy='maximum',
                                                              orientation='left',
-                                                             labelText='Display(s):',
+                                                             labelText='Display(s)',
                                                              tipText='SpectrumDisplay modules to respond to double-click',
                                                              # texts=[ALL, UseCurrent] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
                                                              defaults=[ALL],
@@ -145,7 +145,7 @@ class AssignmentInspectorModule(CcpnModule):
                 #minimumWidths=(colwidth, 0),
                 fixedWidths=(colwidth, 30),
                 orientation='left',
-                labelText='Show sequential strips:',
+                labelText='Show sequential strips',
                 checked=False
                 )
 
@@ -155,7 +155,7 @@ class AssignmentInspectorModule(CcpnModule):
                 #minimumWidths=(colwidth, 0),
                 fixedWidths=(colwidth, 30),
                 orientation='left',
-                labelText='Mark positions:',
+                labelText='Mark positions',
                 checked=True
                 )
         self.autoClearMarksWidget = CheckBoxCompoundWidget(
@@ -164,7 +164,7 @@ class AssignmentInspectorModule(CcpnModule):
                 #minimumWidths=(colwidth, 0),
                 fixedWidths=(colwidth, 30),
                 orientation='left',
-                labelText='Auto clear marks:',
+                labelText='Auto clear marks',
                 checked=True
                 )
         self.showNmrAtomListWidget = CheckBoxCompoundWidget(
@@ -173,7 +173,7 @@ class AssignmentInspectorModule(CcpnModule):
                 #minimumWidths=(colwidth, 0),
                 fixedWidths=(colwidth, 30),
                 orientation='left',
-                labelText='Show nmrAtom list:',
+                labelText='Show nmrAtom list',
                 checked=True,
                 callback=self._setNmrAtomListVisible,
                 )

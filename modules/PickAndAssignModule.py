@@ -18,12 +18,12 @@ __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliz
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-05-09 11:38:22 +0100 (Mon, May 09, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-26 15:40:24 +0100 (Wed, October 26, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -80,13 +80,13 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         # Main widget
         self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick, )
-        self.tableFrame.addWidgetToPos(self.restrictedPickButton, row=1, col=2)
+        self.tableFrame.addWidgetToPos(self.restrictedPickButton, row=0, col=2)
 
         self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
-        self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=1, col=3)
+        self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
 
         self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=self.restrictedPickAndAssign)
-        self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=1, col=4)
+        self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
 
         self.restrictedPickButton.setEnabled(True)
         self.assignSelectedButton.setEnabled(True)
@@ -98,7 +98,7 @@ class PickAndAssignModule(NmrResidueTableModule):
         if self.nmrResidueTableSettings.displaysWidget:
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)  # select the <all> option
 
-        self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s):')
+        self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s)')
         # self.tableFrame._setWidgetHeight(3.0 * getFontHeight())
 
         # need to feedback to current.nmrResidueTable
