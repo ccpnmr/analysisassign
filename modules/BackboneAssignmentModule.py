@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-25 17:39:51 +0100 (Tue, October 25, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-27 15:28:32 +0100 (Thu, October 27, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -33,6 +33,9 @@ from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 from ccpn.core.ChemicalShift import ChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
+from ccpn.core.NmrAtom import NmrAtom
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot
 from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
@@ -43,15 +46,13 @@ from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, show
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.widgets.Font import getTextDimensionsFromFont
-from ccpn.util.decorators import logCommand
-from ccpn.util.Logging import getLogger
-from ccpn.core.NmrAtom import NmrAtom
 from ccpn.ui.gui.widgets.PlaneToolbar import STRIPLABEL_CONNECTDIR, STRIPLABEL_CONNECTNONE, \
     STRIPCONNECT_LEFT, STRIPCONNECT_RIGHT
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.ui.gui.widgets.Frame import Frame
-from ccpn.ui.gui.widgets.HLine import LabeledHLine
+from ccpn.ui.gui.widgets.HLine import LabeledHLine, HLine
+from ccpn.util.decorators import logCommand
+from ccpn.util.Logging import getLogger
 
 
 ALL = '<all>'
@@ -139,8 +140,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         _, maxDim = getTextDimensionsFromFont(textList=texts)
         colWidth0 = maxDim.width()
 
-        row = self.nmrResidueTableSettings.maxRows  ## Number of widgets of NmrResidueTable - add extra widgets below
+        focusRow = row = self.nmrResidueTableSettings.maxRows  ## Number of widgets of NmrResidueTable - add extra widgets below
         col = 0
+
+        row += 1
+        HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER], height=15)
 
         # new match module pulldown list
         row += 1
@@ -172,6 +176,15 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                                value=DEFAULTMATCHES
                                                                )
 
+        row += 1
+        self.showSearchInMatch = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
+                                                        grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+                                                        fixedWidths=(colWidth0, None),
+                                                        orientation='left',
+                                                        labelText='Show Search Strip in Match Module',
+                                                        checked=False
+                                                        )
+
         # new search module pulldown list
         row += 1
         self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[3],
@@ -183,15 +196,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.targetWidget.pulldownList.setIndex(0)
 
         row += 1
-        self.showSearchInMatch = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                        grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
-                                                        fixedWidths=(colWidth0, None),
-                                                        orientation='left',
-                                                        labelText='Show Search Strip in Match Module',
-                                                        checked=False
-                                                        )
-
-        row += 1
         self.focusYAxis = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
                                                  grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
                                                  fixedWidths=(colWidth0, None),
@@ -199,6 +203,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                  labelText='Focus Y-Axis',
                                                  checked=True
                                                  )
+
+        # re-order, move the sequential checkbox to here, swap with focusYAxis checkbox - not nice method :|
+        row += 1
+        self.nmrResidueTableSettings.layout().addWidget(self.nmrResidueTableSettings.sequentialStripsWidget, row, col, 1, 2)
+        self.nmrResidueTableSettings.layout().addWidget(self.focusYAxis, focusRow, col, 1, 2)
 
         # Select which NmrAtoms to match
         # VAH: This could probably be improved by putting the check-boxes into a group "NmrAtoms to Match"
@@ -231,6 +240,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                              checked=False
                                              )
         self._setNmrAtomsToMatch()
+
+        row += 1
+        HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER], height=15)
 
         # Chemical shift list selection
         row += 1
@@ -348,9 +360,10 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             showWarning('startAssignment', 'Undefined Match module;\nselect in settings first or unselect "Find matches"')
             return
 
-        if self.matchCheckBoxWidget.isChecked() and targetIndex == 0:
-            getLogger().warning('Undefined Search module; select in settings first or unselect "Find matches"')
-            showWarning('startAssignment', 'Undefined Search module;\nselect in settings first or unselect "Find matches"')
+        if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch.isChecked():
+            getLogger().warning('Undefined Search module; select in settings first, unselect "Find matches" or select "Show Search Strip in Match Module"')
+            showWarning('startAssignment', 'Undefined Search module;\nselect in settings first, unselect "Find matches" or\n'
+                                           'select "Show Search Strip in Match Module"')
             return
 
         if (matchIndex == targetIndex) and matchIndex != 0:
@@ -942,6 +955,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 notifier.unRegister()
 
         self._stripNotifiers = []
+        if self.shiftListWidget:
+            self.shiftListWidget.unRegister()
         super()._closeModule()
 
 
