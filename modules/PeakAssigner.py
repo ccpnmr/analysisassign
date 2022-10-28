@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-12 18:47:35 +0100 (Wed, October 12, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-28 12:45:35 +0100 (Fri, October 28, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -798,10 +798,7 @@ class AssignmentTable(_ProjectTableABC):
             getLogger().debug2(f'{self.__class__.__name__}.actionCallback: No selection\n{es}')
 
         else:
-            if isinstance(objs, (list, tuple)):
-                nmrAtom = objs[0]
-            else:
-                nmrAtom = objs
+            # nmrAtom = objs[0] if isinstance(objs, (list, tuple)) else objs
 
             if self._dim == 0:
                 # deAssign from top to bottom
@@ -1438,7 +1435,7 @@ class AxisAssignmentObject(Frame):
             if not (selectedObjects and selectedObjects[0]):
                 return
             nmrAtom = selectedObjects[0]
-            if not isinstance(nmrAtom, NmrAtom):
+            if not isinstance(nmrAtom, NmrAtom) or nmrAtom.isDeleted:
                 return
 
             # nmrAtom = None
@@ -1554,14 +1551,15 @@ class AxisAssignmentObject(Frame):
             self._parent._updateInterface()
 
             self.tables[0].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
+            self.lastTableSelected = 0
 
-            if nmrAtom:
-                # self._updateAssignmentWidget(0, nmrAtom)
-                self.lastTableSelected = 0
-
-            else:
-                # self._updateAssignmentWidget(0, None)
-                self.lastTableSelected = 0
+            # if nmrAtom:
+            #     # self._updateAssignmentWidget(0, nmrAtom)
+            #     self.lastTableSelected = 0
+            #
+            # else:
+            #     # self._updateAssignmentWidget(0, None)
+            #     self.lastTableSelected = 0
 
             # update the module
             self.update()
@@ -1573,7 +1571,6 @@ class AxisAssignmentObject(Frame):
         """
         remove nmrAtom from peak assignment
         """
-
         # return if no peaks selected
         if not self.current.peaks:
             return
@@ -1582,42 +1579,46 @@ class AxisAssignmentObject(Frame):
             currentObjects = nmrAtoms or self.tables[0].getSelectedObjects()
             if not currentObjects:
                 return
-
             nmrAtom = currentObjects[0]
-            if isinstance(nmrAtom, NmrAtom):
-                try:
-                    with undoBlockWithoutSideBar():
-                        for peak in self.current.peaks:
-                            peakDimNmrAtoms = peak.dimensionNmrAtoms
-                            dimNmrAtoms = list(peakDimNmrAtoms[dim])  # ejb - changed to list
-                            if nmrAtom in dimNmrAtoms:
-                                dimNmrAtoms.remove(nmrAtom)
+            if not isinstance(nmrAtom, NmrAtom) or nmrAtom.isDeleted:
+                return
 
-                            allAtoms = list(peakDimNmrAtoms)
-                            allAtoms[dim] = dimNmrAtoms
-                            peak.dimensionNmrAtoms = allAtoms
+            try:
+                with undoBlockWithoutSideBar():
+                    for peak in self.current.peaks:
+                        peakDimNmrAtoms = peak.dimensionNmrAtoms
+                        dimNmrAtoms = list(peakDimNmrAtoms[dim])  # ejb - changed to list
+                        if nmrAtom in dimNmrAtoms:
+                            dimNmrAtoms.remove(nmrAtom)
 
-                except Exception as es:
-                    showWarning(str(self.windowTitle()), str(es))
+                        allAtoms = list(peakDimNmrAtoms)
+                        allAtoms[dim] = dimNmrAtoms
+                        peak.dimensionNmrAtoms = allAtoms
 
-                self._parent._updateInterface()
-                self.tables[1].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
-                nextAtom = self.tables[1].getSelectedObjects()
-                if nextAtom:
-                    # self._updateAssignmentWidget(1, currentObject[0])
+            except Exception as es:
+                showWarning(str(self.windowTitle()), str(es))
 
-                    self.lastTableSelected = 1
-                    # self.buttonList.setButtonEnabled('Delete', True)
-                    # self.buttonList.setButtonEnabled('Deassign', False)
-                    # self.buttonList.setButtonEnabled('Assign', True)
+            self._parent._updateInterface()
+            self.tables[1].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
+            nextAtom = self.tables[1].getSelectedObjects()
+            self.lastTableSelected = 1
 
-                else:
-                    # self._updateAssignmentWidget(1, None)
+            # if nextAtom:
+            #     # self._updateAssignmentWidget(1, currentObject[0])
+            #
+            #     self.lastTableSelected = 1
+            #     # self.buttonList.setButtonEnabled('Delete', True)
+            #     # self.buttonList.setButtonEnabled('Deassign', False)
+            #     # self.buttonList.setButtonEnabled('Assign', True)
+            #
+            # else:
+            #     # self._updateAssignmentWidget(1, None)
+            #
+            #     self.lastTableSelected = 1
+            #     # self.buttonList.setButtonEnabled('Delete', False)
+            #     # self.buttonList.setButtonEnabled('Deassign', False)
+            #     # self.buttonList.setButtonEnabled('Assign', True) #False)
 
-                    self.lastTableSelected = 1
-                    # self.buttonList.setButtonEnabled('Delete', False)
-                    # self.buttonList.setButtonEnabled('Deassign', False)
-                    # self.buttonList.setButtonEnabled('Assign', True) #False)
         except Exception as es:
             showWarning('Deassign NmrAtom', str(es))
 
