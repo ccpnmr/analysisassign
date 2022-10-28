@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-24 18:52:17 +0100 (Mon, October 24, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-28 12:43:28 +0100 (Fri, October 28, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -320,8 +320,10 @@ class AssignmentInspectorModule(CcpnModule):
         """
         CCPN-INTERNAL: used to close the module
         """
-        self.assignedPeaksTable._close()
+        self.displaysWidget._close()
+        self._modulePulldown.unRegister()
         self.chemicalShiftTable._close()
+        self.assignedPeaksTable._close()
         super()._closeModule()
 
     def _selectionPulldownCallback(self, item):
@@ -549,18 +551,21 @@ class AssignmentInspectorModule(CcpnModule):
         if data:
 
             # update list from nmrResidues, show all nmrAtoms connected
-            nmrResidues = data[NMRRESIDUES] if NMRRESIDUES in data else []
+            # nmrResidues = data[NMRRESIDUES] if NMRRESIDUES in data else []
+            nmrResidues = [nmr for nmr in data.get(NMRRESIDUES, []) if nmr and not nmr.isDeleted]
 
             if updateFromNmrResidues:
                 # generate nmrAtom list from nmrResidues
-                nmrAtoms = OrderedSet()
-                for nmrRes in nmrResidues:
-                    for nmrAtom in nmrRes.nmrAtoms:
-                        nmrAtoms.add(nmrAtom)
+                # nmrAtoms = OrderedSet()
+                # for nmrRes in nmrResidues:
+                #     for nmrAtom in nmrRes.nmrAtoms:
+                #         nmrAtoms.add(nmrAtom)
+                nmrAtoms = OrderedSet(nmrAtom for nmrRes in nmrResidues for nmrAtom in nmrRes.nmrAtoms)
 
             else:
                 # get from the data dict
-                nmrAtoms = data[NMRATOMS] if NMRATOMS in data else []
+                # nmrAtoms = data[NMRATOMS] if NMRATOMS in data else []
+                nmrAtoms = [nmrAt for nmrAt in data.get(NMRATOMS, []) if nmrAt and not nmrAt.isDeleted]
 
             self._nmrResidues = nmrResidues
             self._nmrAtoms = nmrAtoms
@@ -586,6 +591,7 @@ class AssignmentInspectorModule(CcpnModule):
             # there is currently a hidden list widget containing the nmrAtom ids
             with self.attachedNmrAtomsList.blockWidgetSignals(self.attachedNmrAtomsList):
                 self.attachedNmrAtomsList.clear()
+
                 _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not _nmrRes.isDeleted for atm in _nmrRes.nmrAtoms if not atm.isDeleted]
                 self.ids = [atm.id for atm in _nmrAtoms]
                 self.attachedNmrAtomsList.addItems(self.ids)
@@ -601,11 +607,10 @@ class AssignmentInspectorModule(CcpnModule):
         # something has been selected, so get all selected items
         numTexts = self.attachedNmrAtomsList.count()
         selectedTexts = self.attachedNmrAtomsList.getSelectedTexts()
-        nmrAtoms = [self.project.getByPid('NA:' + _id) for _id in selectedTexts]
+        nmrAtoms = [self.project.getByPid(f'NA:{_id}') for _id in selectedTexts]
 
         # populate the table with valid nmrAtoms
-        self._updatePeakTable([atm for atm in nmrAtoms if atm is not None],
-                              messageAll=True if numTexts == len(nmrAtoms) else False)
+        self._updatePeakTable([atm for atm in nmrAtoms if atm is not None], messageAll=(numTexts == len(nmrAtoms)))
 
     def _updatePeakTable(self, nmrAtoms, messageAll=True):
         """
@@ -614,17 +619,17 @@ class AssignmentInspectorModule(CcpnModule):
         """
         if not nmrAtoms:
             # get all items from the table
-            nmrAtoms = [self.project.getByPid('NA:' + _id) for _id in self.attachedNmrAtomsList.getTexts()]
+            nmrAtoms = [self.project.getByPid(f'NA:{_id}') for _id in self.attachedNmrAtomsList.getTexts()]
 
             # # populate the table with valid nmrAtoms
             # self._updatePeakTable([atm for atm in nmrAtoms if atm is not None], messageAll=True)
 
         self._peakList = _emptyObject()
-        allPeaks = list(set([pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks]))
-        chemicalShiftList = self._modulePulldown.getSelectedObject()
-        if chemicalShiftList:
+        allPeaks = list({pk for nmrAtom in nmrAtoms if nmrAtom for pk in nmrAtom.assignedPeaks})
+
+        if chemicalShiftList := self._modulePulldown.getSelectedObject():
             spectra = chemicalShiftList.spectra  #show peaks only for spectra currently available for the selected CSL
-            peaks = [peak for peak in allPeaks if peak.peakList.spectrum in spectra]
+            peaks = [pk for pk in allPeaks if pk.spectrum in spectra]
         else:
             peaks = []
 
@@ -641,10 +646,10 @@ class AssignmentInspectorModule(CcpnModule):
         ids = [atm.id for atm in nmrAtoms]
 
         if messageAll:
-            self.peaksLabel.setText('Peaks assigned to NmrAtom(s): %s' % ALL)
+            self.peaksLabel.setText(f'Peaks assigned to NmrAtom(s): {ALL}')
         else:
             atomList = ', '.join([str(_id) for _id in ids])
-            self.peaksLabel.setText('Peaks assigned to NmrAtom(s): %s' % atomList)  # nmrAtom.id)
+            self.peaksLabel.setText(f'Peaks assigned to NmrAtom(s): {atomList}')
 
     #=========================================================================================
     # Peak-table callbacks
