@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-28 12:43:28 +0100 (Fri, October 28, 2022) $"
+__dateModified__ = "$dateModified: 2022-10-31 12:46:14 +0000 (Mon, October 31, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -765,18 +765,21 @@ class AssignmentTable(_ProjectTableABC):
         selection = self.getSelectedObjects()
         data = self.getRightMouseItem()
         if data is not None and not data.empty and selection:
+            self._owner.lastTableSelected = self._dim
             # call the edit popup balloon
             self._owner._reassignNmrAtomPopup(mode=1)
 
     def _newNmrAtom(self):
         """Create new nmrAtom from the parent widget
         """
+        self._owner.lastTableSelected = self._dim
         # call the new popup balloon
         self._owner._newNmrAtomPopup(mode=1)
 
     def _peakActionCallback(self):
         """Assign/deassign the peak
         """
+        self._owner.lastTableSelected = self._dim
         if self._dim == 0:
             # deAssign from top to bottom
             self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
@@ -1098,7 +1101,7 @@ class AxisAssignmentObject(Frame):
                     self._assignNmrAtom(self.dimIndex, nmrAtoms=[nmrAtom])
                 else:
                     failedNmrAtoms.append(nmrAtom)
-            if len(failedNmrAtoms) > 0:
+            if failedNmrAtoms:
                 showWarning('Incompatible IsotopeCode Error',
                             f'Cannot assign NmrAtoms: {nmrAtoms} to peaks with IsotopeCode {isotopeCode} ')
 
@@ -1127,15 +1130,13 @@ class AxisAssignmentObject(Frame):
         nmrAtoms = self.project.getObjectsByPids(dataDict.get(DropBase.PIDS))
 
         ## Action 0, Assignment: dropping to Assignment (Table-0) from Alternative (Table-1)
-        if droppingToTableNum == assignmentTableNum:
-            if sourceTable == self.tables[alternativeTableNum]:  # needs this constraint to avoid cross-table drag&drop
-                self._assignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
-                return
+        if droppingToTableNum == assignmentTableNum and sourceTable == self.tables[alternativeTableNum]:
+            self._assignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
+            return
         ## Action 1, DeAssign from top to bottom: dropping to Alternative (Table-1) from Assignment (Table-0)
-        if droppingToTableNum == alternativeTableNum:
-            if sourceTable == self.tables[assignmentTableNum]:  # needs this constraint to avoid cross-table drag&drop
-                self._deassignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
-                return
+        if droppingToTableNum == alternativeTableNum and sourceTable == self.tables[assignmentTableNum]:
+            self._deassignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
+            return
 
     # def _clearClicked(self, val):
     #     self._clickedNmrAtom = None
@@ -1157,8 +1158,7 @@ class AxisAssignmentObject(Frame):
 
     def _clickedTableCallback(self, tableNum, data):
         self.lastTableSelected = tableNum
-        obj = data[Notifier.OBJECT]
-        if obj:
+        if obj := data[Notifier.OBJECT]:
             self._clickedNmrAtom = obj[0]
             self.editButton.enableWidget(True)
 
@@ -1237,11 +1237,7 @@ class AxisAssignmentObject(Frame):
             global_rect = pos
             self.editPopup.pointerHeight = 0
 
-        mouse_screen = None
-        for screen in QtGui.QGuiApplication.screens():
-            if screen.geometry().contains(pos):
-                mouse_screen = screen
-                break
+        mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)), None)
         self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
                               side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
                               target_screen=mouse_screen)
@@ -1263,10 +1259,9 @@ class AxisAssignmentObject(Frame):
                 nmrChain = self.project.fetchNmrChain(shortName=nmrChainName or defaultNmrChainCode)
                 if not (nmrResidue := _getNmrResidue(nmrChain, seqCode)):
                     nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=seqCode, residueType=resType)
-                else:
+                elif nmrResidue.residueType != resType:
                     # if existing then check the residueType matches
-                    if nmrResidue.residueType != resType:
-                        raise ValueError(f'residueType does not match existing nmrResidue {nmrResidue.id}')
+                    raise ValueError(f'residueType does not match existing nmrResidue {nmrResidue.id}')
 
                 self._acceptNmrAtom = nmrResidue.fetchNmrAtom(name=nmrAtomName, isotopeCode=isotopeCode)
                 nmrAtom = self._acceptNmrAtom
@@ -1319,11 +1314,7 @@ class AxisAssignmentObject(Frame):
             global_rect = pos
             self.editPopup.pointerHeight = 0
 
-        mouse_screen = None
-        for screen in QtGui.QGuiApplication.screens():
-            if screen.geometry().contains(pos):
-                mouse_screen = screen
-                break
+        mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)), None)
         self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
                               side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
                               target_screen=mouse_screen)
@@ -1332,7 +1323,8 @@ class AxisAssignmentObject(Frame):
         """Show the edit popup
         """
         _tableNum = self.lastTableSelected
-        nextAtom = self.tables[_tableNum].getSelectedObjects()
+        if (nextAtom := self.tables[_tableNum].getSelectedObjects()):
+            self._clickedNmrAtom = nextAtom[0]
 
         self._acceptMode = 0
         self._showNmrAtomPopup(nextAtom[0] if nextAtom else None, _tableNum, mode)
@@ -1359,19 +1351,15 @@ class AxisAssignmentObject(Frame):
 
             # wrap all actions in a single undo block
             with undoBlock():
-                _chainPid = 'NC:{}'.format(nmrChainName)
+                _chainPid = f'NC:{nmrChainName}'
                 _nmrChain = self.project.fetchNmrChain(nmrChainName)
                 nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
                 # nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
 
                 # edit existing
                 if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
-                    # existing different nmrResidue
-                    nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                    if nmrAtom:
-                        yesNo = showYesNo('Merge NmrAtom', f'Do you want to merge\n\n'
-                                                           f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}')
-                        if yesNo:
+                    if nmrAtom := nmrResidue.getNmrAtom(nmrAtomName):
+                        if showYesNo('Merge NmrAtom', f'Do you want to merge\n\n' f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
                             # merge into the existing nmrAtom
                             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
 
@@ -1383,18 +1371,14 @@ class AxisAssignmentObject(Frame):
                                                       name=nmrAtomName,
                                                       mergeToExisting=False)
 
-                elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
+                elif nmrResidue:
                     # rename the same nmrAtom
                     if newResType != nmrResidue.residueType:
                         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
 
                     if nmrAtomName != self._clickedNmrAtom.name:
-                        nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                        if nmrAtom:
-                            # existing nmrAtom
-                            yesNo = showYesNo('NmrAtom already exists', f'Do you want to merge\n\n'
-                                                                        f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}')
-                            if yesNo:
+                        if nmrAtom := nmrResidue.getNmrAtom(nmrAtomName):
+                            if yesNo := showYesNo('NmrAtom already exists', f'Do you want to merge\n\n' f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
                                 # merge into the existing nmrAtom
                                 nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
 
@@ -1798,11 +1782,12 @@ class AxisAssignmentObject(Frame):
         # from ccpn.core.lib.AssignmentLib import NEF_ATOM_NAMES
 
         thisAtom = self.atomTypePulldown.currentText()
+        thisNmrResidue = self.resTypePulldown.currentText()
 
         # get isotope list for hte selected dimension
         isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
         atomNameOptions = getIsotopeListFromCode(isotopeCode)
-        atomNameOptions = sorted(list(set(atomNameOptions)), key=greekKey)  # greek letter sorting
+        atomNameOptions = sorted(set(atomNameOptions), key=greekKey)  # greek letter sorting
 
         nmrAtomName = None
         if nmrAtom:
@@ -1820,18 +1805,18 @@ class AxisAssignmentObject(Frame):
             atomNameOptionsByResType = PROTEIN_NEF_ATOM_NAMES.get(nmrResidue.residueType, [])
 
             _allAtoms = [atm.name for atm in nmrResidue.nmrAtoms]
-            _allAtomNames = sorted(list(set(_allAtoms)), key=greekKey)  # greek letter sorting
+            _allAtomNames = sorted(set(_allAtoms), key=greekKey)  # greek letter sorting
 
             if atomNameOptionsByResType:
-                atomNameOptions = sorted(list(set(atomNameOptionsByResType)), key=greekKey)  # greek letter sorting
+                atomNameOptions = sorted(set(atomNameOptionsByResType), key=greekKey)  # greek letter sorting
             else:
                 _atomNames = getIsotopeListFromCode(None)
-                atomNameOptions = sorted(list(set(_atomNames)), key=greekKey)  # greek letter sorting
+                atomNameOptions = sorted(set(_atomNames), key=greekKey)  # greek letter sorting
 
             if isotopeCode in NEF_ATOM_NAMES:
                 # if False:
                 atomsNameOptionsByIC = getIsotopeListFromCode(isotopeCode or nmrAtom.isotopeCode)
-                atomsNameOptionsByIC = sorted(list(set(atomsNameOptionsByIC)), key=greekKey)
+                atomsNameOptionsByIC = sorted(set(atomsNameOptionsByIC), key=greekKey)
 
                 atomNotOfSameIsotopeCode = [x for x in atomNameOptions if x not in atomsNameOptionsByIC]
                 atomOfSameIsotopeCode = [x for x in atomNameOptions if x in atomsNameOptionsByIC]
