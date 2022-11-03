@@ -1,6 +1,7 @@
 """Module Documentation here
 
 """
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -15,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-09-30 15:19:12 +0100 (Fri, September 30, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-03 15:37:18 +0000 (Thu, November 03, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -31,7 +32,7 @@ import numpy as np
 from functools import partial
 from PyQt5 import QtGui, QtWidgets, QtCore
 from collections import OrderedDict
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from ccpn.core.lib.Pid import Pid
 from ccpn.core.NmrAtom import NmrAtom
@@ -80,6 +81,7 @@ logger = getLogger()
 ALL = '<Use all>'
 _EDIT_OPTION = 'Edit NmrResidue'
 _SHOW_OPTION = 'Show NmrResidue'
+
 
 #==========================================================================================
 # GuiNmrAtom
@@ -1366,30 +1368,30 @@ class NmrResidueList():
                 nmrAtom0 = nmrAtom0 if nmrAtom0 and not nmrAtom0.isDeleted else None
                 nmrAtom1 = nmrAtom1 if nmrAtom1 and not nmrAtom1.isDeleted else None
 
-                if not None in (nmrAtom0, nmrAtom1):
+                # ignore nmrAtoms that are not in the include-list (if specified)
+                if None in (nmrAtom0, nmrAtom1):
+                    continue
+                if nmrAtomIncludeList is not None and not (nmrAtom0 in nmrAtomIncludeList or nmrAtom1 in nmrAtomIncludeList):
+                    continue
 
-                    # ignore nmrAtoms that are not in the include list (if specified)
-                    if nmrAtomIncludeList is not None and not (nmrAtom0 in nmrAtomIncludeList or nmrAtom1 in nmrAtomIncludeList):
-                        continue
+                if (nmrAtom0.nmrResidue is nmrResidue) and (nmrAtom1.nmrResidue is nmrResidue):
 
-                    if (nmrAtom0.nmrResidue is nmrResidue) and (nmrAtom1.nmrResidue is nmrResidue):
+                    # interResidueAtomPairing
+                    if (nmrAtom1, nmrAtom0, peak) not in interResidueAtomPairing[spec]:
+                        interResidueAtomPairing[spec].add((nmrAtom0, nmrAtom1, peak))
 
-                        # interResidueAtomPairing
-                        if (nmrAtom1, nmrAtom0, peak) not in interResidueAtomPairing[spec]:
-                            interResidueAtomPairing[spec].add((nmrAtom0, nmrAtom1, peak))
+                elif (nmrAtom0.nmrResidue.nmrChain == nmrChain) and (nmrAtom1.nmrResidue.nmrChain == nmrChain):
 
-                    elif (nmrAtom0.nmrResidue.nmrChain == nmrChain) and (nmrAtom1.nmrResidue.nmrChain == nmrChain):
+                    # connections within the same chain
+                    if (nmrAtom1, nmrAtom0, peak) not in interChainAtomPairing[spec]:
+                        interChainAtomPairing[spec].add((nmrAtom0, nmrAtom1, peak))
 
-                        # connections within the same chain
-                        if (nmrAtom1, nmrAtom0, peak) not in interChainAtomPairing[spec]:
-                            interChainAtomPairing[spec].add((nmrAtom0, nmrAtom1, peak))
+                # elif (nmrAtom0.nmrResidue.nmrChain is nmrChain) and (nmrAtom1.nmrResidue.nmrChain is not nmrChain):
+                else:
 
-                    # elif (nmrAtom0.nmrResidue.nmrChain is nmrChain) and (nmrAtom1.nmrResidue.nmrChain is not nmrChain):
-                    else:
-
-                        # connections to a dif
-                        if (nmrAtom1, nmrAtom0, peak) not in crossChainAtomPairing[spec]:
-                            crossChainAtomPairing[spec].add((nmrAtom0, nmrAtom1, peak))
+                    # connections to a different chain
+                    if (nmrAtom1, nmrAtom0, peak) not in crossChainAtomPairing[spec]:
+                        crossChainAtomPairing[spec].add((nmrAtom0, nmrAtom1, peak))
 
         return interResidueAtomPairing, interChainAtomPairing, crossChainAtomPairing
         # return emptyAtomPairing, emptyAtomPairing, crossChainAtomPairing
@@ -1436,15 +1438,14 @@ class NmrResidueList():
         # update the endpoints
         self.updateEndPoints(self.assignmentLines)
 
-    def updateEndPoints(self, lineDict):
+    @staticmethod
+    def updateEndPoints(lineDict):
         """Update the end points from the dict.
         """
         for lineList in lineDict.values():
             for line in lineList:
-                try:
+                with suppress(Exception):
                     line.updateEndPoints()
-                except:
-                    pass
 
     def updateAssignmentLines(self):
         """Update the endpoints of the assignment lines.
@@ -1476,7 +1477,8 @@ class NmrResidueList():
         """Get the list of assignment lines attached o the given peaks.
         """
 
-    def _addAdjacentResiduesToSet(self, nmrResidue, residueSet):
+    @staticmethod
+    def _addAdjacentResiduesToSet(nmrResidue, residueSet):
         """Add the adjacent nmrResidues into the set.
         """
         residueSet.add(nmrResidue)
@@ -1513,10 +1515,10 @@ class NmrResidueList():
 
         else:
             # make a new list for creating a peak; necessary for undo of delete peak as the assignedNmrAtom list exists
-            assignmentAtoms = set([nmrAtom for peak in peaks if not peak.isDeleted
-                                   for assignment in peak.assignments
-                                   for nmrAtom in assignment
-                                   if nmrAtom in self.guiNmrAtoms])
+            assignmentAtoms = {nmrAtom for peak in peaks if not peak.isDeleted
+                               for assignment in peak.assignments
+                               for nmrAtom in assignment
+                               if nmrAtom in self.guiNmrAtoms}
             for nmrAtom in assignmentAtoms:
                 guiNmrAtomSet.add(self.guiNmrAtoms[nmrAtom])
                 self._addAdjacentResiduesToSet(nmrAtom.nmrResidue, nmrResidueSet)
@@ -2145,13 +2147,14 @@ class SequenceGraphModule(CcpnModule):
         """Update list of current spectra and generate new magnetisationTransfer list
         """
         if data:
-            trigger = data[Notifier.TRIGGER]
+            trigger = data.get(Notifier.TRIGGER)
+            if trigger in [Notifier.CREATE, Notifier.DELETE] or \
+                    (trigger == Notifier.CHANGE and (data[Notifier.SPECIFIERS].get('updateMagnetisationTransfers') or
+                                                     data[Notifier.SPECIFIERS].get('updateExperimentType') or
+                                                     data[Notifier.SPECIFIERS].get('updateReferenceExperimentDimensions'))):
 
-            self._updateMagnetisationTransfers()
-
-            if trigger in [Notifier.CREATE, Notifier.DELETE]:
-                nmrChainPid = self.nmrChainPulldown.getText()
-                if nmrChainPid:
+                self._updateMagnetisationTransfers()
+                if self.nmrChainPulldown.getText():
                     with self.sceneBlocking():
                         self.nmrResidueList.rebuildPeakAssignments()
 
@@ -2162,14 +2165,15 @@ class SequenceGraphModule(CcpnModule):
             # logger.warning('select: No Sequence selected')
             # raise ValueError('select: No Sequence selected')
             self.nmrChainPulldown.selectFirstItem()
+
+        elif isinstance(nmrChain, NmrChain):
+            for widgetObj in self.nmrChainPulldown.textList:
+                if nmrChain.pid == widgetObj:
+                    self.nmrChainPulldown.select(nmrChain.pid)
+
         else:
-            if not isinstance(nmrChain, NmrChain):
-                logger.warning('select: Object is not of type Sequence')
-                raise TypeError('select: Object is not of type Sequence')
-            else:
-                for widgetObj in self.nmrChainPulldown.textList:
-                    if nmrChain.pid == widgetObj:
-                        self.nmrChainPulldown.select(nmrChain.pid)
+            logger.warning('select: Object is not of type Sequence')
+            raise TypeError('select: Object is not of type Sequence')
 
     def _registerNotifiers(self):
         """Register the required notifiers
@@ -2211,10 +2215,10 @@ class SequenceGraphModule(CcpnModule):
 
         # notifier to change the magnetisationTransfer list when new spectrum added
         self._spectrumListNotifier = self.setNotifier(self.project,
-                                                      [Notifier.CREATE, Notifier.DELETE],
+                                                      [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
                                                       Spectrum.className,
-                                                      self._updateSpectra,
-                                                      # partial(self._queueGeneralNotifier, self._updateSpectra),
+                                                      # self._updateSpectra,
+                                                      partial(self._queueGeneralNotifier, self._updateSpectra),
                                                       onceOnly=True)
 
         self._currentNmrResidueNotifier = self.setNotifier(self.current,
