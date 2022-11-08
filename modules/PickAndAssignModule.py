@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-25 15:59:09 +0100 (Tue, October 25, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-08 11:45:21 +0000 (Tue, November 08, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -162,6 +162,10 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         if len(self.application.current.peaks) == 0:
             logger.error('Undefined peak(s); select one or more before proceeding')
+            return
+
+        if not self.nmrResidueTableSettings.axisCodeOptions:
+            logger.warning('Undefined display; select display in gearbox settings before proceeding')
             return
 
         with undoBlockWithoutSideBar():
