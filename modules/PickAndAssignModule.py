@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-08 11:45:21 +0000 (Tue, November 08, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-09 16:54:36 +0000 (Wed, November 09, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -38,10 +38,10 @@ from ccpn.ui.gui.lib import PeakList
 from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.Button import Button
+from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.util.Logging import getLogger
-from ccpn.ui.gui.widgets.Font import getFontHeight
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 
 
@@ -99,7 +99,6 @@ class PickAndAssignModule(NmrResidueTableModule):
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)  # select the <all> option
 
         self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s)')
-        # self.tableFrame._setWidgetHeight(3.0 * getFontHeight())
 
         # need to feedback to current.nmrResidueTable
         self._selectOnTableCurrentNmrResiduesNotifier = None
@@ -153,23 +152,74 @@ class PickAndAssignModule(NmrResidueTableModule):
         self._unRegisterNotifiers()
         super()._closeModule()
 
-    def assignSelected(self):
-        """Assign current.peaks on the bases of nmrAtoms of current.nmrResidue"""
+    def _getDisplay(self):
+        """Get the current selected spectrum-display from the pulldown
+        """
+        if self.nmrResidueTableSettings.spectrumDisplayPulldown and \
+                (gid := self.nmrResidueTableSettings.spectrumDisplayPulldown.getText()):
+            return self.application.getByGid(gid)
 
-        if self.application.current.nmrResidue is None:
-            logger.error('Undefined nmrResidue; select one first before proceeding')
+    def _verify(self, msgHeader, nmrResidue):
+        """Verify that the settings are valid
+        """
+        nmrResidue = self.project.getByPid(nmrResidue) if isinstance(nmrResidue, str) else nmrResidue
+        if not nmrResidue:
+            # use current if not set
+            nmrResidue = self.application.current.nmrResidue
+        if nmrResidue is None or not isinstance(nmrResidue, NmrResidue):
+            # check that is defined and of the correct type
+            showWarning(msgHeader, 'Undefined nmrResidue; select one first before proceeding')
             return
 
-        if len(self.application.current.peaks) == 0:
-            logger.error('Undefined peak(s); select one or more before proceeding')
+        if not self._getDisplay():
+            # check the selected display
+            showWarning(msgHeader, 'Undefined display;\nselect display in gearbox settings before proceeding')
             return
 
         if not self.nmrResidueTableSettings.axisCodeOptions:
-            logger.warning('Undefined display; select display in gearbox settings before proceeding')
+            # check that the settings have been populated correctly
+            showWarning(msgHeader, 'Undefined display;\nselect display in gearbox settings before proceeding')
+            return
+
+        return nmrResidue
+
+    @staticmethod
+    def _getValidPeakListViews(displays):
+        """Get tehist of valid peakListViews
+        """
+        validPeakListViews = {}
+        # loop through all the selected displays/spectrumViews/peakListViews that are visible
+        for dp in displays:
+
+            # ignore undefined displays
+            if not dp:
+                continue
+
+            if dp.strips:
+                for sv in dp.strips[0].spectrumViews:
+                    for plv in sv.peakListViews:
+                        if plv.isDisplayed and sv.isDisplayed:
+                            if plv.peakList not in validPeakListViews:
+                                validPeakListViews[plv.peakList] = (sv.spectrum, plv)
+                            else:
+                                # skip for now, only one valid peakListView needed per peakList
+                                # validPeakListViews[plv.peakList] += (plv,)
+                                pass
+        return validPeakListViews
+
+    def assignSelected(self, nmrResidue=None, msgHeader=None):
+        """Assign current.peaks on the bases of nmrAtoms of current.nmrResidue
+        """
+        msgHeader = msgHeader or 'Assign Selected'
+        if not (nmrResidue := self._verify(msgHeader, nmrResidue)):
+            return
+
+        if len(self.application.current.peaks) == 0:
+            showWarning(msgHeader, 'Undefined peak(s); select one or more before proceeding')
             return
 
         with undoBlockWithoutSideBar():
-            lastNmrResidue = self.application.current.nmrResidue
+            lastNmrResidue = nmrResidue  # self.application.current.nmrResidue
             currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
             shiftDict = {}
@@ -216,7 +266,7 @@ class PickAndAssignModule(NmrResidueTableModule):
             self.application.current.nmrResidue = lastNmrResidue
 
     #TODO:GEERTEN: compact the two routines
-    def restrictedPick(self, nmrResidue=None):
+    def restrictedPick(self, nmrResidue=None, msgHeader=None):
         """
         Routine refactored in revision 9381.
      
@@ -224,84 +274,70 @@ class PickAndAssignModule(NmrResidueTableModule):
         spectrum displays specified in the settings tab. Pick uses X and Z axes for each spectrumView as
         centre points with tolerances and the y as the long axis to pick the whole region.
         """
-        nmrResidue = self.project.getByPid(nmrResidue) if isinstance(nmrResidue, str) else nmrResidue
-
-        if not nmrResidue:
-            nmrResidue = self.application.current.nmrResidue
-
-        if nmrResidue is None:
-            logger.warning('Undefined nmrResidue; select one first before proceeding')
-            return
-
-        if not self.nmrResidueTableSettings.axisCodeOptions:
-            logger.warning('Undefined display; select display in gearbox settings before proceeding')
+        msgHeader = msgHeader or 'Restricted Pick'
+        if not (nmrResidue := self._verify(msgHeader, nmrResidue)):
             return
 
         currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
         with undoBlockWithoutSideBar():
-
             peaks = []
+
             # displays = self._getDisplays()
+            # gid = self.nmrResidueTableSettings.spectrumDisplayPulldown.getText()
+            displays = [self._getDisplay()]  # [self.application.getByGid(gid)]
 
-            gid = self.nmrResidueTableSettings.spectrumDisplayPulldown.getText()
-            displays = [self.application.getByGid(gid)]
+            validPeakListViews = self._getValidPeakListViews(displays)
+            try:
+                specAxisCodes = ([spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
+                                  for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
+                                 for spectrum, peakListView in validPeakListViews.values())
+            except Exception:
+                showWarning(msgHeader, 'Cannot pick peaks; check selected spectrumDisplay,\n'
+                                       'possibly missing axis-codes or selected nmrResidue has no matching axis-codes')
 
-            validPeakListViews = {}
+            else:
+                try:
+                    for (spectrum, peakListView), axisCodes in zip(validPeakListViews.values(), specAxisCodes):
+                        # axisCodes = [spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
+                        #              for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
 
-            # loop through all the selected displays/spectrumViews/peakListViews that are visible
-            for dp in displays:
+                        # axis-codes should be valid this time
+                        peakList, pks = PeakList.restrictedPick(peakListView=peakListView,
+                                                                axisCodes=axisCodes, nmrResidue=nmrResidue)
+                        if pks:
+                            peaks += list(pks)
+                except Exception:
+                    showWarning(msgHeader, 'Cannot pick peaks; check selected spectrumDisplay,\n'
+                                           'possibly missing axis-codes or selected nmrResidue has no matching axis-codes')
 
-                # ignore undefined displays
-                if not dp:
-                    continue
+                # for module in self.application.project.spectrumDisplays:
+                #     if len(module.axisCodes) >= 2:
+                #         for spectrumView in module.strips[0].spectrumViews:
+                #
+                #             visiblePeakListViews = [peakListView for peakListView in spectrumView.peakListViews
+                #                                     if peakListView.isVisible()]
+                #
+                #             # if len(visiblePeakListViews) == 0:
+                #             #     continue
+                #             # else:
+                #             #     peakList, pks = PeakList.restrictedPick(peakListView=visiblePeakListViews[0],
+                #             #                                             axisCodes=module.axisCodes[0::2], nmrResidue=nmrResidue)
+                #             #     peaks = peaks + pks
+                #
+                #             # if len(visiblePeakListViews) == 0:
+                #             #     spectrum = spectrumView.spectrum
+                #             #
+                #             #     axisCodes = [axis for ]
+                else:
+                    # set the current peaks - may need intermediate list here
+                    self.application.current.peaks = peaks
 
-                if dp.strips:
-                    for sv in dp.strips[0].spectrumViews:
-                        for plv in sv.peakListViews:
-                            if plv.isDisplayed and sv.isDisplayed:
-                                if plv.peakList not in validPeakListViews:
-                                    validPeakListViews[plv.peakList] = (sv.spectrum, plv)
-                                else:
+                    # update the NmrResidue table
+                    self.tableWidget._table = nmrResidue.nmrChain
+                    self.tableWidget._update()
 
-                                    # skip for now, only one valid peakListView needed per peakList
-                                    # validPeakListViews[plv.peakList] += (plv,)
-                                    pass
-
-            for pk, (spectrum, peakListView) in validPeakListViews.items():
-
-                axisCodes = [spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
-                             for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
-
-                peakList, pks = PeakList.restrictedPick(peakListView=peakListView,
-                                                        axisCodes=axisCodes, nmrResidue=nmrResidue)
-                if pks:
-                    peaks = peaks + list(pks)
-
-            # for module in self.application.project.spectrumDisplays:
-            #     if len(module.axisCodes) >= 2:
-            #         for spectrumView in module.strips[0].spectrumViews:
-            #
-            #             visiblePeakListViews = [peakListView for peakListView in spectrumView.peakListViews
-            #                                     if peakListView.isVisible()]
-            #
-            #             # if len(visiblePeakListViews) == 0:
-            #             #     continue
-            #             # else:
-            #             #     peakList, pks = PeakList.restrictedPick(peakListView=visiblePeakListViews[0],
-            #             #                                             axisCodes=module.axisCodes[0::2], nmrResidue=nmrResidue)
-            #             #     peaks = peaks + pks
-            #
-            #             # if len(visiblePeakListViews) == 0:
-            #             #     spectrum = spectrumView.spectrum
-            #             #
-            #             #     axisCodes = [axis for ]
-
-            self.application.current.peaks = peaks
-
-            # update the NmrResidue table
-            self.tableWidget._table = nmrResidue.nmrChain
-            self.tableWidget._update()
+                    return True  # pick was successful
 
     # from ccpn.util.decorators import profile
     # @profile
@@ -315,21 +351,15 @@ class PickAndAssignModule(NmrResidueTableModule):
         
         Calls assignSelected to assign
         """
-        nmrResidue = self.project.getByPid(nmrResidue) if isinstance(nmrResidue, str) else nmrResidue
-
-        if not nmrResidue:
-            nmrResidue = self.application.current.nmrResidue
-        elif not self.application.current.nmrResidue:
-            print('No current nmrResidue')
+        msgHeader = 'Restricted Pick and Assign'
+        if not (nmrResidue := self._verify(msgHeader, nmrResidue)):
             return
 
         with undoBlockWithoutSideBar():
 
-            self.restrictedPick(nmrResidue)
-
-            # if peaks have been selected then assign them
-            if self.application.current.peaks:
-                self.assignSelected()
+            if self.restrictedPick(nmrResidue, msgHeader=msgHeader) and self.application.current.peaks:
+                # if peaks have been selected then assign them
+                self.assignSelected(msgHeader=msgHeader)
 
                 # notifier for other modules
                 nmrResidue._finaliseAction('change')
