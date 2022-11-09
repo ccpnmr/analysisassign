@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-03 15:37:18 +0000 (Thu, November 03, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-09 19:38:02 +0000 (Wed, November 09, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -46,6 +46,7 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
+from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS, TOOLTIP_BACKGROUND, \
     GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, GUINMRRESIDUE, \
     SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
@@ -1909,6 +1910,9 @@ class SequenceGraphModule(CcpnModule):
 
         self._chains = self.project.chains  # this must match the sequence module init and the chains pulldown init
         self._chemicalShiftList = self.project.chemicalShiftLists[0] if self.project.chemicalShiftLists else None
+
+        # align the widgets in the settings-widget
+        alignWidgets(self.settingsWidget)
 
         # calculate the connections between axes based on experiment types
         self._updateMagnetisationTransfers()
