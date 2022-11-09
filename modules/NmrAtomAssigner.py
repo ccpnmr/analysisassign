@@ -33,7 +33,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-25 17:40:26 +0100 (Tue, October 25, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-09 16:54:17 +0000 (Wed, November 09, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -691,7 +691,7 @@ class NmrAtomAssignerModule(CcpnModule):
         if nmrs:
             self._nmrResiduePulldown.select(nmrs[0].nmrResidue)
             self._nmrChainPulldown.select(nmrs[0].nmrResidue.nmrChain.pid)
-            self.current.nmrResidue = nmrs[0].nmrResidue
+            # self.current.nmrResidue = nmrs[0].nmrResidue
 
     @staticmethod
     def _removeOffsetFromButtonText(text: str):
