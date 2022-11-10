@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-10 12:11:26 +0000 (Thu, November 10, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-10 16:53:42 +0000 (Thu, November 10, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -1857,7 +1857,7 @@ class SequenceGraphModule(CcpnModule):
 
     def __init__(self, mainWindow=None, name='Sequence Graph', nmrChain=None):
 
-        CcpnModule.__init__(self, mainWindow=mainWindow, name=name)
+        super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -2108,7 +2108,6 @@ class SequenceGraphModule(CcpnModule):
         #                               )
 
         self._MWwidget.setContentsMargins(5, 5, 5, 5)
-        self.settingsWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
 
     # def _checkLayoutInit(self):
     #     """This is a hack so that the state changes when the layout loads
