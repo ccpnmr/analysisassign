@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-09 19:38:02 +0000 (Wed, November 09, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-10 12:11:26 +0000 (Thu, November 10, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -2241,9 +2241,12 @@ class SequenceGraphModule(CcpnModule):
         """Respond to change in current activePulldownClass
         """
         checkBox = self._SGwidget.getWidget(LINKTOPULLDOWNCLASS)
-        if self.activePulldownClass and checkBox and checkBox.isChecked() and \
-                self.current.nmrChain and self.current.nmrChain != self.nmrChain:
-            self.nmrChainPulldown.select(self.current.nmrChain.pid)
+        if self.activePulldownClass and checkBox and checkBox.isChecked():  # and self.current.nmrChain != self.nmrChain:
+            # update to the new current nmrChain
+            if self.current.nmrChain:
+                self.nmrChainPulldown.select(self.current.nmrChain.pid)
+            else:
+                self.nmrChainPulldown.setIndex(0)
 
     def _repopulateModule(self):
         """CCPN Internal: Repopulate the required widgets in the module
@@ -2714,6 +2717,7 @@ class SequenceGraphModule(CcpnModule):
 
         # print('>>>setNmrChainDisplay')
 
+        self.nmrChain = None
         if isinstance(nmrChainOrPid, str):
             if not Pid.isValid(nmrChainOrPid):
                 self.resetScene()
@@ -2829,7 +2833,8 @@ class SequenceGraphModule(CcpnModule):
         # print('>>>showNmrChainFromPulldown')
 
         nmrChainPid = self.nmrChainPulldown.getText()
-        if nmrChainPid:
+        if nmrChainPid and self.nmrChainPulldown.getIndex() != 0:
+            # a pid has been selected - first item is '<select>'
             showPredictions = self._SGwidget.checkBoxes['showPredictions']['widget'].isChecked()
             showSideChain = self._SGwidget.checkBoxes['showSideChain']['widget'].isChecked()
 
@@ -2841,7 +2846,11 @@ class SequenceGraphModule(CcpnModule):
             self._setCurrentNmrChain(nmrChainPid)
         else:
             # nmrChainOrPid could be '<Select>' in which case nmrChain would be None
+            self.nmrChain = None
             self.resetScene()
+
+            # check whether to update self.current.nmrChain
+            self._setCurrentNmrChain(None)
 
     def _setCurrentNmrChain(self, nmrChainOrPid):
 
@@ -2853,13 +2862,13 @@ class SequenceGraphModule(CcpnModule):
         else:
             nmrChain = nmrChainOrPid
 
-        # nmrChainOrPid could be '<Select>' in which case nmrChain would be None
-        if not nmrChain:
-            self.resetScene()
-            return
+        # # nmrChainOrPid could be '<Select>' in which case nmrChain would be None
+        # if not nmrChain:
+        #     self.resetScene()
+        #     return
 
         checkBox = self._SGwidget.getWidget(LINKTOPULLDOWNCLASS)
-        if self.current.nmrChain and self.current.nmrChain != nmrChain and checkBox and checkBox.isChecked():
+        if checkBox and checkBox.isChecked():  # and self.current.nmrChain != nmrChain:
             self.current.nmrChain = nmrChain
 
     def resetSequenceGraph(self):
