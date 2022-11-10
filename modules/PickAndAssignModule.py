@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-09 16:54:36 +0000 (Wed, November 09, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-10 13:37:20 +0000 (Thu, November 10, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -36,6 +36,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 
 from ccpn.ui.gui.lib import PeakList
 from ccpn.ui.gui.lib import StripLib
+from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
@@ -92,7 +93,7 @@ class PickAndAssignModule(NmrResidueTableModule):
         self.assignSelectedButton.setEnabled(True)
         self.restrictedPickAndAssignButton.setEnabled(True)
 
-        # change some of the defaults setting inherited from NmrResidueTableModule
+        # change default-settings inherited from NmrResidueTableModule
         self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(False)
 
         if self.nmrResidueTableSettings.displaysWidget:
@@ -113,6 +114,11 @@ class PickAndAssignModule(NmrResidueTableModule):
             for ii, box in enumerate(self.nmrResidueTableSettings.axisCodeOptions.checkBoxes):
                 if box.text().upper().startswith('C'):
                     self.nmrResidueTableSettings.axisCodeOptions.clearIndex(ii)
+
+        # fix the second column to stop extra widgets flickering
+        alignWidgets(self.nmrResidueTableSettings, columnScale=1.2)
+        # if self.nmrResidueTableSettings.displaysWidget:
+        #     alignWidgets(self.nmrResidueTableSettings.displaysWidget)
 
     def _registerNotifiers(self):
         """
