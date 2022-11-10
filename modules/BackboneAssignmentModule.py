@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-09 19:38:48 +0000 (Wed, November 09, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-10 12:00:00 +0000 (Thu, November 10, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -59,7 +59,7 @@ from ccpn.util.Logging import getLogger
 ALL = '<all>'
 MINMATCHES = 1
 MAXMATCHES = 20
-DEFAULTMATCHES = 2
+DEFAULTMATCHES = 3
 STRIPBACKBONE = 'backboneAssignment'
 MARKCONNECTED = False
 EXTRAWIDTH = 150
