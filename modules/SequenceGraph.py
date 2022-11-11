@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-10 16:53:42 +0000 (Thu, November 10, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-11 17:33:56 +0000 (Fri, November 11, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -2239,13 +2239,28 @@ class SequenceGraphModule(CcpnModule):
     def _selectCurrentPulldownClass(self, data):
         """Respond to change in current activePulldownClass
         """
-        checkBox = self._SGwidget.getWidget(LINKTOPULLDOWNCLASS)
-        if self.activePulldownClass and checkBox and checkBox.isChecked():  # and self.current.nmrChain != self.nmrChain:
+        if self._isLinkedToCurrent():
             # update to the new current nmrChain
             if self.current.nmrChain:
                 self.nmrChainPulldown.select(self.current.nmrChain.pid)
             else:
                 self.nmrChainPulldown.setIndex(0)
+
+    def _setCurrentOnLinkedNmrChain(self, nmrChain):
+        """Set local/current from the given nmrChain
+        """
+        if self._isLinkedToCurrent():
+            # set current nmrChain and update
+            self.current.nmrChain = nmrChain
+        else:
+            # set the local chain
+            self.selectSequence(nmrChain)
+
+    def _isLinkedToCurrent(self):
+        """Return True if the link-to-current is enabled
+        """
+        checkBox = self._SGwidget.getWidget(LINKTOPULLDOWNCLASS)
+        return self.activePulldownClass and checkBox and checkBox.isChecked()
 
     def _repopulateModule(self):
         """CCPN Internal: Repopulate the required widgets in the module
@@ -2972,7 +2987,7 @@ class SequenceGraphModule(CcpnModule):
                         raise es
 
             if self.current.nmrResidue:
-                self.showNmrChainFromPulldown()
+                self._setCurrentOnLinkedNmrChain(self.current.nmrResidue.nmrChain)
 
     def deassignNmrChainNew(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
@@ -2996,7 +3011,7 @@ class SequenceGraphModule(CcpnModule):
             editPopup.showAt(popupPos)
 
     def _deassignNmrChainNew(self, pullDown, balloon, index):
-        """Deassign the nmrResdues to the selected nmrChain
+        """Deassign the nmrResidues to the selected nmrChain
         """
         nmrId = pullDown.getText()
         nmrChain = self.project.getObjectsById(className='NmrChain', id=nmrId)
@@ -3019,7 +3034,7 @@ class SequenceGraphModule(CcpnModule):
                         raise es
 
             if self.current.nmrResidue:
-                self.showNmrChainFromPulldown()
+                self._setCurrentOnLinkedNmrChain(self.current.nmrResidue.nmrChain)
 
     def deassignPeak(self, selectedPeak=None, selectedNmrAtom=None):
         """Deassign the peak by removing the assigned nmrAtoms from the list
