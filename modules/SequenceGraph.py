@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-11 17:33:56 +0000 (Fri, November 11, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-14 15:29:57 +0000 (Mon, November 14, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -1847,7 +1847,7 @@ class SequenceGraphModule(CcpnModule):
     activePulldownClass = NmrChain
 
     # set the queue handling parameters - move to ccpModule?
-    _maximumQueueLength = 25
+    _maximumQueueLength = 40
     _logQueue = False
 
     # define icons
@@ -2399,6 +2399,7 @@ class SequenceGraphModule(CcpnModule):
         objList = data[CallBack.OBJECT]
 
         nmrResidue = objList.nmrResidue
+        # print(f'select current  {nmrResidue}')
         if not self.nmrResiduesCheckBox.isChecked():
             # redraw the nmrResidues if current is in the displayed chain and not already visible
             if nmrResidue.nmrChain == self.nmrChain and nmrResidue not in self.nmrResidueList.guiNmrResidues:
@@ -2439,7 +2440,6 @@ class SequenceGraphModule(CcpnModule):
         """Update the nmrResidues in the display.
         """
         nmrResidue = data[Notifier.OBJECT]
-        # try:
         # print(f'>>> change nmrResidue           {nmrResidue}')
 
         with self.sceneBlocking():
@@ -2468,10 +2468,6 @@ class SequenceGraphModule(CcpnModule):
                     # print('>>>error? redraw list')
                     # self.setNmrChainDisplay(self.nmrChain)
                     pass
-
-        # except Exception as es:
-        #     # strange error not traced yet, interesting, but not fatal if trapped - think I've found it
-        #     getLogger().warning(str(es))
 
     def _updateNmrAtoms(self, data):
         """Update the nmrAtoms in the display.
@@ -3487,6 +3483,7 @@ class SequenceGraphModule(CcpnModule):
         """Method that is called when the queue is deemed to be too big.
         Apply overall operation instead of all individual notifiers.
         """
+        # print(' queue full')
         self.showNmrChainFromPulldown()
 
 
