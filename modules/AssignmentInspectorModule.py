@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-10 13:37:20 +0000 (Thu, November 10, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-24 19:04:16 +0000 (Thu, November 24, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -311,9 +311,9 @@ class AssignmentInspectorModule(CcpnModule):
     def _registerNotifiers(self):
         """Set up the notifiers
         """
-        self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrResidue._pluralLinkName,
+        self._currentNotifier = self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrResidue._pluralLinkName,
                          callback=self._highlightNmrResidues)
-        self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+        self._nmrAtomNotifier = self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
                          NmrAtom.__name__, self._updateNmrAtoms, onceOnly=True)
 
         self.nmrAtomBlocking = False
@@ -326,6 +326,10 @@ class AssignmentInspectorModule(CcpnModule):
         self._modulePulldown.unRegister()
         self.chemicalShiftTable._close()
         self.assignedPeaksTable._close()
+        if self._currentNotifier:
+            self._currentNotifier.unRegister()
+        if self._nmrAtomNotifier:
+            self._nmrAtomNotifier.unRegister()
         super()._closeModule()
 
     def _selectionPulldownCallback(self, item):

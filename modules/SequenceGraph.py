@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-14 15:29:57 +0000 (Mon, November 14, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-24 19:04:16 +0000 (Thu, November 24, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -2889,8 +2889,38 @@ class SequenceGraphModule(CcpnModule):
     def _closeModule(self):
         """CCPN-INTERNAL: used to close the module
         """
-        self.thisSequenceWidget.close()
+        self.thisSequenceWidget._unRegisterNotifiers()
+        self._unregisterNotifiers()
+
         super()._closeModule()
+
+    def _unregisterNotifiers(self):
+        """Clean up notifiers
+        """
+        self._SGwidget.chainsWidget._close()
+        self._SGwidget.displaysWidget._close()
+        self.shiftListPulldown.unRegister()
+        if self._SGwidget:
+            self._SGwidget._cleanupWidget()
+
+        if self._peakNotifier:
+            self._peakNotifier.unRegister()
+        if self._chainNotifier:
+            self._chainNotifier.unRegister()
+        if self._nmrResidueNotifier:
+            self._nmrResidueNotifier.unRegister()
+        if self._nmrResidueChangeNotifier:
+            self._nmrResidueChangeNotifier.unRegister()
+        if self._nmrAtomNotifier:
+            self._nmrAtomNotifier.unRegister()
+        if self._spectrumListNotifier:
+            self._spectrumListNotifier.unRegister()
+        if self._currentNmrResidueNotifier:
+            self._currentNmrResidueNotifier.unRegister()
+        if self.nmrChainPulldown:
+            self.nmrChainPulldown.unRegister()
+        if self.activePulldownClass and self._setCurrentPulldown:
+            self._setCurrentPulldown.unRegister()
 
     def unlinkNearestNmrResidue(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
