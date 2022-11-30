@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-28 12:45:35 +0100 (Fri, October 28, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-30 11:22:09 +0000 (Wed, November 30, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -54,6 +54,7 @@ from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay  #, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.SpectrumDisplay import navigateToNmrResidueInStrip
+from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.AttrDict import AttrDict
@@ -90,7 +91,7 @@ class AssignmentInspectorModule(CcpnModule):
 
     includeSettingsWidget = True
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
-    settingsPosition = 'top'
+    settingsPosition = 'left'
     LARGE_STRETCH = 100000
     SETTING_PADDING = 4
 
@@ -125,8 +126,7 @@ class AssignmentInspectorModule(CcpnModule):
         self._settingsScrollArea.setScrollBarPolicies(('asNeeded', 'never'))
 
         self._splitWidget = Frame(self.settingsWidget, grid=(0, 0), setLayout=True, vPolicy='minimumExpanding')
-
-        self._tickLisWidget = Frame(self._splitWidget, grid=(0, 1), setLayout=True, vPolicy='minimum')
+        self._tickLisWidget = Frame(self._splitWidget, grid=(1, 0), setLayout=True, vPolicy='minimum')
 
         self.displaysWidget = SpectrumDisplaySelectionWidget(self._splitWidget, mainWindow=self.mainWindow,
                                                              grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
@@ -189,6 +189,8 @@ class AssignmentInspectorModule(CcpnModule):
         # AssignedPeaksTable need to be initialised before chemicalShiftTable, as the callback of the latter requires
         # the former to be present
         self._setWidgets()
+
+        alignWidgets(self.settingsWidget)
 
         # disable current callback - not required for assignmentInspector
         # responds to changes in current nmrAtoms and nmrResidues?
@@ -309,9 +311,9 @@ class AssignmentInspectorModule(CcpnModule):
     def _registerNotifiers(self):
         """Set up the notifiers
         """
-        self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrResidue._pluralLinkName,
+        self._currentNotifier = self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrResidue._pluralLinkName,
                          callback=self._highlightNmrResidues)
-        self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+        self._nmrAtomNotifier = self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
                          NmrAtom.__name__, self._updateNmrAtoms, onceOnly=True)
 
         self.nmrAtomBlocking = False
@@ -324,6 +326,10 @@ class AssignmentInspectorModule(CcpnModule):
         self._modulePulldown.unRegister()
         self.chemicalShiftTable._close()
         self.assignedPeaksTable._close()
+        if self._currentNotifier:
+            self._currentNotifier.unRegister()
+        if self._nmrAtomNotifier:
+            self._nmrAtomNotifier.unRegister()
         super()._closeModule()
 
     def _selectionPulldownCallback(self, item):

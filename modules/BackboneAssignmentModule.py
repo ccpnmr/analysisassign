@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-27 16:20:48 +0100 (Thu, October 27, 2022) $"
+__dateModified__ = "$dateModified: 2022-11-30 11:22:10 +0000 (Wed, November 30, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -39,7 +39,8 @@ from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.lib.SpectrumDisplay import makeStripPlot
 from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
-from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
+from ccpn.ui.gui.lib.alignWidgets import alignWidgets
+from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, LINKTOPULLDOWNCLASS
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, CheckBoxCompoundWidget, SpinBoxCompoundWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, showYesNo
@@ -58,7 +59,7 @@ from ccpn.util.Logging import getLogger
 ALL = '<all>'
 MINMATCHES = 1
 MAXMATCHES = 20
-DEFAULTMATCHES = 2
+DEFAULTMATCHES = 3
 STRIPBACKBONE = 'backboneAssignment'
 MARKCONNECTED = False
 EXTRAWIDTH = 150
@@ -66,6 +67,8 @@ EXTRAOFFSET = 100
 
 
 class BackboneAssignmentModule(NmrResidueTableModule):
+    """Class implementing the module
+    """
     className = 'BackboneAssignmentModule'
 
     includeSettingsWidget = True
@@ -75,11 +78,14 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
     includeDisplaySettings = True
     activePulldownClass = NmrChain
+    activePulldownInitialState = True
+
     registeredExtensions = set()
 
     def __init__(self, mainWindow=None, name='Backbone Assignment'):
-
-        super(BackboneAssignmentModule, self).__init__(mainWindow=mainWindow, name=name, selectFirstItem=True)
+        """Initialise the module widgets
+        """
+        super().__init__(mainWindow=mainWindow, name=name, selectFirstItem=True)
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
@@ -253,6 +259,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                          callback=self._setupShiftDicts, default=None
                                                          )
         self._setupShiftDicts()
+
+        self._activeLinkCheckbox = self.activePulldownClass and getattr(self.nmrResidueTableSettings, LINKTOPULLDOWNCLASS, None)
+
+        # align the widgets in the settings-widget
+        alignWidgets(self.nmrResidueTableSettings)
 
     @staticmethod
     def registerExtension(cls, extension):
@@ -487,12 +498,10 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 # align the display modules to the target module
                 self._setDisplayPosWidth(targetDisplays, matchDisplays)
 
-            # # update current (should trigger SequenceGraph)
-            # self.application.current.nmrChain = nmrResidue.nmrChain
-            # self.application.current.nmrResidue = nmrResidue
-
-        # finally:
-        #     self.application._endCommandBlock()
+        # update current to trigger other modules
+        if self._activeLinkCheckbox and self._activeLinkCheckbox.isChecked():
+            self.current.nmrChain = nmrResidue.nmrChain
+        self.current.nmrResidue = nmrResidue
 
     @staticmethod
     def _setDisplayPosWidth(matchDisplays, targetDisplays):
