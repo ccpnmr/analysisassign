@@ -23,7 +23,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-02-24 14:35:21 +0000 (Fri, February 24, 2023) $"
+__dateModified__ = "$dateModified: 2023-02-28 13:03:53 +0000 (Tue, February 28, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -34,6 +34,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
+from ccpn.ui.gui.lib import PeakListLib
 from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
@@ -41,7 +42,6 @@ from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.NmrResidue import NmrResidue
-from ccpn.core.PeakList import PeakList
 from ccpn.util.Logging import getLogger
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 
@@ -295,9 +295,9 @@ class PickAndAssignModule(NmrResidueTableModule):
 
             validPeakListViews = self._getValidPeakListViews(displays)
             try:
-                specAxisCodes = ([spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
+                specAxisCodes = [[spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
                                   for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
-                                 for spectrum, peakListView in validPeakListViews.values())
+                                 for spectrum, peakListView in validPeakListViews.values()]
             except Exception:
                 showWarning(msgHeader, 'Cannot pick peaks; check selected spectrumDisplay,\n'
                                        'possibly missing axis-codes or selected nmrResidue has no matching axis-codes')
@@ -309,8 +309,8 @@ class PickAndAssignModule(NmrResidueTableModule):
                         #              for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
 
                         # axis-codes should be valid this time
-                        peakList, pks = PeakList.restrictedPick(peakListView=peakListView,
-                                                                axisCodes=axisCodes, nmrResidue=nmrResidue)
+                        peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
+                                                                   axisCodes=axisCodes, nmrResidue=nmrResidue)
                         if pks:
                             peaks += list(pks)
                 except Exception:
