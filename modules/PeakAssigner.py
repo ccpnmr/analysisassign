@@ -629,7 +629,7 @@ class AssignmentTable(_ProjectTableABC):
     # set the queue handling parameters
     _maximumQueueLength = 10  # shouldn't be responding to any notifiers
 
-    _hiddenColumns = ['Pid']
+    defaultHidden = ['Pid']
     _internalColumns = ['_object']
 
     _dim = None
@@ -641,6 +641,9 @@ class AssignmentTable(_ProjectTableABC):
         self._dim = dim
 
         super(AssignmentTable, self).__init__(parent, *args, **kwds)
+
+        self.headerColumnMenu.setInternalColumns(self._internalColumns, update=False)
+        self.headerColumnMenu.setDefaultColumns(self.defaultHidden, update=False)
 
     #=========================================================================================
     # Build the dataFrame for the table
