@@ -6,7 +6,7 @@ Responds to current.peaks
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-10-31 18:50:33 +0000 (Mon, October 31, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2023-03-03 00:18:20 +0000 (Fri, March 03, 2023) $"
+__version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -623,7 +623,7 @@ class AssignmentTable(_ProjectTableABC):
     callBackClass = NmrAtom
     search = False
 
-    _enableSelectionCallback = False
+    _enableSelectionCallback = True
     _enableActionCallback = True
 
     # set the queue handling parameters
@@ -713,6 +713,12 @@ class AssignmentTable(_ProjectTableABC):
         if self._clearSelectionCallbackFunction:
             data = {}
             self._clearSelectionCallbackFunction(data)
+
+    def clearSelection(self):
+        """Clear the current selection in the table
+        """
+        # core-object selection is not required here
+        self.selectionModel().clearSelection()
 
     def addTableMenuOptions(self, menu):
         """Add options to the right-mouse menu
@@ -820,8 +826,8 @@ class AssignmentTable(_ProjectTableABC):
             getLogger().debug2(f'{self.__class__.__name__}.selectionCallback: No selection\n{es}')
 
         else:
-            # don't do anything yet
-            pass
+            # enable the edit-button
+            self._parent._thisparent._clickedTableCallback(self._dim, {Notifier.OBJECT: objs})
 
     def _selectCurrentCallBack(self, data):
         """Callback from a current changed notifier to highlight the current objects
@@ -920,6 +926,7 @@ class AxisAssignmentObject(Frame):
                                          grid=(row, 0), gridSpan=(1, 1),
                                          # tipText='Click to select; double-click to de-assign'
                                          showVerticalHeader=False,
+                                         multiSelect=False,
                                          dim=0
                                          )
 
@@ -937,6 +944,7 @@ class AxisAssignmentObject(Frame):
                                          grid=(row, 0), gridSpan=(1, 1),
                                          # tipText='Click to select; double-click to assign'
                                          showVerticalHeader=False,
+                                         multiSelect=False,
                                          dim=1
                                          )
 
@@ -1176,15 +1184,22 @@ class AxisAssignmentObject(Frame):
             self._assignNmrAtom(self.dimIndex, action=True)
 
     def _clickedTableCallback(self, tableNum, data):
-        self.lastTableSelected = tableNum
         if obj := data[Notifier.OBJECT]:
+            self.lastTableSelected = tableNum
             self._clickedNmrAtom = obj[0]
-            self.editButton.enableWidget(True)
 
             if tableNum == 0:
+                # this will clear the other table and fire its selection
+                # which will first disable the edit-button below
                 self.tables[1].clearSelection()
             elif tableNum == 1:
                 self.tables[0].clearSelection()
+
+            # re-enable the button
+            self.editButton.enableWidget(True)
+
+        else:
+            self.editButton.enableWidget(False)
 
     def _clearTableCallback(self, tableNum, data):
         self._clickedNmrAtom = None
