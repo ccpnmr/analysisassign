@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-03 00:18:20 +0000 (Fri, March 03, 2023) $"
+__dateModified__ = "$dateModified: 2023-03-20 14:23:37 +0000 (Mon, March 20, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -634,6 +634,9 @@ class AssignmentTable(_ProjectTableABC):
 
     _dim = None
     _enableSearch = False
+
+    defaultSortColumn = 'Delta'
+    defaultSortOrder = QtCore.Qt.DescendingOrder
 
     def __init__(self, parent, dim=0, *args, **kwds):
         """Intitialise the table and store as top-or-bottom table
