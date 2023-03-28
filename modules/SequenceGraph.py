@@ -5,7 +5,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
 __credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-11-30 11:22:10 +0000 (Wed, November 30, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__dateModified__ = "$dateModified: 2023-03-28 15:18:44 +0100 (Tue, March 28, 2023) $"
+__version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -47,7 +47,7 @@ from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
-from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS, TOOLTIP_BACKGROUND, \
+from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS, \
     GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, GUINMRRESIDUE, \
     SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
@@ -1799,8 +1799,9 @@ class EditNmrChainBalloon(SpeechBalloon):
         self._metrics.pointer_height = 0
 
         # set the background/fontSize for the tooltips
-        _toolBG = getColours()[TOOLTIP_BACKGROUND]
-        self.setStyleSheet(f'QToolTip {{ background-color: {_toolBG}; font-size: {self.font().pointSize()}pt ; }}')
+        self.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
+                           'color: {TOOLTIP_FOREGROUND}; '
+                           'font-size: {_size}pt ; }}'.format(_size=self.font().pointSize(), **getColours()))
 
         # add the widgets
         _frame = Frame(self, setLayout=True, margins=(10, 10, 10, 10))
