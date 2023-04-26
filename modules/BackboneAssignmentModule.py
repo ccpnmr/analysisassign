@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-02-24 14:35:21 +0000 (Fri, February 24, 2023) $"
+__modifiedBy__ = "$modifiedBy: VickyAH $"
+__dateModified__ = "$dateModified: 2023-04-26 09:55:55 +0100 (Wed, April 26, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -367,14 +367,15 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         matchIndex = self.matchWidget.getIndex()
         targetIndex = self.targetWidget.getIndex()
         if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
-            getLogger().warning('Undefined Match module; select in settings first or unselect "Find matches"')
-            showWarning('startAssignment', 'Undefined Match module;\nselect in settings first or unselect "Find matches"')
+            getLogger().warning('Undefined Match module; select Match module in Settings or unselect "Find matches"')
+            showWarning('startAssignment', 'Undefined Match module;\nSelect your Match module in the Backbone Assignment Settings panel'
+                        'or unselect "Find matches"')
             return
 
         if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch.isChecked():
-            getLogger().warning('Undefined Search module; select in settings first, unselect "Find matches" or select "Show Search Strip in Match Module"')
-            showWarning('startAssignment', 'Undefined Search module;\nselect in settings first, unselect "Find matches" or\n'
-                                           'select "Show Search Strip in Match Module"')
+            getLogger().warning('Undefined Search module; select Search module in Settings, unselect "Find matches" or select "Show Search Strip in Match Module"')
+            showWarning('startAssignment', 'Undefined Search module;\nSelect your Search module in the Backbone Assignment Settings panel, '
+                                           'unselect "Find matches" or\nselect "Show Search Strip in Match Module" in the Settings')
             return
 
         if (matchIndex == targetIndex) and matchIndex != 0:
