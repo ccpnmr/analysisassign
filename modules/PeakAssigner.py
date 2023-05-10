@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-20 14:23:37 +0000 (Mon, March 20, 2023) $"
+__dateModified__ = "$dateModified: 2023-05-10 19:09:57 +0100 (Wed, May 10, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -33,11 +33,11 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass
 from functools import partial
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from PyQt5 import QtGui, QtCore
 from time import time_ns
 from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
-from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue
+from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue, MoveToEnd
 from ccpn.core.Peak import Peak
 from ccpn.core.lib import CcpnSorting
 from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, PROTEIN_NEF_ATOM_NAMES, NEF_ATOM_NAMES
@@ -60,7 +60,7 @@ from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER, LABEL_WARNINGFOREGROUND
 from ccpn.util.Logging import getLogger
-from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode
+from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode, makeIterableList
 from ccpn.util.UpdateScheduler import UpdateScheduler
 from ccpn.util.UpdateQueue import UpdateQueue
 from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
@@ -1301,6 +1301,19 @@ class AxisAssignmentObject(Frame):
                 nmrChain = self.project.fetchNmrChain(shortName=nmrChainName or defaultNmrChainCode)
                 if not (nmrResidue := _getNmrResidue(nmrChain, seqCode)):
                     nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=seqCode, residueType=resType)
+
+                    mainRess = nmrChain.mainNmrResidues
+                    if nmrChain.isConnected and len(mainRess) > 1:
+                        assignedPks = makeIterableList(self.current.peak.assignedNmrAtoms)
+                        assignedRess = {nmrAt.nmrResidue for nmrAt in assignedPks}
+
+                        foundInds = Counter(mainRess.index(nmr) for nmr in assignedRess if nmr in mainRess)
+                        if 0 in foundInds and showYesNo('Assign New NmrAtom',
+                                                        'The peak may already be assigned at the head of an nmrChain.\n\n'
+                                                        'A new nmrResidue has been created for the new nmrAtom,\n'
+                                                        'do you want to move the new nmrResidue to the head of the nmrChain?'):
+                            nmrResidue.moveToEnd(MoveToEnd.HEAD)
+
                 elif nmrResidue.residueType != resType:
                     # if existing then check the residueType matches
                     raise ValueError(f'residueType does not match existing nmrResidue {nmrResidue.id}')
@@ -1884,27 +1897,27 @@ class AxisAssignmentObject(Frame):
                                          atomOfSameIsotopeCode)
                 if _allAtomNames:
                     _atomNameOptions += ([OtherByResType] +
-                                        _allAtomNames)
+                                         _allAtomNames)
                 if atomNotOfSameIsotopeCode:
                     _atomNameOptions += ([OtherNames] +
-                                        atomNotOfSameIsotopeCode)
+                                         atomNotOfSameIsotopeCode)
 
             elif _allAtomNames:
                 _atomNameOptions += ([OtherByResType] +
-                                    _allAtomNames +
-                                    [OtherNames] +
-                                    atomNameOptions)
+                                     _allAtomNames +
+                                     [OtherNames] +
+                                     atomNameOptions)
             else:
                 if _allAtomNames:
                     _atomNameOptions += ([OtherByResType] +
-                                        _allAtomNames)
+                                         _allAtomNames)
                 if atomNameOptions:
                     _atomNameOptions += ([OtherByIC] +
-                                        atomNameOptions)
+                                         atomNameOptions)
 
         elif atomNameOptions:
             _atomNameOptions += ([OtherByIC] +
-                                atomNameOptions)
+                                 atomNameOptions)
 
         if self.lastNmrAtomSelected:
             # add the last typed in value

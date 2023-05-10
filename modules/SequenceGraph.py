@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-10 13:03:21 +0100 (Wed, May 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-05-10 19:09:57 +0100 (Wed, May 10, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -36,7 +36,7 @@ from contextlib import contextmanager, suppress
 
 from ccpn.core.lib.Pid import Pid
 from ccpn.core.NmrAtom import NmrAtom
-from ccpn.core.NmrResidue import NmrResidue
+from ccpn.core.NmrResidue import NmrResidue, MoveToEnd
 from ccpn.core.Peak import Peak
 from ccpn.core.Spectrum import Spectrum
 from ccpn.core.NmrChain import NmrChain
@@ -1857,6 +1857,8 @@ class SequenceGraphModule(CcpnModule):
     disconnectPreviousIcon = Icon('icons/disconnectPrevious')
     disconnectIcon = Icon('icons/disconnect')
     disconnectNextIcon = Icon('icons/disconnectNext')
+    moveToHeadIcon = Icon('icons/move-to-head')
+    moveToTailIcon = Icon('icons/move-to-tail')
 
     def __init__(self, mainWindow=None, name='Sequence Graph', nmrChain=None):
 
@@ -2948,6 +2950,17 @@ class SequenceGraphModule(CcpnModule):
             if self.current.nmrResidue:
                 self.showNmrChainFromPulldown()
 
+    def _moveToEnd(self, guiNmrResidue, end):
+        """Move an nmrResidue from one end of a connected chain to the other.
+        :param guiNmrResidue:
+        :param end:
+        """
+        try:
+            guiNmrResidue.nmrResidue.moveToEnd(end)
+
+        except Exception as es:
+            showWarning(str(self.windowTitle()), f'{es}')
+
     def disconnectPreviousNmrResidue(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
             selected = str(self.current.nmrResidue.pid)
@@ -3227,21 +3240,25 @@ class SequenceGraphModule(CcpnModule):
 
             try:
                 # create the nmrResidue menu
-                self._disconnectPreviousActionMenu = contextMenu.addAction(self.disconnectPreviousIcon, 'disconnect Previous nmrResidue',
+                self._disconnectPreviousActionMenu = contextMenu.addAction(self.disconnectPreviousIcon, 'Disconnect Previous nmrResidue',
                                                                            partial(self.disconnectPreviousNmrResidue))
-                self._disconnectActionMenu = contextMenu.addAction(self.disconnectIcon, 'disconnect nmrResidue', partial(self.disconnectNmrResidue))
-                self._disconnectNextActionMenu = contextMenu.addAction(self.disconnectNextIcon, 'disconnect Next nmrResidue',
+                self._disconnectActionMenu = contextMenu.addAction(self.disconnectIcon, 'Disconnect nmrResidue', partial(self.disconnectNmrResidue))
+                self._disconnectNextActionMenu = contextMenu.addAction(self.disconnectNextIcon, 'Disconnect Next nmrResidue',
                                                                        partial(self.disconnectNextNmrResidue))
                 contextMenu.addSeparator()
-                self._disconnectAllActionMenu = contextMenu.addAction('disconnect all nmrResidues', partial(self.disconnectAllNmrResidues))
+                self._disconnectAllActionMenu = contextMenu.addAction('Disconnect all nmrResidues', partial(self.disconnectAllNmrResidues))
                 if obj.nmrResidue.residue:
                     contextMenu.addSeparator()
-                    self._deassignNmrChainActionMenu = contextMenu.addAction('deassign connected nmrResidues', self.deassignNmrChain)
+                    self._deassignNmrChainActionMenu = contextMenu.addAction('Deassign connected nmrResidues', self.deassignNmrChain)
                     # self._deassignNmrChainNewActionMenu = contextMenu.addAction('deassign to new nmrChain', self.deassignNmrChainNew)
 
                     assign = pressed.nmrResidue.residue is not None
                     self._deassignNmrChainActionMenu.setEnabled(assign)
                     # self._deassignNmrChainNewActionMenu.setEnabled(assign)
+
+                contextMenu.addSeparator()
+                self._moveToHeadActionMenu = contextMenu.addAction(self.moveToHeadIcon, 'Move nmrResidue to head', partial(self._moveToEnd, obj, MoveToEnd.HEAD))
+                self._moveToTailActionMenu = contextMenu.addAction(self.moveToTailIcon, 'Move nmrResidue to tail', partial(self._moveToEnd, obj, MoveToEnd.TAIL))
 
                 contextMenu.addSeparator()
                 txt = f'{_EDIT_OPTION} {obj.nmrResidue.id if obj.nmrResidue else ""}'
@@ -3257,6 +3274,9 @@ class SequenceGraphModule(CcpnModule):
                 self._disconnectActionMenu.setEnabled(prev or nxt)
                 self._disconnectNextActionMenu.setEnabled(nxt)
                 self._disconnectAllActionMenu.setEnabled(prev or nxt)
+
+                self._moveToHeadActionMenu.setEnabled(pressed.nmrResidue.nmrChain.isConnected and not nxt)
+                self._moveToTailActionMenu.setEnabled(pressed.nmrResidue.nmrChain.isConnected and not prev)
 
                 contextMenu.move(pos.x(), pos.y() + 10)
                 contextMenu.exec_()
