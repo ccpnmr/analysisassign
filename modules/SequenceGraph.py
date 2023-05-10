@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-03-28 15:18:44 +0100 (Tue, March 28, 2023) $"
+__dateModified__ = "$dateModified: 2023-05-10 13:03:21 +0100 (Wed, May 10, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -387,7 +387,9 @@ class AssignmentLine(QtWidgets.QGraphicsLineItem):
     def paint(self, painter, option, widget):
         """Automatically update the end-points of the assignment lines to point to the correct guiNmrAtoms
         """
-        self.updateEndPoints()
+        with suppress(Exception):
+            self.updateEndPoints()
+
         super().paint(painter, option, widget)
 
     def hoverEnterEvent(self, event):
