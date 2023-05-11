@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-10 19:09:57 +0100 (Wed, May 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-05-11 12:23:33 +0100 (Thu, May 11, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -143,7 +143,7 @@ class GuiNmrAtom(QtWidgets.QGraphicsSimpleTextItem):
         # print('>>> deassign peak menu')
         # widg = event.widget()
         contextMenu = Menu('', self.mainWindow, isFloatWidget=True)
-        contextMenu.addAction('deassign all Peaks', partial(self._deassignAllPeaksFromNmrAtom))
+        contextMenu.addAction('Deassign all Peaks', partial(self._deassignAllPeaksFromNmrAtom))
         # cursor = QtGui.QCursor()
         contextMenu.move(pos.x(), pos.y() + 10)
         contextMenu.exec_()
@@ -3218,7 +3218,7 @@ class SequenceGraphModule(CcpnModule):
             thisLine = pressed  #self.selectedLine
 
             if thisLine._peak and thisLine._peak.assignedNmrAtoms:
-                contextMenu.addAction('deassign nmrAtoms from Peak: %s' % str(thisLine._peak.id))
+                contextMenu.addAction('Deassign NmrAtoms from Peak: %s' % str(thisLine._peak.id))
                 contextMenu.addSeparator()
 
                 # add the nmrAtoms to the menu
@@ -3240,32 +3240,32 @@ class SequenceGraphModule(CcpnModule):
 
             try:
                 # create the nmrResidue menu
-                self._disconnectPreviousActionMenu = contextMenu.addAction(self.disconnectPreviousIcon, 'Disconnect Previous nmrResidue',
+                self._disconnectPreviousActionMenu = contextMenu.addAction(self.disconnectPreviousIcon, 'Disconnect Previous NmrResidue',
                                                                            partial(self.disconnectPreviousNmrResidue))
-                self._disconnectActionMenu = contextMenu.addAction(self.disconnectIcon, 'Disconnect nmrResidue', partial(self.disconnectNmrResidue))
-                self._disconnectNextActionMenu = contextMenu.addAction(self.disconnectNextIcon, 'Disconnect Next nmrResidue',
+                self._disconnectActionMenu = contextMenu.addAction(self.disconnectIcon, 'Disconnect NmrResidue', partial(self.disconnectNmrResidue))
+                self._disconnectNextActionMenu = contextMenu.addAction(self.disconnectNextIcon, 'Disconnect Next NmrResidue',
                                                                        partial(self.disconnectNextNmrResidue))
                 contextMenu.addSeparator()
-                self._disconnectAllActionMenu = contextMenu.addAction('Disconnect all nmrResidues', partial(self.disconnectAllNmrResidues))
+                self._disconnectAllActionMenu = contextMenu.addAction('Disconnect all NmrResidues', partial(self.disconnectAllNmrResidues))
                 if obj.nmrResidue.residue:
                     contextMenu.addSeparator()
-                    self._deassignNmrChainActionMenu = contextMenu.addAction('Deassign connected nmrResidues', self.deassignNmrChain)
-                    # self._deassignNmrChainNewActionMenu = contextMenu.addAction('deassign to new nmrChain', self.deassignNmrChainNew)
+                    self._deassignNmrChainActionMenu = contextMenu.addAction('Deassign Connected NmrResidues', self.deassignNmrChain)
+                    # self._deassignNmrChainNewActionMenu = contextMenu.addAction('Deassign to New NmrChain', self.deassignNmrChainNew)
 
                     assign = pressed.nmrResidue.residue is not None
                     self._deassignNmrChainActionMenu.setEnabled(assign)
                     # self._deassignNmrChainNewActionMenu.setEnabled(assign)
 
                 contextMenu.addSeparator()
-                self._moveToHeadActionMenu = contextMenu.addAction(self.moveToHeadIcon, 'Move nmrResidue to head', partial(self._moveToEnd, obj, MoveToEnd.HEAD))
-                self._moveToTailActionMenu = contextMenu.addAction(self.moveToTailIcon, 'Move nmrResidue to tail', partial(self._moveToEnd, obj, MoveToEnd.TAIL))
+                self._moveToHeadActionMenu = contextMenu.addAction(self.moveToHeadIcon, 'Move NmrResidue to Front', partial(self._moveToEnd, obj, MoveToEnd.HEAD))
+                self._moveToTailActionMenu = contextMenu.addAction(self.moveToTailIcon, 'Move NmrResidue to End', partial(self._moveToEnd, obj, MoveToEnd.TAIL))
 
                 contextMenu.addSeparator()
                 txt = f'{_EDIT_OPTION} {obj.nmrResidue.id if obj.nmrResidue else ""}'
                 self._editActionMenu = contextMenu.addAction(txt, partial(self.editNmrResidue, obj))
                 self._editActionMenu.setEnabled(True if obj.nmrResidue else False)
 
-                self._showActionMenu = contextMenu.addAction('Show nmrResidue', partial(self.showNmrResidue, obj))
+                self._showActionMenu = contextMenu.addAction('Show NmrResidue', partial(self.showNmrResidue, obj))
 
                 prev = pressed.nmrResidue.previousNmrResidue is not None
                 nxt = pressed.nmrResidue.nextNmrResidue is not None
@@ -3288,7 +3288,7 @@ class SequenceGraphModule(CcpnModule):
         elif isinstance(pressed, GuiNmrAtom):
 
             # create the nmrAtom menu
-            contextMenu.addAction('deassign nmrAtoms from Peaks')
+            contextMenu.addAction('Deassign NmrAtoms from Peaks')
             contextMenu.addSeparator()
 
             if pressed.nmrAtom and pressed.nmrAtom.assignedPeaks:
@@ -3346,7 +3346,7 @@ class SequenceGraphModule(CcpnModule):
             if peak and peak.assignedNmrAtoms:
                 subMenu = contextMenu.addMenu(peak.id)
 
-                subMenu.addAction('nmrAtoms')
+                subMenu.addAction('NmrAtoms')
                 subMenu.addSeparator()
                 for nmrAtomList in peak.assignedNmrAtoms:
                     for nmrAtom in nmrAtomList:

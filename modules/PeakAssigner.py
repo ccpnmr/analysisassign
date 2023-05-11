@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-10 19:09:57 +0100 (Wed, May 10, 2023) $"
+__dateModified__ = "$dateModified: 2023-05-11 12:23:33 +0100 (Thu, May 11, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -1309,9 +1309,9 @@ class AxisAssignmentObject(Frame):
 
                         foundInds = Counter(mainRess.index(nmr) for nmr in assignedRess if nmr in mainRess)
                         if 0 in foundInds and showYesNo('Assign New NmrAtom',
-                                                        'The peak may already be assigned at the head of an nmrChain.\n\n'
-                                                        'A new nmrResidue has been created for the new nmrAtom,\n'
-                                                        'do you want to move the new nmrResidue to the head of the nmrChain?'):
+                                                        'A new nmrResidue has been created for the new nmrAtom.\n'
+                                                        'By default this will be placed at the end of the connected nmrChain.\n\n'
+                                                        'Do you want to move the new nmrResidue to the front of the nmrChain instead?'):
                             nmrResidue.moveToEnd(MoveToEnd.HEAD)
 
                 elif nmrResidue.residueType != resType:
