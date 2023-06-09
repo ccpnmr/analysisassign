@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: VickyAH $"
-__dateModified__ = "$dateModified: 2023-04-26 09:55:55 +0100 (Wed, April 26, 2023) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2023-06-09 12:06:23 +0100 (Fri, June 09, 2023) $"
 __version__ = "$Revision: 3.1.1 $"
 #=========================================================================================
 # Created
@@ -369,7 +369,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
             getLogger().warning('Undefined Match module; select Match module in Settings or unselect "Find matches"')
             showWarning('startAssignment', 'Undefined Match module;\nSelect your Match module in the Backbone Assignment Settings panel'
-                        'or unselect "Find matches"')
+                                           'or unselect "Find matches"')
             return
 
         if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch.isChecked():
@@ -1045,7 +1045,7 @@ def markNmrAtoms(mainWindow, nmrAtoms: typing.List[NmrAtom]):
             # navigateToPositionInStrip(strip, positions, widths=widths) # don't need to change display yet
 
             mainWindow.markPositions(list(shiftDict.keys()),
-                                     list(shiftDict.values()))
+                                     list(shiftDict.values()), strips=display.strips)
 
 
 #=====  Just some code to 'save' =====
