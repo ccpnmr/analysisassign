@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-11 12:23:33 +0100 (Thu, May 11, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2023-06-28 19:17:53 +0100 (Wed, June 28, 2023) $"
+__version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -279,7 +279,7 @@ class PeakAssigner(CcpnModule):
                 offset = 0
             w = (width - 6 - offset) / min(self.Ndims, 4)
             for tab in self.dimensionTabs:
-                tab.setFixedWidth(max(w, MINTABLEWIDTH))
+                tab.setFixedWidth(int(max(w, MINTABLEWIDTH)))
 
     def _registerNotifiers(self):
         # without a tableSelection specified in the table callback, this nmrAtom callback is needed
