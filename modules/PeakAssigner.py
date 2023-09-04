@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-07-07 11:57:08 +0100 (Fri, July 07, 2023) $"
+__dateModified__ = "$dateModified: 2023-09-04 17:24:08 +0100 (Mon, September 04, 2023) $"
 __version__ = "$Revision: 3.2.0 $"
 #=========================================================================================
 # Created
@@ -119,6 +119,10 @@ OtherByResType = PulldownFill + ' nmrResidue Options ' + PulldownFill
 class _emptyObject:
     nmrAtoms = []
 
+
+#=========================================================================================
+# PeakAssigner
+#=========================================================================================
 
 class PeakAssigner(CcpnModule):
     """Module for assignment of nmrAtoms to the different axes of a peak.
@@ -590,6 +594,10 @@ class PeakAssigner(CcpnModule):
         super()._closeModule()
 
 
+#=========================================================================================
+# NotOnLine
+#=========================================================================================
+
 class NotOnLine(object):
     """
     Small 'fake' object to get a message the user in the assignment
@@ -608,6 +616,10 @@ NOL = NotOnLine()
 _EDIT_OPTION = 'Edit nmrAtom'
 _NEW_OPTION = 'New nmrAtom'
 
+
+#=========================================================================================
+# AssignmentTable
+#=========================================================================================
 
 class AssignmentTable(_ProjectTableABC):
     """Subclassed for some added functionality"""
@@ -709,7 +721,8 @@ class AssignmentTable(_ProjectTableABC):
             Column('NmrAtom', lambda nmrAtom: str(nmrAtom.id), tipText='NmrAtom identifier'),
             Column('Pid', lambda nmrAtom: str(nmrAtom.pid), tipText='Pid of the nmrAtom'),
             Column('_object', lambda nmrAtom: nmrAtom, tipText='Object'),
-            Column('Delta', lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex), tipText='Delta-shift', format='%6.3f'),
+            Column('Delta', lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex),
+                   tipText='Delta-shift', format='%0.3f'),
             Column('Shift', lambda nmrAtom: self.moduleParent._getShift(nmrAtom), tipText='Chemical-shift', format='%8.3f'),
             ]
         return self._columnDefs
