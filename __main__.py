@@ -12,7 +12,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2023-11-16 14:27:47 +0000 (Thu, November 16, 2023) $"
+__dateModified__ = "$dateModified: 2023-11-16 15:41:59 +0000 (Thu, November 16, 2023) $"
 __version__ = "$Revision: 3.2.1 $"
 #=========================================================================================
 # Created
@@ -53,5 +53,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# test comment
