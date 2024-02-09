@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-02-06 15:19:48 +0000 (Tue, February 06, 2024) $"
+__dateModified__ = "$dateModified: 2024-02-09 12:14:30 +0000 (Fri, February 09, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -29,6 +29,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 from ccpn.framework.Version import applicationVersion
 from ccpn.framework.Framework import Framework
 from ccpn.framework.Application import ANALYSIS_ASSIGN
+
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.util.Logging import getLogger
@@ -41,24 +42,46 @@ class Assign(Framework):
     applicationName = ANALYSIS_ASSIGN
     applicationVersion = applicationVersion
 
-    def _setupMenus(self):
-        super()._setupMenus()
-        menuSpec = ('Assign', [("Set up NmrResidues", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
-                               ("Pick and Assign", self.showPickAndAssignModule, [('shortcut', 'pa')]),
-                               (),
-                               ("Backbone Assignment", self.showBackboneAssignmentModule, [('shortcut', 'bb')]),
-                               # ("Sidechain Assignment", self.showSidechainAssignmentModule, [('shortcut', 'sc'), ('enabled', False)]),
-                               (),
-                               ("Peak Assigner", self.showPeakAssigner, [('shortcut', 'ap')]),
-                               ("NmrAtom Assigner", self.showAtomSelector, [('shortcut', 'an')]),
-                               ("Assignment Inspector", self.showAssignmentInspectorModule, [('shortcut', 'ai')]),
-                               # ("Residue Information", self.showResidueInformation, [('shortcut', 'ri')]),
-                               ])
-        self._addApplicationMenuSpec(menuSpec)
+    def _getUI(self):
+        """Get the user interface
+        :return a Ui instance
+        """
+        if self.args.interface == 'Gui':
+            from ccpn.AnalysisAssign.gui.Gui import AnalysisAssignGui
+            ui = AnalysisAssignGui(application=self)
 
-        viewMenuItems = [("Sequence Graph", self.showSequenceGraph, [('shortcut', 'sg')]),
-                        ]
-        self._addApplicationMenuItems('View', viewMenuItems, position=11)
+        else:
+            from ccpn.ui.Ui import NoUi
+            ui = NoUi(application=self)
+
+        return ui
+
+    # GWV 9/2/24: Now in Gui.py
+    # def _setupMenus(self):
+    #     """Augment the menu's
+    #     :return the MenuDefs (i.e. a list) instance
+    #     """
+    #     from ccpn.ui.gui.Menus import getMenuDefs, VIEW_MENU
+    #
+    #     menuDefs = getMenuDefs()
+    #
+    #     assignDef = ('Assign', [("Set up NmrResidues", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
+    #                            ("Pick and Assign", self.showPickAndAssignModule, [('shortcut', 'pa')]),
+    #                            (),
+    #                            ("Backbone Assignment", self.showBackboneAssignmentModule, [('shortcut', 'bb')]),
+    #                            # ("Sidechain Assignment", self.showSidechainAssignmentModule, [('shortcut', 'sc'), ('enabled', False)]),
+    #                            (),
+    #                            ("Peak Assigner", self.showPeakAssigner, [('shortcut', 'ap')]),
+    #                            ("NmrAtom Assigner", self.showAtomSelector, [('shortcut', 'an')]),
+    #                            ("Assignment Inspector", self.showAssignmentInspectorModule, [('shortcut', 'ai')]),
+    #                            # ("Residue Information", self.showResidueInformation, [('shortcut', 'ri')]),
+    #                            ])
+    #     menuDefs._addMenuDef(assignDef, position=4)
+    #
+    #     viewMenuItems = [("Sequence Graph", self.showSequenceGraph, [('shortcut', 'sg')]),
+    #                     ]
+    #     menuDefs._addMenuItems(VIEW_MENU, viewMenuItems, position=11)
+    #     return menuDefs
 
     # overrides superclass
     def _closeExtraWindows(self):
