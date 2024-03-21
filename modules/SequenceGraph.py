@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-03-21 08:08:44 +0000 (Thu, March 21, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-21 11:51:37 +0000 (Thu, March 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -2227,16 +2227,13 @@ class SequenceGraphModule(CcpnModule):
                                                       partial(self._queueGeneralNotifier, self._updateSpectra),
                                                       onceOnly=True)
 
-        self._currentNmrResidueNotifier = self.setNotifier(self.current,
-                                                           [Notifier.CURRENT],
-                                                           targetName=NmrResidue._pluralLinkName,
-                                                           callback=self._selectCurrentNmrResidues)
+        self._currentNmrResidueNotifier = self.setCurrentNotifier(targetName=NmrResidue._pluralLinkName,
+                                                                  callback=self._selectCurrentNmrResidues)
 
         # new notifier to respond to changing current nmrChain
         if self.activePulldownClass:
-            self._setCurrentPulldown = CurrentNotifier(
-                                                targetName=self.activePulldownClass._pluralLinkName,
-                                                callback=self._selectCurrentPulldownClass)
+            self._setCurrentPulldown = self.setCurrentNotifier(targetName=self.activePulldownClass._pluralLinkName,
+                                                               callback=self._selectCurrentPulldownClass)
 
     def _selectCurrentPulldownClass(self, data):
         """Respond to change in current activePulldownClass

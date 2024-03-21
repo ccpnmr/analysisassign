@@ -6,9 +6,9 @@ Responds to current.peaks
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-09-04 17:24:08 +0100 (Mon, September 04, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-03-21 11:51:37 +0000 (Thu, March 21, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -288,12 +288,11 @@ class PeakAssigner(CcpnModule):
     def _registerNotifiers(self):
         # without a tableSelection specified in the table callback, this nmrAtom callback is needed
         # to update the table
-        self.setNotifier(self.current, [Notifier.CURRENT],
-                         targetName=Peak._pluralLinkName,
-                         callback=self._updateCurrent,  # self._updateInterface,
-                         onceOnly=True)
+        self.setCurrentNotifier(targetName=Peak._pluralLinkName,
+                                callback=self._updateCurrent,  # self._updateInterface,
+                                )
         self.setNotifier(self.project, [Notifier.DELETE, Notifier.CREATE],
-                         targetName=Peak.__name__,
+                         targetName=Peak.className,
                          callback=self._updatePeak,  # self._updateInterface,
                          onceOnly=True)
         self.setNotifier(self.project, [Notifier.CHANGE, Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
@@ -301,11 +300,11 @@ class PeakAssigner(CcpnModule):
                          callback=self._updateNmrAtom,
                          onceOnly=True)
         self.setNotifier(self.project, [Notifier.CHANGE],
-                         targetName=Peak.__name__,
+                         targetName=Peak.className,
                          callback=self._updateNmrResidue,
                          onceOnly=True)
         self.setNotifier(self.project, [Notifier.DELETE, Notifier.CREATE],
-                         targetName=NmrResidue.__name__,
+                         targetName=NmrResidue.className,
                          callback=self._updateNmrResidue,
                          onceOnly=True)
 
