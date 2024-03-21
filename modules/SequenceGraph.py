@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-03-20 16:54:16 +0000 (Wed, March 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-21 08:08:44 +0000 (Thu, March 21, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -2194,14 +2194,12 @@ class SequenceGraphModule(CcpnModule):
                                               onceOnly=True)
 
         # explicitly update the sequence-widget
-        self._chainNotifier = self.setNotifier(self.project,
-                                               [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+        self._chainNotifier = self.setNotifier(self.project, [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                Chain.className,
                                                partial(self._queueGeneralNotifier, self.showChainsChanged),
                                                onceOnly=True)
 
-        self._nmrResidueNotifier = self.setNotifier(self.project,
-                                                    [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+        self._nmrResidueNotifier = self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                     NmrResidue.className,
                                                     # self._updateNmrResidues,
                                                     partial(self._queueGeneralNotifier, self._updateNmrResidues),
