@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-02-09 12:14:30 +0000 (Fri, February 09, 2024) $"
+__dateModified__ = "$dateModified: 2024-03-28 16:42:05 +0000 (Thu, March 28, 2024) $"
 __version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
@@ -114,7 +114,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         pickAndAssignModule = PickAndAssignModule(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(pickAndAssignModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(pickAndAssignModule, position=position, relativeTo=relativeTo)
         return pickAndAssignModule
 
     @logCommand('application.')
@@ -128,7 +128,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         backboneModule = BackboneAssignmentModule(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(backboneModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(backboneModule, position=position, relativeTo=relativeTo)
         return backboneModule
 
     @logCommand('application.')
@@ -150,7 +150,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         assignmentModule = PeakAssigner(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(assignmentModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(assignmentModule, position=position, relativeTo=relativeTo)
         return assignmentModule
 
     @logCommand('application.')
@@ -164,7 +164,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         assignmentInspectorModule = AssignmentInspectorModule(mainWindow=mainWindow, selectFirstItem=True)
-        mainWindow.moduleArea.addModule(assignmentInspectorModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(assignmentInspectorModule, position=position, relativeTo=relativeTo)
         return assignmentInspectorModule
 
     @logCommand('application.')
@@ -178,7 +178,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         sequenceGraphModule = SequenceGraphModule(mainWindow=mainWindow, nmrChain=nmrChain)
-        mainWindow.moduleArea.addModule(sequenceGraphModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(sequenceGraphModule, position=position, relativeTo=relativeTo)
         return sequenceGraphModule
 
     @logCommand('application.')
@@ -192,7 +192,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         nmrAtomAssigner = NmrAtomAssignerModule(mainWindow=mainWindow, nmrAtom=nmrAtom)
-        mainWindow.moduleArea.addModule(nmrAtomAssigner, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(nmrAtomAssigner, position=position, relativeTo=relativeTo)
         return nmrAtomAssigner
 
     @logCommand('application.')
@@ -202,5 +202,5 @@ class Assign(Framework):
         from ccpn.pipes import loadedPipes
         from ccpn.ui.gui.modules.PipelineModule import GuiPipeline
         guiPipeline = GuiPipeline(mainWindow=self.ui.mainWindow, pipes=loadedPipes, templates=None)
-        self.ui.mainWindow.moduleArea.addModule(guiPipeline, position=position)
+        self.ui.mainWindow._addModule(guiPipeline, position=position)
         return guiPipeline
