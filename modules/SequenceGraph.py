@@ -5,9 +5,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-11 12:23:33 +0100 (Thu, May 11, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-04-17 12:03:15 +0100 (Wed, April 17, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -115,11 +115,31 @@ class GuiNmrAtom(QtWidgets.QGraphicsSimpleTextItem):
         # self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         #
         # # set the highlight colour for dragging to chain
-        self.colours = getColours()
+        # self.colours = getColours()
+        # if self.isSelected:
+        #     self.setBrush(QtGui.QColor(self.colours[GUINMRATOM_SELECTED]))
+        # else:
+        #     self.setBrush(QtGui.QColor(self.colours[GUINMRATOM_NOTSELECTED]))
+        #
+        QtWidgets.QApplication.instance().paletteChanged.connect(self._checkPalette)
+        self._checkPalette(self.mainWindow.palette())
+
+    def _checkPalette(self, pal: QtGui.QPalette):
+        # print the colours from the updated palette - only 'highlight' seems to be effective
+        # QT modifies this to give different selection shades depending on the widget
+        # print(f'--> setting {self.__class__.__name__} styleSheet')
+        base = pal.base().color().lightness()
+        highlight = pal.highlight().color()
+        _highlightColour = QtGui.QColor.fromHslF(0.625,  #highlight.hueF(),
+                                       # tweak the highlight colour depending on the theme
+                                       #    needs to go in the correct place
+                                       0.8 if base > 127 else 0.75,
+                                       0.5 if base > 127 else 0.65
+                                       )
         if self.isSelected:
-            self.setBrush(QtGui.QColor(self.colours[GUINMRATOM_SELECTED]))
+            self.setBrush(_highlightColour)
         else:
-            self.setBrush(QtGui.QColor(self.colours[GUINMRATOM_NOTSELECTED]))
+            self.setBrush(QtGui.QColor('#808080'))
 
     def mouseDoubleClickEvent(self, event):
         """CCPN INTERNAL - re-implementation of double click event
@@ -213,9 +233,9 @@ class GuiNmrResidue(QtWidgets.QGraphicsSimpleTextItem):
         # self.setFont(self.mainWindow.application._fontSettings.textFontSmall)
         setWidgetFont(self, name=SEQUENCEGRAPHFONT, size='MEDIUM')
 
-        self.colours = getColours()
-        # self.setDefaultTextColor(QtGui.QColor(self.colours[GUINMRRESIDUE]))
-        self.setBrush(QtGui.QColor(self.colours[GUINMRRESIDUE]))
+        # self.colours = getColours()
+        # # self.setDefaultTextColor(QtGui.QColor(self.colours[GUINMRRESIDUE]))
+        # self.setBrush(QtGui.QColor(self.colours[GUINMRRESIDUE]))
 
         self.setPos(caAtom.x() - caAtom.boundingRect().width(), caAtom.y() + (2 * lineSpacing))
 
@@ -224,6 +244,25 @@ class GuiNmrResidue(QtWidgets.QGraphicsSimpleTextItem):
         self.nmrResidue = nmrResidue
 
         # self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        QtWidgets.QApplication.instance().paletteChanged.connect(self._checkPalette)
+        self._checkPalette(parent.mainWindow.palette())
+
+    def _checkPalette(self, pal: QtGui.QPalette):
+        # print the colours from the updated palette - only 'highlight' seems to be effective
+        # QT modifies this to give different selection shades depending on the widget
+        # print(f'--> setting {self.__class__.__name__} styleSheet')
+        base = pal.base().color().lightness()
+        highlight = pal.highlight().color()
+        _highlightColour = QtGui.QColor.fromHslF(0.625, #highlight.hueF(),
+                                                 # tweak the highlight colour depending on the theme
+                                                 #    needs to go in the correct place
+                                                 0.8 if base > 127 else 0.75,
+                                                 0.5 if base > 127 else 0.65
+                                                 )
+        if self.isSelected:
+            self.setBrush(_highlightColour)
+        else:
+            self.setBrush(QtGui.QColor('#808080'))
 
     def _update(self):
         # self.setPlainText(self.nmrResidue.id)
@@ -3107,17 +3146,9 @@ class SequenceGraphModule(CcpnModule):
     def _setFocusColour(self, focusColour=None, noFocusColour=None):
         """Set the focus/noFocus colours for the widget
         """
-        focusColour = getColours()[BORDERFOCUS]
-        noFocusColour = getColours()[BORDERNOFOCUS]
-        styleSheet = "QGraphicsView { " \
-                     "border: 1px solid;" \
-                     "border-radius: 1px;" \
-                     "border-color: %s;" \
-                     "} " \
-                     "QGraphicsView:focus { " \
-                     "border: 1px solid %s; " \
-                     "border-radius: 1px; " \
-                     "}" % (noFocusColour, focusColour)
+        styleSheet = """QGraphicsView {
+                            border-radius: 2px;
+                        }"""
         self.scrollContents.setStyleSheet(styleSheet)
 
     def initialiseScene(self):
