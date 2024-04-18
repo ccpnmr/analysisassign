@@ -4,19 +4,19 @@ AnalysisAssign Program
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
-                 "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
+                 "J.Biomol.Nmr (2016), 66, 111-124, https://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2022-05-17 17:31:31 +0100 (Tue, May 17, 2022) $"
-__version__ = "$Revision: 3.1.0 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-03-28 16:42:05 +0000 (Thu, March 28, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,6 +29,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 from ccpn.framework.Version import applicationVersion
 from ccpn.framework.Framework import Framework
 from ccpn.framework.Application import ANALYSIS_ASSIGN
+
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets import MessageDialog
 from ccpn.util.Logging import getLogger
@@ -41,26 +42,46 @@ class Assign(Framework):
     applicationName = ANALYSIS_ASSIGN
     applicationVersion = applicationVersion
 
-    def _setupMenus(self):
-        super()._setupMenus()
-        menuSpec = ('Assign', [("Set up NmrResidues", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
-                               ("Pick and Assign", self.showPickAndAssignModule, [('shortcut', 'pa')]),
-                               (),
-                               ("Backbone Assignment", self.showBackboneAssignmentModule, [('shortcut', 'bb')]),
-                               # ("Sidechain Assignment", self.showSidechainAssignmentModule, [('shortcut', 'sc'), ('enabled', False)]),
-                               (),
-                               ("Peak Assigner", self.showPeakAssigner, [('shortcut', 'ap')]),
-                               ("NmrAtom Assigner", self.showAtomSelector, [('shortcut', 'an')]),
-                               ("Assignment Inspector", self.showAssignmentInspectorModule, [('shortcut', 'ai')]),
-                               # ("Residue Information", self.showResidueInformation, [('shortcut', 'ri')]),
-                               ])
-        self._addApplicationMenuSpec(menuSpec)
+    def _getUI(self):
+        """Get the user interface
+        :return a Ui instance
+        """
+        if self.args.interface == 'Gui':
+            from ccpn.AnalysisAssign.gui.Gui import AnalysisAssignGui
+            ui = AnalysisAssignGui(application=self)
 
-        viewMenuItems = [("Sequence Graph", self.showSequenceGraph, [('shortcut', 'sg')]),
-                         # ("NmrAtom Assigner", self.showAtomSelector, [('shortcut', 'as')]),
-                         ()
-                         ]
-        self._addApplicationMenuItems('View', viewMenuItems, position=9)
+        else:
+            from ccpn.ui.Ui import NoUi
+            ui = NoUi(application=self)
+
+        return ui
+
+    # GWV 9/2/24: Now in Gui.py
+    # def _setupMenus(self):
+    #     """Augment the menu's
+    #     :return the MenuDefs (i.e. a list) instance
+    #     """
+    #     from ccpn.ui.gui.Menus import getMenuDefs, VIEW_MENU
+    #
+    #     menuDefs = getMenuDefs()
+    #
+    #     assignDef = ('Assign', [("Set up NmrResidues", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
+    #                            ("Pick and Assign", self.showPickAndAssignModule, [('shortcut', 'pa')]),
+    #                            (),
+    #                            ("Backbone Assignment", self.showBackboneAssignmentModule, [('shortcut', 'bb')]),
+    #                            # ("Sidechain Assignment", self.showSidechainAssignmentModule, [('shortcut', 'sc'), ('enabled', False)]),
+    #                            (),
+    #                            ("Peak Assigner", self.showPeakAssigner, [('shortcut', 'ap')]),
+    #                            ("NmrAtom Assigner", self.showAtomSelector, [('shortcut', 'an')]),
+    #                            ("Assignment Inspector", self.showAssignmentInspectorModule, [('shortcut', 'ai')]),
+    #                            # ("Residue Information", self.showResidueInformation, [('shortcut', 'ri')]),
+    #                            ])
+    #     menuDefs._addMenuDef(assignDef, position=4)
+    #
+    #     viewMenuItems = [("Sequence Graph", self.showSequenceGraph, [('shortcut', 'sg')]),
+    #                     ]
+    #     menuDefs._addMenuItems(VIEW_MENU, viewMenuItems, position=11)
+    #     return menuDefs
 
     # overrides superclass
     def _closeExtraWindows(self):
@@ -93,7 +114,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         pickAndAssignModule = PickAndAssignModule(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(pickAndAssignModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(pickAndAssignModule, position=position, relativeTo=relativeTo)
         return pickAndAssignModule
 
     @logCommand('application.')
@@ -107,7 +128,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         backboneModule = BackboneAssignmentModule(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(backboneModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(backboneModule, position=position, relativeTo=relativeTo)
         return backboneModule
 
     @logCommand('application.')
@@ -129,7 +150,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         assignmentModule = PeakAssigner(mainWindow=mainWindow)
-        mainWindow.moduleArea.addModule(assignmentModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(assignmentModule, position=position, relativeTo=relativeTo)
         return assignmentModule
 
     @logCommand('application.')
@@ -143,7 +164,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         assignmentInspectorModule = AssignmentInspectorModule(mainWindow=mainWindow, selectFirstItem=True)
-        mainWindow.moduleArea.addModule(assignmentInspectorModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(assignmentInspectorModule, position=position, relativeTo=relativeTo)
         return assignmentInspectorModule
 
     @logCommand('application.')
@@ -157,7 +178,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         sequenceGraphModule = SequenceGraphModule(mainWindow=mainWindow, nmrChain=nmrChain)
-        mainWindow.moduleArea.addModule(sequenceGraphModule, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(sequenceGraphModule, position=position, relativeTo=relativeTo)
         return sequenceGraphModule
 
     @logCommand('application.')
@@ -171,7 +192,7 @@ class Assign(Framework):
         if not relativeTo:
             relativeTo = mainWindow.moduleArea
         nmrAtomAssigner = NmrAtomAssignerModule(mainWindow=mainWindow, nmrAtom=nmrAtom)
-        mainWindow.moduleArea.addModule(nmrAtomAssigner, position=position, relativeTo=relativeTo)
+        mainWindow._addModule(nmrAtomAssigner, position=position, relativeTo=relativeTo)
         return nmrAtomAssigner
 
     @logCommand('application.')
@@ -181,5 +202,5 @@ class Assign(Framework):
         from ccpn.pipes import loadedPipes
         from ccpn.ui.gui.modules.PipelineModule import GuiPipeline
         guiPipeline = GuiPipeline(mainWindow=self.ui.mainWindow, pipes=loadedPipes, templates=None)
-        self.ui.mainWindow.moduleArea.addModule(guiPipeline, position=position)
+        self.ui.mainWindow._addModule(guiPipeline, position=position)
         return guiPipeline

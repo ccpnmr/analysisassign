@@ -5,9 +5,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
+               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-05-11 12:23:33 +0100 (Thu, May 11, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-03-22 16:10:18 +0000 (Fri, March 22, 2024) $"
+__version__ = "$Revision: 3.2.2 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,7 +42,7 @@ from ccpn.core.Spectrum import Spectrum
 from ccpn.core.NmrChain import NmrChain
 from ccpn.core.Chain import Chain
 from ccpn.core.lib.AssignmentLib import getNmrResiduePrediction
-from ccpn.core.lib.Notifiers import Notifier
+from ccpn.core.lib.Notifiers import Notifier, CurrentNotifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
@@ -2194,14 +2194,12 @@ class SequenceGraphModule(CcpnModule):
                                               onceOnly=True)
 
         # explicitly update the sequence-widget
-        self._chainNotifier = self.setNotifier(self.project,
-                                               [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+        self._chainNotifier = self.setNotifier(self.project, [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                Chain.className,
                                                partial(self._queueGeneralNotifier, self.showChainsChanged),
                                                onceOnly=True)
 
-        self._nmrResidueNotifier = self.setNotifier(self.project,
-                                                    [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+        self._nmrResidueNotifier = self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                     NmrResidue.className,
                                                     # self._updateNmrResidues,
                                                     partial(self._queueGeneralNotifier, self._updateNmrResidues),
@@ -2229,17 +2227,13 @@ class SequenceGraphModule(CcpnModule):
                                                       partial(self._queueGeneralNotifier, self._updateSpectra),
                                                       onceOnly=True)
 
-        self._currentNmrResidueNotifier = self.setNotifier(self.current,
-                                                           [Notifier.CURRENT],
-                                                           targetName=NmrResidue._pluralLinkName,
-                                                           callback=self._selectCurrentNmrResidues)
+        self._currentNmrResidueNotifier = self.setCurrentNotifier(targetName=NmrResidue._pluralLinkName,
+                                                                  callback=self._selectCurrentNmrResidues)
 
         # new notifier to respond to changing current nmrChain
         if self.activePulldownClass:
-            self._setCurrentPulldown = Notifier(self.current,
-                                                [Notifier.CURRENT],
-                                                targetName=self.activePulldownClass._pluralLinkName,
-                                                callback=self._selectCurrentPulldownClass)
+            self._setCurrentPulldown = self.setCurrentNotifier(targetName=self.activePulldownClass._pluralLinkName,
+                                                               callback=self._selectCurrentPulldownClass)
 
     def _selectCurrentPulldownClass(self, data):
         """Respond to change in current activePulldownClass
@@ -2904,7 +2898,7 @@ class SequenceGraphModule(CcpnModule):
         """
         self._SGwidget.chainsWidget._close()
         self._SGwidget.displaysWidget._close()
-        self.shiftListPulldown.unRegister()
+        self.shiftListPulldown.unRegisterNotifier()
         if self._SGwidget:
             self._SGwidget._cleanupWidget()
 
