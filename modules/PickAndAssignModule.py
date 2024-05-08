@@ -22,9 +22,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-03-22 16:10:18 +0000 (Fri, March 22, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-05-08 12:20:14 +0100 (Wed, May 08, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -37,13 +37,14 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 from ccpn.ui.gui.lib import PeakListLib
 from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
+from ccpn.ui.gui.lib.StripLib import getZoomRatio
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier, CurrentNotifier
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.util.Logging import getLogger
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 
 
 logger = getLogger()
@@ -86,7 +87,8 @@ class PickAndAssignModule(NmrResidueTableModule):
         self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
         self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
 
-        self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=self.restrictedPickAndAssign)
+        self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign',
+                                                    callback=self.restrictedPickAndAssign)
         self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
 
         self.restrictedPickButton.setEnabled(True)
@@ -124,9 +126,8 @@ class PickAndAssignModule(NmrResidueTableModule):
         """
         set up the notifiers
         """
-        self._selectOnTableCurrentNmrResiduesNotifier = CurrentNotifier(
-                                                                 targetName=NmrResidue._pluralLinkName,
-                                                                 callback=self._selectionCallback)
+        self._selectOnTableCurrentNmrResiduesNotifier = CurrentNotifier(targetName=NmrResidue._pluralLinkName,
+                                                                        callback=self._selectionCallback)
 
     def _unRegisterNotifiers(self):
         """
@@ -295,7 +296,8 @@ class PickAndAssignModule(NmrResidueTableModule):
             validPeakListViews = self._getValidPeakListViews(displays)
             try:
                 specAxisCodes = [[spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
-                                  for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
+                                  for ii in currentAxisCodeIndexes
+                                  if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
                                  for spectrum, peakListView in validPeakListViews.values()]
             except Exception:
                 showWarning(msgHeader, 'Cannot pick peaks; check selected spectrumDisplay,\n'
@@ -392,6 +394,6 @@ class PickAndAssignModule(NmrResidueTableModule):
 
                     StripLib.navigateToNmrAtomsInStrip(strip=strip,
                                                        nmrAtoms=nmrResidue.nmrAtoms,
-                                                       widths=strip._getCurrentZoomRatio(strip.viewRange()),
+                                                       widths=getZoomRatio(strip.viewRange()),
                                                        markPositions=(n == 2))
                 self.application.current.nmrResidue = nmrResidue

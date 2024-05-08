@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-03-22 16:10:18 +0000 (Fri, March 22, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-05-08 12:20:14 +0100 (Wed, May 08, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,9 +42,9 @@ from ccpn.core.Spectrum import Spectrum
 from ccpn.core.NmrChain import NmrChain
 from ccpn.core.Chain import Chain
 from ccpn.core.lib.AssignmentLib import getNmrResiduePrediction
-from ccpn.core.lib.Notifiers import Notifier, CurrentNotifier
+from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
-from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
+from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, getZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS, \
@@ -66,6 +66,8 @@ from ccpn.ui.gui.widgets.SequenceWidget import SequenceWidget
 from ccpn.ui.gui.widgets.Font import setWidgetFont, getFontHeight, SEQUENCEGRAPHFONT
 from ccpn.ui.gui.widgets.SettingsWidgets import ModuleSettingsWidget, \
     ChainSelectionWidget, SpectrumDisplaySelectionWidget
+from ccpn.ui.gui.widgets.DropBase import DropBase
+from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.core.lib.AssignmentLib import getAllSpinSystems
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.util.Common import makeIterableList, greekKey
@@ -1928,6 +1930,11 @@ class SequenceGraphModule(CcpnModule):
 
         self.selectSequence(nmrChain)
 
+        # not working for the minute :|
+        self.setAcceptDrops(True)
+        self.setGuiNotifier(self.mainWidget, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+                            callback=self._processDroppedItems)
+
     def _setQueueHandler(self):
         """Set up the handler for notifier-queue
         """
@@ -2120,6 +2127,49 @@ class SequenceGraphModule(CcpnModule):
     #     """
     #     self._updateShowTreeAssignments()
     #     self.assignmentsTreeCheckBox.checkBox.stateChanged.disconnect(self._checkLayoutInit)
+
+    #=========================================================================================
+    # Process dropped items
+    #=========================================================================================
+
+    def _processDroppedItems(self, data):
+        """CallBack for Drop events
+        """
+        point = self.scrollContents.mapFromGlobal(QtGui.QCursor.pos())
+        if not self.scrollContents.visibleRegion().contains(point):
+            # only allow drops onto the actual table-widget
+            return
+        if self._tableWidget and data:
+            pids = data.get('pids', [])
+            self._handleDroppedItems(pids, self._tableWidget.tableClass, self._modulePulldown)
+
+    def _handleDroppedItems(self, pids, objType, pulldown):
+        """handle dropping pids onto the table
+        :param pids: the selected objects pids
+        :param objType: the instance of the obj to handle, e.g. PeakList
+        :param pulldown: the pulldown of the module wich updates the table
+        :return: Actions: Select the dropped item on the table or/and open a new modules if multiple drops.
+        If multiple different obj instances, then asks first.
+        """
+        from ccpn.ui.gui.lib.MenuActions import _openItemObject
+        from ccpn.ui.gui.widgets.MessageDialog import showYesNo
+
+        objs = [self.project.getByPid(pid) for pid in pids]
+
+        selectableObjects = [obj for obj in objs if isinstance(obj, objType)]
+        others = [obj for obj in objs if not isinstance(obj, objType)]
+        if selectableObjects:
+            _openItemObject(self.mainWindow, selectableObjects[1:])
+            pulldown.select(selectableObjects[0].pid)
+
+        elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
+            title, msg = ('Dropped wrong item.',
+                          f"Do you want to open the {''.join(othersClassNames)} in a new module?") \
+                if len(othersClassNames) == 1 else \
+                ('Dropped wrong items.', 'Do you want to open items in new modules?')
+
+            if showYesNo(title, msg):
+                _openItemObject(self.mainWindow, others)
 
     def _maximise(self):
         """Maximise the attached table
@@ -2898,28 +2948,28 @@ class SequenceGraphModule(CcpnModule):
         """
         self._SGwidget.chainsWidget._close()
         self._SGwidget.displaysWidget._close()
-        self.shiftListPulldown.unRegisterNotifier()
+        self.shiftListPulldown.unRegister()
         if self._SGwidget:
             self._SGwidget._cleanupWidget()
 
         if self._peakNotifier:
-            self._peakNotifier.unRegister()
+            self._peakNotifier.unRegisterNotifier()
         if self._chainNotifier:
-            self._chainNotifier.unRegister()
+            self._chainNotifier.unRegisterNotifier()
         if self._nmrResidueNotifier:
-            self._nmrResidueNotifier.unRegister()
+            self._nmrResidueNotifier.unRegisterNotifier()
         if self._nmrResidueChangeNotifier:
-            self._nmrResidueChangeNotifier.unRegister()
+            self._nmrResidueChangeNotifier.unRegisterNotifier()
         if self._nmrAtomNotifier:
-            self._nmrAtomNotifier.unRegister()
+            self._nmrAtomNotifier.unRegisterNotifier()
         if self._spectrumListNotifier:
-            self._spectrumListNotifier.unRegister()
+            self._spectrumListNotifier.unRegisterNotifier()
         if self._currentNmrResidueNotifier:
-            self._currentNmrResidueNotifier.unRegister()
+            self._currentNmrResidueNotifier.unRegisterNotifier()
         if self.nmrChainPulldown:
             self.nmrChainPulldown.unRegister()
         if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegister()
+            self._setCurrentPulldown.unRegisterNotifier()
 
     def unlinkNearestNmrResidue(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
@@ -3192,7 +3242,7 @@ class SequenceGraphModule(CcpnModule):
                 if display and len(display.strips) > 0 and display.strips[0].spectrumViews:
                     newWidths = None  #_getCurrentZoomRatio(display.strips[0].viewRange())
                     if display.strips[0].spectrumViews[0].spectrum.dimensionCount <= 2:
-                        widths = _getCurrentZoomRatio(display.strips[0].viewRange())
+                        widths = getZoomRatio(display.strips[0].viewRange())
 
                     navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
                                                   widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
