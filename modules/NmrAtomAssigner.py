@@ -32,9 +32,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-03-21 11:51:37 +0000 (Thu, March 21, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-05-09 17:18:22 +0100 (Thu, May 09, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -289,8 +289,8 @@ class NmrAtomAssignerModule(CcpnModule):
         #                  Peak.className, callback=self._nmrResidueCallBack, onceOnly=True)
 
         # update on current peak/nmrResidue change
-        self.setCurrentNotifier(Peak._pluralLinkName, callback=self._currentPeaksCallback, onceOnly=True)
-        self.setCurrentNotifier(NmrResidue._pluralLinkName, callback=self._currentNmrResiduesCallback, onceOnly=True)
+        self.setCurrentNotifier(Peak._pluralLinkName, callback=self._currentPeaksCallback)
+        self.setCurrentNotifier(NmrResidue._pluralLinkName, callback=self._currentNmrResiduesCallback)
 
         # notifiers for name-change, peak-update
         self.setNotifier(self.project, [Notifier.RENAME],
