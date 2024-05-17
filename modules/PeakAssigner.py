@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-03-21 11:51:37 +0000 (Thu, March 21, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-05-17 13:47:44 +0100 (Fri, May 17, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -31,10 +31,9 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import typing
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
 from functools import partial
 from collections import OrderedDict, Counter
-from PyQt5 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 from time import time_ns
 from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
 from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue, MoveToEnd
@@ -55,7 +54,7 @@ from ccpn.ui.gui.widgets.table._ProjectTable import _ProjectTableABC
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, showYesNo
-from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT
+from ccpn.ui.gui.widgets.Font import getFontHeight, TABLEFONT, setWidgetFont
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.lib.GuiNotifier import GuiNotifier
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER, LABEL_WARNINGFOREGROUND
@@ -63,6 +62,7 @@ from ccpn.util.Logging import getLogger
 from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode, makeIterableList
 from ccpn.util.UpdateScheduler import UpdateScheduler
 from ccpn.util.UpdateQueue import UpdateQueue
+from ccpn.util.OrderedSet import OrderedSet
 from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
 
 
@@ -108,16 +108,10 @@ ALTERNATIVEROWS = 5
 MINTABLEWIDTH = 150
 DEFAULT_COLOR = QtGui.QColor('black')
 
-PulldownFill = '--'
-OtherNames = PulldownFill + ' Other Options ' + PulldownFill
-OtherByIC = PulldownFill + ' Name Options ' + PulldownFill
-OtherByResType = PulldownFill + ' nmrResidue Options ' + PulldownFill
-
-
-# small object to facilitate passing data to peakTable
-@dataclass
-class _emptyObject:
-    nmrAtoms = []
+PULLDOWNPREFIX = '--'
+OtherByIC = f'{PULLDOWNPREFIX} Amino/Isotope specific {PULLDOWNPREFIX}'
+OtherByResType = f'{PULLDOWNPREFIX} In this nmrResidue {PULLDOWNPREFIX}'
+OtherNames = f'{PULLDOWNPREFIX} All other atom-types {PULLDOWNPREFIX}'
 
 
 #=========================================================================================
@@ -141,11 +135,6 @@ class PeakAssigner(CcpnModule):
     # set the queue handling parameters
     _maximumQueueLength = 10
     _logQueue = True
-
-
-    class _emptyObject():
-        def __init__(self):
-            pass
 
 
     def __init__(self, mainWindow, name="Peak Assigner"):
@@ -334,7 +323,8 @@ class PeakAssigner(CcpnModule):
         if self._logQueue:
             # log the queue-time if required
             startTime = time_ns()
-            getLogger().debug(f'_queueProcess  {self.__class__.__name__}  len: {len(self._queueActive)}  useQueueFull: {useQueueFull}')
+            getLogger().debug(
+                    f'_queueProcess  {self.__class__.__name__}  len: {len(self._queueActive)}  useQueueFull: {useQueueFull}')
 
         if useQueueFull:
             # rebuild from scratch if the queue is too big
@@ -459,7 +449,8 @@ class PeakAssigner(CcpnModule):
         doubleTolerance = self.doubleToleranceCheckbox.isChecked()
         intraResidual = self.intraCheckbox.isChecked()
 
-        validNmrAtoms = [nmrAtom for nmrAtom in self.project.nmrAtoms if not nmrAtom.nmrResidue.isDeleted or not nmrAtom.isDeleted]
+        validNmrAtoms = [nmrAtom for nmrAtom in self.project.nmrAtoms if
+                         not nmrAtom.nmrResidue.isDeleted or not nmrAtom.isDeleted]
         nmrAtomsForTables = nmrAtomsForPeaks(peaks, validNmrAtoms,
                                              doubleTolerance=doubleTolerance,
                                              intraResidual=intraResidual)
@@ -467,13 +458,12 @@ class PeakAssigner(CcpnModule):
         Ndimensions = self.Ndims
         self.currentList = []
 
-        self._tables = [self._emptyObject()] * Ndimensions
-
         _sizes = []
         for dim, nmrAtoms in zip(range(Ndimensions), nmrAtomsForTables):
             ll = [set(peak.dimensionNmrAtoms[dim]) for peak in peaks]
             self.nmrAtoms = list(sorted(set.intersection(*ll)))
-            self.nmrAtoms = [nmrAtom for nmrAtom in self.nmrAtoms if not nmrAtom.nmrResidue.isDeleted or not nmrAtom.isDeleted]
+            self.nmrAtoms = [nmrAtom for nmrAtom in self.nmrAtoms if
+                             not nmrAtom.nmrResidue.isDeleted or not nmrAtom.isDeleted]
 
             self.currentList.append([str(a.pid) for a in self.nmrAtoms])  # ejb - keep another list
             self.dimensionTabs[dim].setAssignedTable(self.nmrAtoms)
@@ -720,9 +710,11 @@ class AssignmentTable(_ProjectTableABC):
             Column('NmrAtom', lambda nmrAtom: str(nmrAtom.id), tipText='NmrAtom identifier'),
             Column('Pid', lambda nmrAtom: str(nmrAtom.pid), tipText='Pid of the nmrAtom'),
             Column('_object', lambda nmrAtom: nmrAtom, tipText='Object'),
-            Column('Delta', lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex),
+            Column('Delta',
+                   lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex),
                    tipText='Delta-shift', format='%0.3f'),
-            Column('Shift', lambda nmrAtom: self.moduleParent._getShift(nmrAtom), tipText='Chemical-shift', format='%8.3f'),
+            Column('Shift', lambda nmrAtom: self.moduleParent._getShift(nmrAtom), tipText='Chemical-shift',
+                   format='%8.3f'),
             ]
         return self._columnDefs
 
@@ -870,11 +862,15 @@ class EditNmrAtomBalloon(SpeechBalloon):
 
     def __init__(self, mainWindow=None, project=None, *args, **kwds):
         super().__init__(*args, **kwds)
-
-        # simplest way to make the popup function as modal and disappear as required
-        self.setWindowFlags(int(self.windowFlags()) | QtCore.Qt.Popup)
         self._mainWindow = mainWindow
         self._project = project
+        self.setWindowModality(QtCore.Qt.NonModal)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.setWindowFlags(int(self.windowFlags()) | QtCore.Qt.Popup)
+        setWidgetFont(self)
+        self.setStyleSheet('QToolTip {{ background-color: {TOOLTIP_BACKGROUND}; '
+                           'color: {TOOLTIP_FOREGROUND}; '
+                           'font-size: {_size}pt ; }}'.format(_size=self.font().pointSize(), **getColours()))
 
 
 #=========================================================================================
@@ -903,6 +899,7 @@ class AxisAssignmentObject(Frame):
         self.current = mainWindow.application.current
         self.currentAtoms = None
         self._clickedNmrAtom = None
+        self._blockEscapeFlag = None
 
         # initialise axis information
         self.dimIndex = dimIndex
@@ -936,7 +933,8 @@ class AxisAssignmentObject(Frame):
                                     callback=self._handleDropsFromSideBar)
 
         row = 0
-        self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row, 0), height=16, colour=getColours()[DIVIDER])
+        self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row, 0), height=16,
+                                  colour=getColours()[DIVIDER])
 
         row += 1
         self.tables[0] = AssignmentTable(parent=self._assignmentsFrame,
@@ -985,7 +983,8 @@ class AxisAssignmentObject(Frame):
         # Not-aligned frame
         #===========================================
         # aRow += 1
-        self.notAlignedFrame = Frame(self, setLayout=True, showBorder=_showBorders, grid=(aRow, 0), margins=_margins, )  #**settings)
+        self.notAlignedFrame = Frame(self, setLayout=True, showBorder=_showBorders, grid=(aRow, 0),
+                                     margins=_margins, )  #**settings)
         self.notAlignedLabel = Label(parent=self.notAlignedFrame, text='peaks\nnot aligned', grid=(0, 0),
                                      hPolicy='minimal', hAlign='centre',
                                      textColour=getColours()[LABEL_WARNINGFOREGROUND])
@@ -1005,72 +1004,64 @@ class AxisAssignmentObject(Frame):
         _frame = Frame(parent=parent, **kwds)
         self.chainPulldown = self._createChainPulldown(parent=_frame,
                                                        grid=(0, 0), gridSpan=(1, 1),
-                                                       tipText='Chain code')
+                                                       tipText='Chain code', minWidth=minWidth)
         self.seqCodePulldown = self._createPulldown(parent=_frame,
                                                     grid=(0, 1), gridSpan=(1, 1),
-                                                    tipText='Sequence code')
+                                                    tipText='Sequence code', minWidth=minWidth)
         self.resTypePulldown = self._createPulldown(parent=_frame,
                                                     grid=(0, 2), gridSpan=(1, 1),
-                                                    tipText='Residue type')
+                                                    tipText='Residue type', minWidth=minWidth)
         self.atomTypePulldown = self._createPulldown(parent=_frame,
                                                      grid=(0, 3), gridSpan=(1, 1),
-                                                     tipText='Atom type')
+                                                     tipText='Atom type', minWidth=minWidth)
         _innerFrame = Frame(parent=_frame, setLayout=True, grid=(1, 0), gridSpan=(1, 4))
-
         self._acceptMode = 0
-        # self._acceptFuncs = [partial(self._reassignAccept, self.dimIndex), partial(self._assignNewAccept, self.dimIndex),]
         self._acceptFuncs = [self._reassignAccept, self._assignNewAccept]
-        # _accept = partial(self._reassignAccept, self.dimIndex)
         self._acceptButton = Button(parent=_innerFrame, text='Accept', grid=(1, 0), hAlign='r',
                                     callback=self._acceptNmrAtomCallback)
-
-        # set the response to pressing enter/return in the popup
-        self.chainPulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
-        self.seqCodePulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
-        self.resTypePulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
-        self.atomTypePulldown.lineEdit().returnPressed.connect(self._acceptNmrAtomCallback)
         # activate return/enter on the button when focussed
         self._acceptButton.setAutoDefault(True)
-
-        for w in [self.chainPulldown, self.seqCodePulldown, self.resTypePulldown, self.atomTypePulldown]:
-            w.setMinimumWidth(minWidth)
-
-        self.chainPulldown.activated.connect(self._checkResidueTypeCallback)
-        self.seqCodePulldown.activated.connect(self._checkResidueTypeCallback)
-        self.resTypePulldown.activated.connect(self._checkAtomNameCallback)
-
+        self.chainPulldown.activated.connect(self._userSelectChainFromPulldown)
+        self.seqCodePulldown.activated.connect(self._userSelectSeqCodeFromPulldown)
+        self.resTypePulldown.activated.connect(self._userSelectResTypeFromPulldown)
+        # just to change the colour
         self.resTypePulldown.currentIndexChanged.connect(partial(self._setPulldownTextColour, self.resTypePulldown))
         self.atomTypePulldown.currentIndexChanged.connect(partial(self._setPulldownTextColour, self.atomTypePulldown))
-
         return _frame
 
-    def _checkResidueTypeCallback(self, *args):
-        """Check the chain/sequenceCode and update the residueType if set
+    def _userSelectChainFromPulldown(self, *args):
+        """Check the chain/sequenceCode and update the residueType/atomNames if set
+        """
+        # just clarify that they are from different pulldowns
+        self._userSelectSeqCodeFromPulldown(*args)
+
+    def _userSelectSeqCodeFromPulldown(self, *args):
+        """Check the chain/sequenceCode and update the residueType/atomNames if set
         """
         nmrChain = self.chainPulldown.currentText()
         seqCode = self.seqCodePulldown.currentText()
 
         _nmrChain = self.project.getNmrChain(nmrChain)
         if nmrResidue := _getNmrResidue(_nmrChain, seqCode):
-
-            self._setAtomNames(nmrResidue=nmrResidue)
-            self._setPulldownColours(nmrResidue)
-
+            # set the residueType pulldown
             resType = nmrResidue.residueType
             _ind = self.resTypePulldown.texts.index(resType) if resType in self.resTypePulldown.texts else 0
             self.resTypePulldown.setIndex(_ind)
             self._setPulldownTextColour(self.resTypePulldown)
+            # set the atom-names
+            self._setAtomNames(nmrResidue=nmrResidue)
+            # colour as required
+            self._setPulldownColours(nmrResidue)
 
         else:
             self._setAtomNames()
             self._resetPulldownColours()
 
-    def _checkAtomNameCallback(self, *args):
+    def _userSelectResTypeFromPulldown(self, *args):
         """Check the residueType and update the atomname list as necessary
         """
         nmrChain = self.chainPulldown.currentText()
         seqCode = self.seqCodePulldown.currentText()
-
         _nmrChain = self.project.getNmrChain(nmrChain)
         nmrResidue = _getNmrResidue(_nmrChain, seqCode)
 
@@ -1084,7 +1075,6 @@ class AxisAssignmentObject(Frame):
     def _setPulldownTextColour(combo):
         """Set the colour of the pulldown text
         """
-        # NOTE:ED - should move this to the pulldown widget
         ind = combo.currentIndex()
         model = combo.model()
         item = model.item(ind)
@@ -1094,15 +1084,19 @@ class AxisAssignmentObject(Frame):
             palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, item.foreground().color())
         else:
             palette = combo.palette()
-            palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, QtGui.QColor('black'))
+            fg = palette.color(QtGui.QPalette.Active, QtGui.QPalette.BrightText)
+            palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, fg)
 
         combo.setPalette(palette)
 
-    def _acceptNmrAtomCallback(self, *args):
+    def _acceptNmrAtomCallback(self, pulldown=None, *args):
         """Perform different acceptFunc depending on the mode
         """
-        _func = self._acceptFuncs[self._acceptMode]
-        _func()
+        if pulldown:
+            QtCore.QTimer.singleShot(0, pulldown.setFocus)
+        else:
+            _func = self._acceptFuncs[self._acceptMode]
+            _func()
 
     def setEditPopupVisible(self, visible):
         """Hide the edit popup balloon
@@ -1183,11 +1177,6 @@ class AxisAssignmentObject(Frame):
             self._deassignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
             return
 
-    # def _clearClicked(self, val):
-    #     self._clickedNmrAtom = None
-    #     self._clickedLabel.setText('Current NmrAtom: <None>')
-    #     self._clickedClear.setVisible(False)
-
     def _assignDeassignNmrAtom(self, tableNum: int, data):
         """
         Assign/Deassign the nmrAtom that is double-clicked to
@@ -1225,14 +1214,17 @@ class AxisAssignmentObject(Frame):
         self.tables[0].clearSelection()
         self.tables[1].clearSelection()
 
-    def _createChainPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='') -> PulldownList:
+    def _createChainPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='', minWidth=50) -> PulldownList:
         """Creates a PulldownList with callback, editable.
         """
         pulldownList = PulldownList(parent=parent, grid=grid, backgroundText=tipText, editable=True, gridSpan=gridSpan,
                                     tipText=tipText)
         # pulldownList.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
         # pulldownList.setEditable(True)
+        # pulldownList.lineEdit().returnPressed.connect(partial(self._acceptNmrAtomCallback, pulldown=pulldownList))
         pulldownList.lineEdit().textChanged.connect(partial(self._chainEdited, pulldownList))
+        pulldownList.setMinimumWidth(minWidth)
+        self._updateCompleter(pulldownList)
         return pulldownList
 
     def _chainEdited(self, pulldownList):
@@ -1246,14 +1238,61 @@ class AxisAssignmentObject(Frame):
             self._setResidueTypes(thisChain)
             self._setAtomNames()
 
-    def _createPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='') -> PulldownList:
+    def _createPulldown(self, parent=None, grid=(0, 0), gridSpan=(1, 1), tipText='', minWidth=50,
+                        popupMode=QtWidgets.QCompleter.PopupCompletion) -> PulldownList:
         """Creates a PulldownList with callback, editable.
         """
         pulldownList = PulldownList(parent=parent, grid=grid, backgroundText=tipText, editable=True, gridSpan=gridSpan,
                                     tipText=tipText)
-        # pulldownList.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        # pulldownList.setEditable(True)
+        pulldownList.setMinimumWidth(minWidth)
+        self._updateCompleter(pulldownList, popupMode=popupMode)
         return pulldownList
+
+    def _updateCompleter(self, pulldownList, popupMode=QtWidgets.QCompleter.PopupCompletion):
+        pulldownList.lineEdit().returnPressed.connect(partial(self._acceptNmrAtomCallback, pulldown=pulldownList))
+        completer = pulldownList.completer()
+        completer.setCompletionMode(popupMode)
+        completer.setMaxVisibleItems(16)
+        popup = completer.popup()
+        popup.setObjectName('_COMPLETER')
+        popup.installEventFilter(self)
+        setWidgetFont(popup)
+        pulldownList.view().setObjectName('_PULLDOWNVIEW')
+        pulldownList.view().installEventFilter(self)
+        pulldownList.setObjectName('_PULLDOWN')
+        pulldownList.installEventFilter(self)
+
+    def eventFilter(self, source: 'QObject', event: 'QEvent') -> bool:
+        if source.objectName() in {'_PULLDOWN'}:
+            if event.type() == QtCore.QEvent.KeyPress and event.key() in {QtCore.Qt.Key_Escape}:
+                QtCore.QTimer.singleShot(0, source.setFocus)
+                if source.view().isVisible():
+                    source.hidePopup()
+                    return True
+                if self._blockEscapeFlag:  # == ('setfocus', source):
+                    self._blockEscapeFlag = None
+                    return True
+            elif event.type() == QtCore.QEvent.KeyPress and event.key() in {QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter}:
+                if self._blockEscapeFlag:
+                    self._blockEscapeFlag = None
+                else:
+                    self._acceptNmrAtomCallback()
+        elif source.objectName() in {'_PULLDOWNVIEW'}:
+            if event.type() in {QtCore.QEvent.Hide}:
+                self._blockEscapeFlag = True  # ('setfocus', source._pulldown)
+                QtCore.QTimer.singleShot(0, source._pulldown.lineEdit().setFocus)
+            elif event.type() == QtCore.QEvent.KeyPress and event.key() in {QtCore.Qt.Key_Escape}:
+                return True
+        elif source.objectName() in {'_COMPLETER'}:
+            if event.type() in {QtCore.QEvent.Hide}:
+                self._blockEscapeFlag = None
+            elif event.type() == QtCore.QEvent.KeyPress and event.key() in {QtCore.Qt.Key_Escape}:
+                source.hide()
+                return True
+            elif event.type() == QtCore.QEvent.KeyPress and event.key() in {QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter}:
+                self._blockEscapeFlag = None
+
+        return super().eventFilter(source, event)
 
     def _newNmrAtomPopup(self, mode=0):
         """Callback for the newNmrAtom button
@@ -1280,8 +1319,6 @@ class AxisAssignmentObject(Frame):
 
         # show the popup
         pos = QtGui.QCursor().pos()
-        self.chainPulldown.setFocus()
-
         if mode == 0:
             # if called from the button then set the pointer size - otherwise hide it
             global_rect = QtCore.QRect(self.newNmrAtomButton.mapToGlobal(QtCore.QPoint(0, 0)),
@@ -1291,12 +1328,15 @@ class AxisAssignmentObject(Frame):
             global_rect = pos
             self.editPopup.pointerHeight = 0
 
-        mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)), None)
+        mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)),
+                            None)
         self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
                               side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
                               target_screen=mouse_screen)
+        QtCore.QTimer.singleShot(0, self.chainPulldown.setFocus)
 
     def _assignNewAccept(self):
+        _undoIndex = self.project._undo.nextIndex
         try:
             dim = self.dimIndex
 
@@ -1353,11 +1393,14 @@ class AxisAssignmentObject(Frame):
                 self._clickedNmrAtom = nmrAtom
 
         except Exception as es:
+            while (ni := self.project._undo.nextIndex) > _undoIndex:
+                self.project._undo.undo()
+                if self.project._undo.nextIndex == ni:
+                    getLogger().debug(f'*** {self.__class__.__name__}:_assignNewAccept - error processing undo stack')
+                    break
             showWarning(str(self.windowTitle()), str(es))
-
         else:
             self._reassignNmrAtom()
-
         finally:
             self.editPopup.setVisible(False)
 
@@ -1370,8 +1413,6 @@ class AxisAssignmentObject(Frame):
         self._updateAssignmentWidget(tableNum, nmrAtom)
 
         pos = QtGui.QCursor().pos()
-        self.chainPulldown.setFocus()
-
         if mode == 0:
             # if called from the button then set the pointer size - otherwise hide it
             global_rect = QtCore.QRect(self.editButton.mapToGlobal(QtCore.QPoint(0, 0)),
@@ -1381,10 +1422,13 @@ class AxisAssignmentObject(Frame):
             global_rect = pos
             self.editPopup.pointerHeight = 0
 
-        mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)), None)
+        mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)),
+                            None)
         self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
                               side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
                               target_screen=mouse_screen)
+        # give the popup time to appear
+        QtCore.QTimer.singleShot(0, self.chainPulldown.setFocus)
 
     def _reassignNmrAtomPopup(self, mode=0):
         """Show the edit popup
@@ -1400,12 +1444,13 @@ class AxisAssignmentObject(Frame):
         """Handle the accept button in the balloon popup
         """
         self._reassignNmrAtom()
-        self.editPopup.setVisible(False)
+        # self.editPopup.setVisible(False)
 
     def _reassignNmrAtom(self):
         """
         Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
         """
+        _undoIndex = self.project._undo.nextIndex
         try:
             nmrChainName = self.chainPulldown.currentText()
             seqCode = self.seqCodePulldown.currentText()
@@ -1426,10 +1471,10 @@ class AxisAssignmentObject(Frame):
                 # edit existing
                 if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
                     if nmrAtom := nmrResidue.getNmrAtom(nmrAtomName):
-                        if showYesNo('Merge NmrAtom', f'Do you want to merge\n\n' f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
+                        if showYesNo('Merge NmrAtom',
+                                     f'Do you want to merge\n\n' f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
                             # merge into the existing nmrAtom
                             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
-
                     else:
                         # assign to a new nmrAtom
                         self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
@@ -1442,17 +1487,16 @@ class AxisAssignmentObject(Frame):
                     # rename the same nmrAtom
                     if newResType != nmrResidue.residueType:
                         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-
                     if nmrAtomName != self._clickedNmrAtom.name:
                         if nmrAtom := nmrResidue.getNmrAtom(nmrAtomName):
-                            if yesNo := showYesNo('NmrAtom already exists', f'Do you want to merge\n\n' f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
+                            if yesNo := showYesNo('NmrAtom already exists',
+                                                  f'Do you want to merge\n\n'
+                                                  f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
                                 # merge into the existing nmrAtom
                                 nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
-
                         else:
                             # rename the nmrAtom
                             self._clickedNmrAtom.rename(nmrAtomName)
-
                 else:
                     # nmrResidue doesn't exists
                     self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
@@ -1462,12 +1506,19 @@ class AxisAssignmentObject(Frame):
                                                   mergeToExisting=False)
 
             self._parent._updateInterface()
-
             # update the module
             self.update()
 
         except Exception as es:
+            while (ni := self.project._undo.nextIndex) > _undoIndex:
+                self.project._undo.undo()
+                if self.project._undo.nextIndex == ni:
+                    getLogger().debug(f'*** {self.__class__.__name__}:_reassignNmrAtom - error processing undo stack')
+                    break
             showWarning('Rename NmrAtom', str(es))
+        finally:
+            # okay, close the popup
+            self.editPopup.setVisible(False)
 
     def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True, nmrAtoms=None):
         """
@@ -1740,10 +1791,16 @@ class AxisAssignmentObject(Frame):
                 else:
                     self._setDefaultPulldowns()
 
-                self.chainPulldown.setIndex(self.chainPulldown.texts.index(nmrChain.id) if nmrChain.id in self.chainPulldown.texts else 0)
-                self.seqCodePulldown.setIndex(self.seqCodePulldown.texts.index(sequenceCode) if sequenceCode in self.seqCodePulldown.texts else 0)
-                self.resTypePulldown.setIndex(self.resTypePulldown.texts.index(residueType) if residueType in self.resTypePulldown.texts else 0)
-                self.atomTypePulldown.setIndex(self.atomTypePulldown.texts.index(nmrAtom.name) if nmrAtom.name in self.atomTypePulldown.texts else 0)
+                self.chainPulldown.setIndex(
+                        self.chainPulldown.texts.index(nmrChain.id) if nmrChain.id in self.chainPulldown.texts else 0)
+                self.seqCodePulldown.setIndex(
+                        self.seqCodePulldown.texts.index(
+                                sequenceCode) if sequenceCode in self.seqCodePulldown.texts else 0)
+                self.resTypePulldown.setIndex(
+                        self.resTypePulldown.texts.index(
+                                residueType) if residueType in self.resTypePulldown.texts else 0)
+                self.atomTypePulldown.setIndex(self.atomTypePulldown.texts.index(
+                        nmrAtom.name) if nmrAtom.name in self.atomTypePulldown.texts else 0)
                 self._setPulldownColours(nmrAtom.nmrResidue)
 
             self.lastNmrAtomSelected = nmrAtom
@@ -1756,40 +1813,42 @@ class AxisAssignmentObject(Frame):
             model = combo.model()
             for ii in range(len(combo.texts)):
                 itm = model.item(ii)
-                if PulldownFill not in itm.text():
+                if PULLDOWNPREFIX not in itm.text():
                     itm.setForeground(DEFAULT_COLOR)
             self._setPulldownTextColour(combo)
 
-    def _setPulldownColours(self, nmrResidue):
+    def _setPulldownColours(self, nmrResidue: NmrResidue):
         if not nmrResidue:
             return
 
         residueType = nmrResidue.residueType
         blueCol = QtGui.QColor('blue')
-        greenCol = QtGui.QColor('green')
+        greenCol = QtGui.QColor('seagreen')
 
         combo = self.resTypePulldown
         model = combo.model()
         _inds = [ii for ii, val in enumerate(self.resTypePulldown.texts) if val and val == residueType]
         for ind in range(len(combo.texts)):
             itm = model.item(ind)
-            if PulldownFill not in itm.text():
+            if PULLDOWNPREFIX not in itm.text():
                 itm.setForeground(blueCol if ind in _inds else DEFAULT_COLOR)
         self._setPulldownTextColour(combo)
 
         combo = self.atomTypePulldown
         model = combo.model()
-        _inds = {ii for ii, val in enumerate(self.atomTypePulldown.texts) if val in [nmrAt.name for nmrAt in nmrResidue.nmrAtoms]}
+        _inds = {ii for ii, val in enumerate(self.atomTypePulldown.texts) if
+                 val in [nmrAt.name for nmrAt in nmrResidue.nmrAtoms]}
         for ind in range(len(combo.texts)):
             itm = model.item(ind)
-            if PulldownFill not in itm.text():
+            if PULLDOWNPREFIX not in itm.text():
                 itm.setForeground(greenCol if ind in _inds else DEFAULT_COLOR)
 
         if self._clickedNmrAtom:
-            _inds = {ii for ii, val in enumerate(self.atomTypePulldown.texts) if val and val == self._clickedNmrAtom.name}
+            _inds = {ii for ii, val in enumerate(self.atomTypePulldown.texts) if
+                     val and val == self._clickedNmrAtom.name}
             for ind in _inds:
                 itm = model.item(ind)
-                if PulldownFill not in itm.text():
+                if PULLDOWNPREFIX not in itm.text():
                     itm.setForeground(blueCol)
 
         self._setPulldownTextColour(combo)
@@ -1817,7 +1876,8 @@ class AxisAssignmentObject(Frame):
             thisChain = nmrChain.id
 
         self.chainPulldown.setData(chains)
-        self.chainPulldown.setIndex(self.chainPulldown.texts.index(thisChain) if thisChain in self.chainPulldown.texts else 0)
+        self.chainPulldown.setIndex(
+                self.chainPulldown.texts.index(thisChain) if thisChain in self.chainPulldown.texts else 0)
 
     def _setSequenceCodes(self, nmrChain=None):
         """Populate the sequenceCode pulldown from the nmrChain or project
@@ -1830,7 +1890,8 @@ class AxisAssignmentObject(Frame):
             sequenceCodes.extend([nmrResidue.sequenceCode for nmrResidue in self.project.nmrResidues])
 
         self.seqCodePulldown.setData(sorted(sequenceCodes, key=CcpnSorting.stringSortKey))
-        self.seqCodePulldown.setIndex(self.seqCodePulldown.texts.index(thisSeq) if thisSeq in self.seqCodePulldown.texts else 0)
+        self.seqCodePulldown.setIndex(
+                self.seqCodePulldown.texts.index(thisSeq) if thisSeq in self.seqCodePulldown.texts else 0)
 
     def _setResidueTypes(self, nmrChain=None):
         """Populate the residueTypes pulldown from the nmrChain or project
@@ -1846,90 +1907,68 @@ class AxisAssignmentObject(Frame):
         residueTypes = list(set(OrderedDict.fromkeys(residueTypes)))
 
         self.resTypePulldown.setData(sorted(residueTypes, key=CcpnSorting.stringSortKey))
-        self.resTypePulldown.setIndex(self.resTypePulldown.texts.index(thisRes) if thisRes in self.resTypePulldown.texts else 0)
+        self.resTypePulldown.setIndex(
+                self.resTypePulldown.texts.index(thisRes) if thisRes in self.resTypePulldown.texts else 0)
 
         self._setPulldownTextColour(self.resTypePulldown)
 
     def _setAtomNames(self, nmrAtom=None, nmrResidue=None):
         """Populate the atomNames pulldown from the project
         """
-        # from ccpnmodel.ccpncore.lib.assignment.ChemicalShift import PROTEIN_ATOM_NAMES, ALL_ATOMS_SORTED
-        # from ccpn.core.lib.AssignmentLib import NEF_ATOM_NAMES
         thisAtom = self.atomTypePulldown.currentText()
         thisNmrResidueType = self.resTypePulldown.currentText()
-
-        # get isotope list for hte selected dimension
-        isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
-        atomNameOptions = getIsotopeListFromCode(isotopeCode)
-        atomNameOptions = sorted(set(atomNameOptions), key=greekKey)  # greek letter sorting
+        # get atom-names from the isotope-list for the selected dimension (NEF_ATOM_NAMES)
+        try:
+            isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
+        except Exception:
+            # should always exist, but will cause following to get all atom-names
+            isotopeCode = '?'
+        isotopeCodeAtoms = OrderedSet(sorted(getIsotopeListFromCode(isotopeCode), key=greekKey))
 
         nmrAtomName = None
         if nmrAtom:
             nmrAtomName = nmrAtom.name  # set only if nmrAtom defined, find parent nmrResidue
             nmrResidue = nmrAtom.nmrResidue
-
-        # _atomNameOptions = ([nmrAtomName] + [OtherByIC]) if nmrAtomName else []
-        _atomNameOptions = []
-        if thisAtom and PulldownFill not in thisAtom:
-            # add the last typed in value
-            _atomNameOptions = [thisAtom, ]  # + [OtherByIC])
+        # start with the last typed in value
+        _atomNameOptions = [thisAtom, ] if (thisAtom and not thisAtom.startswith(PULLDOWNPREFIX)) else []
 
         if thisNmrResidueType:
+            # get the defined nmrAtoms on the selected nmrResidue
+            thisNmrResAtoms = OrderedSet(sorted([atm.name for atm in nmrResidue.nmrAtoms] if nmrResidue else [],
+                                         key=greekKey))
             # get the list of specific codes based on residueType
-            atomNameOptionsByResType = PROTEIN_NEF_ATOM_NAMES.get(thisNmrResidueType, [])
-
-            _allAtoms = [atm.name for atm in nmrResidue.nmrAtoms] if nmrResidue else []
-            _allAtomNames = sorted(set(_allAtoms), key=greekKey)  # greek letter sorting
-
-            if atomNameOptionsByResType:
-                atomNameOptions = sorted(set(atomNameOptionsByResType), key=greekKey)  # greek letter sorting
+            if atomsByResType := PROTEIN_NEF_ATOM_NAMES.get(thisNmrResidueType, []):
+                isotopeCodeAtoms = OrderedSet(sorted(atomsByResType, key=greekKey))
             else:
-                _atomNames = getIsotopeListFromCode(None)
-                atomNameOptions = sorted(set(_atomNames), key=greekKey)  # greek letter sorting
+                isotopeCodeAtoms = OrderedSet(sorted(getIsotopeListFromCode(None),
+                                              key=greekKey))
 
             if isotopeCode in NEF_ATOM_NAMES:
-                # if False:
-                atomsNameOptionsByIC = getIsotopeListFromCode(isotopeCode or nmrAtom.isotopeCode)
-                atomsNameOptionsByIC = sorted(set(atomsNameOptionsByIC), key=greekKey)
-
-                atomNotOfSameIsotopeCode = [x for x in atomNameOptions if x not in atomsNameOptionsByIC]
-                atomOfSameIsotopeCode = [x for x in atomNameOptions if x in atomsNameOptionsByIC]
-                # if _allAtomNames:
-                #     _atomNameOptions += [OtherByIC] + \
-                #                         atomOfSameIsotopeCode + \
-                #                         [OtherByResType] + \
-                #                         _allAtomNames
-                # else:
-                #     _atomNameOptions += [OtherByIC] + \
-                #                         atomOfSameIsotopeCode
-                #
-
+                # isotope-code is valid from the spectrum dimension
+                atomsByIsotopeCode = OrderedSet(sorted(getIsotopeListFromCode(isotopeCode or nmrAtom.isotopeCode),
+                                            key=greekKey))
+                atomOfSameIsotopeCode = isotopeCodeAtoms & atomsByIsotopeCode
+                atomNotOfSameIsotopeCode = isotopeCodeAtoms - atomsByIsotopeCode
                 if atomOfSameIsotopeCode:
-                    _atomNameOptions += ([OtherByIC] +
-                                         atomOfSameIsotopeCode)
-                if _allAtomNames:
-                    _atomNameOptions += ([OtherByResType] +
-                                         _allAtomNames)
+                    _atomNameOptions += ([OtherByIC] + list(atomOfSameIsotopeCode))
+                if thisNmrResAtoms:
+                    _atomNameOptions += ([OtherByResType] + list(thisNmrResAtoms - atomOfSameIsotopeCode))
                 if atomNotOfSameIsotopeCode:
-                    _atomNameOptions += ([OtherNames] +
-                                         atomNotOfSameIsotopeCode)
+                    _atomNameOptions += ([OtherNames] + list(atomNotOfSameIsotopeCode - thisNmrResAtoms))
 
-            elif _allAtomNames:
+            elif thisNmrResAtoms:
                 _atomNameOptions += ([OtherByResType] +
-                                     _allAtomNames +
+                                     list(thisNmrResAtoms) +
                                      [OtherNames] +
-                                     atomNameOptions)
+                                     list(isotopeCodeAtoms - thisNmrResAtoms))
             else:
-                if _allAtomNames:
-                    _atomNameOptions += ([OtherByResType] +
-                                         _allAtomNames)
-                if atomNameOptions:
-                    _atomNameOptions += ([OtherByIC] +
-                                         atomNameOptions)
+                if thisNmrResAtoms:
+                    _atomNameOptions += ([OtherByResType] + list(thisNmrResAtoms))
+                if isotopeCodeAtoms:
+                    _atomNameOptions += ([OtherByIC] + list(isotopeCodeAtoms - thisNmrResAtoms))
 
-        elif atomNameOptions:
-            _atomNameOptions += ([OtherByIC] +
-                                 atomNameOptions)
+        elif isotopeCodeAtoms:
+            _atomNameOptions += ([OtherByIC] + list(isotopeCodeAtoms))
 
         if self.lastNmrAtomSelected:
             # add the last typed in value
