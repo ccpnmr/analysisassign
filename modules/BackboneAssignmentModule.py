@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-06-05 17:09:39 +0100 (Wed, June 05, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-06 18:27:49 +0100 (Thu, June 06, 2024) $"
 __version__ = "$Revision: 3.2.3 $"
 #=========================================================================================
 # Created
@@ -34,13 +34,10 @@ from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 from ccpn.core.ChemicalShift import ChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
-from ccpn.core.NmrAtom import NmrAtom
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER
-from ccpn.ui.gui.lib.GuiStrip import GuiStrip
 from ccpn.ui.gui.lib.SpectrumDisplayLib import makeStripPlot
-from ccpn.ui.gui.lib.Strip import Strip
-from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
+from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms, markNmrAtoms
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, LINKTOPULLDOWNCLASS
@@ -1007,32 +1004,6 @@ def nmrAtomsFromOffsets(nmrResidue):
 
     return nmrAtoms
 
-
-def markNmrAtoms(mainWindow, nmrAtoms: typing.List[NmrAtom], guiTarget: Strip):
-    # displays = list(mainWindow.spectrumDisplays)
-    #
-    # if not displays:
-    #     getLogger().warning('No Spectrum Displays')
-    #     showWarning('markNmrAtoms', 'No spectrum Displays')
-    #     return
-
-    # mainWindow.clearMarks()     # clear the marks for the minute
-
-    # for display in displays:
-    #     if strips := display.strips:
-    #         strip = strips[0]
-            # for strip in strips:
-            # assume that this returns list of nmrAtoms in the display
-
-    peaks = set()
-    for spectra in guiTarget.getVisibleSpectra():
-        for pl in spectra.peakLists:
-            peaks.update(pl.peaks)
-
-    for atom in nmrAtoms:
-        for peak in atom.assignedPeaks:
-            if peak in peaks:
-                guiTarget._createObjectMark(peak)
 
 #=====  Just some code to 'save' =====
 # def hasNmrResidue(nmrChain, residueCode):
