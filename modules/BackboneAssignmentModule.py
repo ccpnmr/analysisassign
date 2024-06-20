@@ -4,9 +4,10 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-08-16 11:31:38 +0100 (Wed, August 16, 2023) $"
-__version__ = "$Revision: 3.2.0 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-06-06 18:27:49 +0100 (Thu, June 06, 2024) $"
+__version__ = "$Revision: 3.2.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -33,11 +34,10 @@ from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 from ccpn.core.ChemicalShift import ChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.NmrChain import NmrChain
-from ccpn.core.NmrAtom import NmrAtom
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
 from ccpn.ui.gui.guiSettings import getColours, DIVIDER
 from ccpn.ui.gui.lib.SpectrumDisplayLib import makeStripPlot
-from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms
+from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms, markNmrAtoms
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, LINKTOPULLDOWNCLASS
@@ -1003,49 +1003,6 @@ def nmrAtomsFromOffsets(nmrResidue):
         nmrAtoms.extend(nr.nmrAtoms)
 
     return nmrAtoms
-
-
-def markNmrAtoms(mainWindow, nmrAtoms: typing.List[NmrAtom]):
-    # get the display
-    # displays = self._getDisplays()
-
-    # application = mainWindow.application
-    # project = mainWindow.application.project
-    # current = mainWindow.application.current
-
-    displays = list(mainWindow.spectrumDisplays)
-
-    if not displays:
-        getLogger().warning('No Spectrum Displays')
-        showWarning('markNmrAtoms', 'No spectrum Displays')
-        return
-
-    # mainWindow.clearMarks()     # clear the marks for the minute
-
-    for display in displays:
-        if strips := display.strips:
-            strip = strips[0]
-
-            # for strip in strips:
-            # assume that this returns list of nmrAtoms in the display
-
-            shiftDict = matchAxesAndNmrAtoms(strip, nmrAtoms)
-            # atomPositions = shiftDict[strip.axisOrder[2]]
-            # atomPositions = [[x.value for x in shiftDict[axisCode]] for axisCode in strip.axisOrder]
-            # positions = []
-
-            # for atomPos in atomPositions:
-            #     if atomPos:
-            #         if len(atomPos) < 2:
-            #             positions.append(atomPos[0])
-            #         else:
-            #             positions.append(max(atomPos) - min(atomPos) / 2)
-            #     else:
-            #         positions.append('')
-            # navigateToPositionInStrip(strip, positions, widths=widths) # don't need to change display yet
-
-            mainWindow.markPositions(list(shiftDict.keys()),
-                                     list(shiftDict.values()), strips=display.strips)
 
 
 #=====  Just some code to 'save' =====

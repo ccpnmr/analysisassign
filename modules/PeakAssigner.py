@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-07 19:27:12 +0100 (Fri, June 07, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-06-20 16:42:20 +0100 (Thu, June 20, 2024) $"
+__version__ = "$Revision: 3.2.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -123,14 +123,11 @@ class PeakAssigner(CcpnModule):
     """Module for assignment of nmrAtoms to the different axes of a peak.
     Module responds to current.peak
     """
-
+    className = 'PeakAssigner'
     # override in specific module implementations
     includeSettingsWidget = True
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
     settingsPosition = 'left'
-
-    className = 'PeakAssigner'
-
     activePulldownClass = None
 
     # set the queue handling parameters
