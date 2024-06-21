@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 17:30:25 +0100 (Thu, June 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-21 19:48:42 +0100 (Fri, June 21, 2024) $"
 __version__ = "$Revision: 3.2.4 $"
 #=========================================================================================
 # Created
@@ -644,8 +644,8 @@ class AssignmentTable(_ProjectTableABC):
 
         super(AssignmentTable, self).__init__(parent, *args, **kwds)
 
-        self.headerColumnMenu.setInternalColumns(self._internalColumns, update=False)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden, update=False)
+        self.headerColumnMenu.setInternalColumns(self._internalColumns)
+        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
 
     #=========================================================================================
     # Build the dataFrame for the table
