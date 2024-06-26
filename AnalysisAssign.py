@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 18:52:31 +0100 (Thu, June 20, 2024) $"
+__dateModified__ = "$dateModified: 2024-06-26 14:52:13 +0100 (Wed, June 26, 2024) $"
 __version__ = "$Revision: 3.2.4 $"
 #=========================================================================================
 # Created
@@ -46,6 +46,8 @@ class Assign(Framework):
         super()._setupMenus()
         menuSpec = ('Assign', [("Set up NmrResidues", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
                                ("Pick and Assign", self.showPickAndAssignModule, [('shortcut', 'pa')]),
+                               ("Propagate Assignments", self.propagateAssignments, [('shortcut', 'pg')]),
+                               ("Copy Assignments", self.copyAssignments, [('shortcut', 'ca')]),
                                (),
                                ("Backbone Assignment", self.showBackboneAssignmentModule, [('shortcut', 'bb')]),
                                # ("Sidechain Assignment", self.showSidechainAssignmentModule, [('shortcut', 'sc'), ('enabled', False)]),
@@ -184,3 +186,13 @@ class Assign(Framework):
         guiPipeline = GuiPipeline(mainWindow=self.ui.mainWindow, pipes=loadedPipes, templates=None)
         self.ui.mainWindow.moduleArea.addModule(guiPipeline, position=position)
         return guiPipeline
+
+    def propagateAssignments(self):
+        """Propagate assignments across selected peaks.
+        """
+        self.ui.mainWindow.propagateAssignments()
+
+    def copyAssignments(self):
+        """Copy assignments across selected peaks.
+        """
+        self.ui.mainWindow.copyAssignments()
