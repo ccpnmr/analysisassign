@@ -7,14 +7,34 @@ This module closely works with the Atom Selector module
 First version by SS
 Refactored by GWV to be responsible to active state on start; proper callbacks 
 and to include "Restricted pick and assign" button.
+Refactored by GST to allow multiple NMRResidues to be picked and provide
+progress dialogs during longer operations
+
+TODO:
+Assign selected should be deactivated if there are no peaks selected
+All buttons should be deactivated if there are no NMRResidues selected
+Button deassign selected
+Button restricted Assign
+Button delete peaks
+Add tool tips for buttons
+Meta A on table should select all and should be in the table menu
+Enable up and down arrows
+Command up and down should be up and down on table, up and down should be on last table with focus if still focused...
+deleting a selection on a residue table doesn't update the pick and assign residue table and also doesn't trigger
+enabling or disabling buttons...
+can current nmrResidues be strings?
+editing NMRResidue table not reflected in current table
+deleting NMRResidue in NMRResidue table pops up a dialog!
+deleting delete key doesn't delete current selected = NMRResidues
 
 """
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2023"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
-               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -23,8 +43,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2023-02-28 13:03:53 +0000 (Tue, February 28, 2023) $"
-__version__ = "$Revision: 3.1.1 $"
+__dateModified__ = "$dateModified: 2024-06-27 10:35:43 +0100 (Thu, June 27, 2024) $"
+__version__ = "$Revision: 3.2.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -34,6 +54,14 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
+from functools import partial
+from typing import Iterator, Tuple, List, Iterable
+
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import QProgressDialog
+from icecream import ic
+
+from ccpn.core import Peak
 from ccpn.ui.gui.lib import PeakListLib
 from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
@@ -53,7 +81,8 @@ class PickAndAssignModule(NmrResidueTableModule):
     """
     Do a restricted peak pick along the 'y-axis' of (a set of) spectra.
     Use settings to define the spectral displays, the active spectra and the tolerances for peak picking
-  
+
+    # GST is this true anymore?
     This module closely works with the Atom Selector module
     """
     className = 'PickAndAssignModule'
@@ -80,13 +109,16 @@ class PickAndAssignModule(NmrResidueTableModule):
         self.current = mainWindow.application.current
 
         # Main widget
-        self.restrictedPickButton = Button(text='Restricted\nPick', callback=self.restrictedPick, )
+        restrictedPickAndAssignWithAssignFalse = partial(self.restrictedPickAndAssign, assign=False)
+        self.restrictedPickButton = Button(text='Restricted\nPick', callback=restrictedPickAndAssignWithAssignFalse)
         self.tableFrame.addWidgetToPos(self.restrictedPickButton, row=0, col=2)
 
         self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
         self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
 
-        self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=self.restrictedPickAndAssign)
+        restrictedPickAndAssignWithAssignTrue = partial(self.restrictedPickAndAssign, assign=True)
+        self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign',
+                                                    callback=restrictedPickAndAssignWithAssignTrue)
         self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
 
         self.restrictedPickButton.setEnabled(True)
@@ -106,7 +138,6 @@ class PickAndAssignModule(NmrResidueTableModule):
         self._registerNotifiers()
 
         # # these need to change whenever different spectrumDisplays are selected
-        # self._setAxisCodes()
         if self.nmrResidueTableSettings.axisCodeOptions:
             self.nmrResidueTableSettings.axisCodeOptions.selectAll()
 
@@ -117,8 +148,6 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         # fix the second column to stop extra widgets flickering
         alignWidgets(self.nmrResidueTableSettings, columnScale=1.2)
-        # if self.nmrResidueTableSettings.displaysWidget:
-        #     alignWidgets(self.nmrResidueTableSettings.displaysWidget)
 
     def _registerNotifiers(self):
         """
@@ -165,33 +194,37 @@ class PickAndAssignModule(NmrResidueTableModule):
                 (gid := self.nmrResidueTableSettings.spectrumDisplayPulldown.getText()):
             return self.application.getByGid(gid)
 
-    def _verify(self, msgHeader, nmrResidue):
-        """Verify that the settings are valid
-        """
-        nmrResidue = self.project.getByPid(nmrResidue) if isinstance(nmrResidue, str) else nmrResidue
-        if not nmrResidue:
-            # use current if not set
-            nmrResidue = self.application.current.nmrResidue
-        if nmrResidue is None or not isinstance(nmrResidue, NmrResidue):
+    def _getMsgIfSetupInvalid(self):
+        msg = None
+        if not self.current.nmrResidues:
             # check that is defined and of the correct type
-            showWarning(msgHeader, 'Undefined nmrResidue; select one first before proceeding')
-            return
+            msg = 'no NmrResidues selected, please pick one or more NmrResidues'
 
-        if not self._getDisplay():
+        if not msg and not self._getDisplay():
             # check the selected display
-            showWarning(msgHeader, 'Undefined display;\nselect display in gearbox settings before proceeding')
-            return
+            msg = 'Undefined display;\nselect display in gearbox settings before proceeding'
 
-        if not self.nmrResidueTableSettings.axisCodeOptions:
+        if not msg and not self.nmrResidueTableSettings.axisCodeOptions:
             # check that the settings have been populated correctly
-            showWarning(msgHeader, 'Undefined display;\nselect display in gearbox settings before proceeding')
-            return
+            msg = 'Undefined display;\nselect display in gearbox settings before proceeding'
 
-        return nmrResidue
+        return msg
+
+    def _getNmrResidues(self) -> List[NmrResidue]:
+        """ get the current selected NmrResidues
+        """
+
+        nmrResidues = list(self.current.nmrResidues)
+
+        # GST: not sure if this needed - can current.nmrResidue[s] be a string?
+        for i, nmrResidue in enumerate(nmrResidues):
+            nmrResidues[i] = (self.project.getByPid(nmrResidue)) if isinstance(nmrResidues, str) else nmrResidue
+
+        return nmrResidues
 
     @staticmethod
     def _getValidPeakListViews(displays):
-        """Get tehist of valid peakListViews
+        """Get the list of valid peakListViews
         """
         validPeakListViews = {}
         # loop through all the selected displays/spectrumViews/peakListViews that are visible
@@ -213,30 +246,36 @@ class PickAndAssignModule(NmrResidueTableModule):
                                 pass
         return validPeakListViews
 
-    def assignSelected(self, nmrResidue=None, msgHeader=None):
-        """Assign current.peaks on the bases of nmrAtoms of current.nmrResidue
+    def assignSelected(self):
+        """Assign current.peaks on the bases of nmrAtoms of current.nmrResidues
         """
-        msgHeader = msgHeader or 'Assign Selected'
-        if not (nmrResidue := self._verify(msgHeader, nmrResidue)):
-            return
 
-        if len(self.application.current.peaks) == 0:
-            showWarning(msgHeader, 'Undefined peak(s); select one or more before proceeding')
+        nmrResidues = self._getNmrResidues()
+
+        peaks = self.current.peaks
+        if len(peaks) == 0:
             return
 
         with undoBlockWithoutSideBar():
-            lastNmrResidue = nmrResidue  # self.application.current.nmrResidue
-            currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
+            self._assignPeaks(peaks, nmrResidues)
 
+    # convert to be an iterator...
+    def _assignPeaks(self, peaks, nmrResidues):
+
+        currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
+
+        for nmrResidue in nmrResidues:
             shiftDict = {}
-            for atom in self.application.current.nmrResidue.nmrAtoms:
+            for atom in nmrResidue.nmrAtoms:
                 shiftDict[atom.isotopeCode] = []
 
-            for peak in self.application.current.peaks:
+            for peak in peaks:
                 shiftList = peak.peakList.spectrum.chemicalShiftList
+
+                # TODO: should we be checking the spectrum is one of ours
                 spectrum = peak.peakList.spectrum
 
-                for nmrAtom in self.application.current.nmrResidue.nmrAtoms:
+                for nmrAtom in nmrResidue.nmrAtoms:
                     if nmrAtom.isotopeCode in shiftDict.keys():
                         cShift = shiftList.getChemicalShift(nmrAtom)
                         if cShift:
@@ -255,120 +294,109 @@ class PickAndAssignModule(NmrResidueTableModule):
                         shiftList = set()
                         for shift in shiftDict[isotopeCode]:
                             sValue = shift[1]
-                            # pValue = peak.position[ii]
                             if abs(sValue - pValue) <= spectrum.assignmentTolerances[ii]:
-                                # peak.assignDimension(spectrum.axisCodes[ii], [shift[0]])
                                 shiftList.add(shift[0])
 
                         if shiftList:
                             peak.assignDimension(spectrum.axisCodes[ii], list(shiftList))
 
-            # self.application.current.peaks = []
-            # update the NmrResidue table
-            self.tableWidget._table = self.application.current.nmrResidue.nmrChain
-            self.tableWidget._update()
+    @staticmethod
+    def _getActionMsg(assign):
+        return 'Restricted Pick and Assign' if assign else 'Restricted Pick'
 
-            # reset to the last selected nmrResidue - stops other tables messing up
-            self.application.current.nmrResidue = lastNmrResidue
+    def restrictedPickAndAssign(self, assign=True):
+        """
+        Takes the selected NmrResidues from current NmrResidues feeds them into restricted pick lib functions
+        and picks peaks for all spectrum displays specified in the settings tab. Pick uses X and Z axes for each
+        spectrumView as centre points with tolerances and the y as the long axis to pick the whole region.
+        """
 
-    #TODO:GEERTEN: compact the two routines
-    def restrictedPick(self, nmrResidue=None, msgHeader=None):
-        """
-        Routine refactored in revision 9381.
-     
-        Takes an NmrResidue feeds it into restricted pick lib functions and picks peaks for all
-        spectrum displays specified in the settings tab. Pick uses X and Z axes for each spectrumView as
-        centre points with tolerances and the y as the long axis to pick the whole region.
-        """
-        msgHeader = msgHeader or 'Restricted Pick'
-        if not (nmrResidue := self._verify(msgHeader, nmrResidue)):
-            return
+        if invalidMsg := self._getMsgIfSetupInvalid():
+            showWarning(self._getActionMsg(assign), invalidMsg)
+        else:
+            nmrResidues = self._getNmrResidues()
+            self._doPickAndAssignOnSelectedNmrResidues(nmrResidues, assign)
+
+    def _doPickAndAssignOnSelectedNmrResidues(self, nmrResidues, assign):
+        from ccpn.core.lib.ContextManagers import progressHandler
+
+        undoStack = self.application._getUndo()
+        originalUndoState = undoStack.undoList
+        ic('orig', originalUndoState)
+
+        with undoBlockWithoutSideBar():
+
+            msg = "Picking and Assigning Peaks..." if assign else "Picking peaks..."
+            stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
+
+            numResidues = len(nmrResidues)
+            progress = QProgressDialog(msg, stopButtonText, 0, numResidues, self)
+            progress.setWindowModality(QtCore.Qt.WindowModal)
+            # progress = progressHandler(self, text=msg, cancelButtonText=stopButtonText,
+            #                            minimum=0, maximum=numResidues, autoClose=True)
+
+            incomplete = False
+            for i, nmrResidue, errorMsg, peaks in self._restrictedPeakPickIterator(nmrResidues):
+                if progress.wasCanceled():
+                    incomplete = True
+                    break
+
+                if errorMsg:
+                    incomplete = True
+                    showWarning(self._getActionMsg(assign), errorMsg)
+                    break
+
+                progress.setValue(i)
+
+                if peaks and assign:
+                    self._assignPeaks(peaks, [nmrResidue, ])
+
+            # progress.hide()
+            progress.setValue(numResidues)
+
+        if incomplete:
+            while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
+                undoStack.undo()
+
+    def _restrictedPeakPickIterator(self, nmrResidues: Iterable[NmrResidue]) \
+            -> Iterator[Tuple[int | None, NmrResidue, str | None, List[Peak] | None]]:
 
         currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
-        with undoBlockWithoutSideBar():
+        displays = [self._getDisplay()]
+        validPeakListViews = self._getValidPeakListViews(displays)
+
+        badAxisCodeMsg = """\
+            Cannot pick some or peaks all peaks; check selected spectrumDisplay
+            possibly missing axis-codes or one of the selected nmrResidues has no matching axis-codes
+        """
+
+        try:
+
+            specAxisCodes = [[spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
+                              for ii in currentAxisCodeIndexes
+                              if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
+                             for spectrum, peakListView in validPeakListViews.values()]
+        except Exception:
+            # TODO: this should be a DataClass or named tuple for clarity,,,
+            return None, None, badAxisCodeMsg, None
+
+        for i, nmrResidue in enumerate(nmrResidues):
+
             peaks = []
-
-            # displays = self._getDisplays()
-            # gid = self.nmrResidueTableSettings.spectrumDisplayPulldown.getText()
-            displays = [self._getDisplay()]  # [self.application.getByGid(gid)]
-
-            validPeakListViews = self._getValidPeakListViews(displays)
             try:
-                specAxisCodes = [[spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
-                                  for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
-                                 for spectrum, peakListView in validPeakListViews.values()]
+                for (spectrum, peakListView), axisCodes in zip(validPeakListViews.values(), specAxisCodes):
+
+                    # axis-codes should be valid at this point
+                    peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
+                                                               axisCodes=axisCodes, nmrResidue=nmrResidue)
+                    if pks:
+                        peaks += list(pks)
+
             except Exception:
-                showWarning(msgHeader, 'Cannot pick peaks; check selected spectrumDisplay,\n'
-                                       'possibly missing axis-codes or selected nmrResidue has no matching axis-codes')
+                return None, nmrResidue, badAxisCodeMsg, None
 
-            else:
-                try:
-                    for (spectrum, peakListView), axisCodes in zip(validPeakListViews.values(), specAxisCodes):
-                        # axisCodes = [spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
-                        #              for ii in currentAxisCodeIndexes if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
-
-                        # axis-codes should be valid this time
-                        peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
-                                                                   axisCodes=axisCodes, nmrResidue=nmrResidue)
-                        if pks:
-                            peaks += list(pks)
-                except Exception:
-                    showWarning(msgHeader, 'Cannot pick peaks; check selected spectrumDisplay,\n'
-                                           'possibly missing axis-codes or selected nmrResidue has no matching axis-codes')
-
-                # for module in self.application.project.spectrumDisplays:
-                #     if len(module.axisCodes) >= 2:
-                #         for spectrumView in module.strips[0].spectrumViews:
-                #
-                #             visiblePeakListViews = [peakListView for peakListView in spectrumView.peakListViews
-                #                                     if peakListView.isVisible()]
-                #
-                #             # if len(visiblePeakListViews) == 0:
-                #             #     continue
-                #             # else:
-                #             #     peakList, pks = PeakList.restrictedPick(peakListView=visiblePeakListViews[0],
-                #             #                                             axisCodes=module.axisCodes[0::2], nmrResidue=nmrResidue)
-                #             #     peaks = peaks + pks
-                #
-                #             # if len(visiblePeakListViews) == 0:
-                #             #     spectrum = spectrumView.spectrum
-                #             #
-                #             #     axisCodes = [axis for ]
-                else:
-                    # set the current peaks - may need intermediate list here
-                    self.application.current.peaks = peaks
-
-                    # update the NmrResidue table
-                    self.tableWidget._table = nmrResidue.nmrChain
-                    self.tableWidget._update()
-
-                    return True  # pick was successful
-
-    # from ccpn.util.decorators import profile
-    # @profile
-    def restrictedPickAndAssign(self, nmrResidue=None):
-        """
-        Functionality for beta2 to include the Assign part
-         
-        Takes an NmrResidue feeds it into restricted pick lib functions and picks peaks for all
-        spectrum displays specified in the settings tab. Pick uses X and Z axes for each spectrumView as
-        centre points with tolerances and the y as the long axis to pick the whole region.
-        
-        Calls assignSelected to assign
-        """
-        msgHeader = 'Restricted Pick and Assign'
-        if not (nmrResidue := self._verify(msgHeader, nmrResidue)):
-            return
-
-        with undoBlockWithoutSideBar():
-
-            if self.restrictedPick(nmrResidue, msgHeader=msgHeader) and self.application.current.peaks:
-                # if peaks have been selected then assign them
-                self.assignSelected(msgHeader=msgHeader)
-
-                # notifier for other modules
-                nmrResidue._finaliseAction('change')
+            yield i, nmrResidue, None, list(peaks)
 
     def goToPositionInModules(self, nmrResidue=None, row=None, col=None):
         """Go to the positions defined my NmrAtoms of nmrResidue in the active displays"""
@@ -385,7 +413,6 @@ class PickAndAssignModule(NmrResidueTableModule):
                 for display in activeDisplays:
                     strip = display.strips[0]
                     n = len(strip.axisCodes)
-                    #Strip.navigateToNmrAtomsInStrip(strip=strip, nmrAtoms=nmrResidue.nmrAtoms, widths=['default', 'full', ''])
                     if n == 2:
                         widths = ['default', 'default']
                     else:
@@ -395,4 +422,4 @@ class PickAndAssignModule(NmrResidueTableModule):
                                                        nmrAtoms=nmrResidue.nmrAtoms,
                                                        widths=strip._getCurrentZoomRatio(strip.viewRange()),
                                                        markPositions=(n == 2))
-                self.application.current.nmrResidue = nmrResidue
+                self.current.nmrResidue = nmrResidue
