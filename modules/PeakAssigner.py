@@ -7,8 +7,9 @@ Responds to current.peaks
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -17,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-17 13:47:44 +0100 (Fri, May 17, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-06-21 19:48:42 +0100 (Fri, June 21, 2024) $"
+__version__ = "$Revision: 3.2.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -122,20 +123,16 @@ class PeakAssigner(CcpnModule):
     """Module for assignment of nmrAtoms to the different axes of a peak.
     Module responds to current.peak
     """
-
+    className = 'PeakAssigner'
     # override in specific module implementations
     includeSettingsWidget = True
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
     settingsPosition = 'left'
-
-    className = 'PeakAssigner'
-
     activePulldownClass = None
 
     # set the queue handling parameters
     _maximumQueueLength = 10
-    _logQueue = True
-
+    _logQueue = False
 
     def __init__(self, mainWindow, name="Peak Assigner"):
         """
@@ -646,8 +643,8 @@ class AssignmentTable(_ProjectTableABC):
 
         super(AssignmentTable, self).__init__(parent, *args, **kwds)
 
-        self.headerColumnMenu.setInternalColumns(self._internalColumns, update=False)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden, update=False)
+        self.headerColumnMenu.setInternalColumns(self._internalColumns)
+        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
 
     #=========================================================================================
     # Build the dataFrame for the table
@@ -717,12 +714,6 @@ class AssignmentTable(_ProjectTableABC):
                    format='%8.3f'),
             ]
         return self._columnDefs
-
-    def _clearSelectionCallback(self):
-        super(AssignmentTable, self)._clearSelectionCallback()
-        if self._clearSelectionCallbackFunction:
-            data = {}
-            self._clearSelectionCallbackFunction(data)
 
     def clearSelection(self):
         """Clear the current selection in the table
@@ -1472,7 +1463,11 @@ class AxisAssignmentObject(Frame):
                 if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
                     if nmrAtom := nmrResidue.getNmrAtom(nmrAtomName):
                         if showYesNo('Merge NmrAtom',
-                                     f'Do you want to merge\n\n' f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
+                                     f'Do you want to merge\n'
+                                     f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}',
+                                     dontShowEnabled=True,
+                                     defaultResponse=True,
+                                     popupId=f'{self.__class__.__name__}Merge'):
                             # merge into the existing nmrAtom
                             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
                     else:
@@ -1489,9 +1484,12 @@ class AxisAssignmentObject(Frame):
                         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
                     if nmrAtomName != self._clickedNmrAtom.name:
                         if nmrAtom := nmrResidue.getNmrAtom(nmrAtomName):
-                            if yesNo := showYesNo('NmrAtom already exists',
-                                                  f'Do you want to merge\n\n'
-                                                  f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}'):
+                            if showYesNo('NmrAtom already exists',
+                                         f'Do you want to merge\n'
+                                         f'{self._clickedNmrAtom.id}   into   {nmrAtom.id}',
+                                         dontShowEnabled=True,
+                                         defaultResponse=True,
+                                         popupId=f'{self.__class__.__name__}MergeExist'):
                                 # merge into the existing nmrAtom
                                 nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
                         else:
@@ -1935,18 +1933,18 @@ class AxisAssignmentObject(Frame):
         if thisNmrResidueType:
             # get the defined nmrAtoms on the selected nmrResidue
             thisNmrResAtoms = OrderedSet(sorted([atm.name for atm in nmrResidue.nmrAtoms] if nmrResidue else [],
-                                         key=greekKey))
+                                                key=greekKey))
             # get the list of specific codes based on residueType
             if atomsByResType := PROTEIN_NEF_ATOM_NAMES.get(thisNmrResidueType, []):
                 isotopeCodeAtoms = OrderedSet(sorted(atomsByResType, key=greekKey))
             else:
                 isotopeCodeAtoms = OrderedSet(sorted(getIsotopeListFromCode(None),
-                                              key=greekKey))
+                                                     key=greekKey))
 
             if isotopeCode in NEF_ATOM_NAMES:
                 # isotope-code is valid from the spectrum dimension
                 atomsByIsotopeCode = OrderedSet(sorted(getIsotopeListFromCode(isotopeCode or nmrAtom.isotopeCode),
-                                            key=greekKey))
+                                                       key=greekKey))
                 atomOfSameIsotopeCode = isotopeCodeAtoms & atomsByIsotopeCode
                 atomNotOfSameIsotopeCode = isotopeCodeAtoms - atomsByIsotopeCode
                 if atomOfSameIsotopeCode:

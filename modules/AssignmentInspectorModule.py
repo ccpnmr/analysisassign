@@ -8,8 +8,9 @@ modified by Geerten 1-9/12/2016:
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -17,9 +18,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-05-08 12:20:13 +0100 (Wed, May 08, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-06-06 18:27:49 +0100 (Thu, June 06, 2024) $"
+__version__ = "$Revision: 3.2.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -53,8 +54,9 @@ from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _PeakTableWidget
 from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToNmrResidueInStrip
+from ccpn.ui.gui.lib.StripLib import (navigateToNmrResidueInDisplay, navigateToPositionInStrip,
+                                      getZoomRatio, markNmrAtoms)
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
-from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, navigateToPositionInStrip, getZoomRatio
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.AttrDict import AttrDict
@@ -720,7 +722,6 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
     def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
         """
-        from ccpn.AnalysisAssign.modules.BackboneAssignmentModule import markNmrAtoms
 
         cShifts = self.getSelectedObjects()
         if len(self.mainWindow.marks):
