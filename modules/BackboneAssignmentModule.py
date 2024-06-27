@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-06-06 18:27:49 +0100 (Thu, June 06, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-06-27 10:08:02 +0100 (Thu, June 27, 2024) $"
+__version__ = "$Revision: 3.2.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -94,6 +94,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             self.project = mainWindow.application.project
             self.current = mainWindow.application.current
             self.nmrChains = self.application.project.nmrChains
+        else:
+            self.application = self.project = self.current = self.nmrChains = None
 
         # add a new checkbox to the header in the main-widget area
         self.matchCheckBoxWidget = CheckBox(self.tableFrame, grid=(1, 2), checked=True, text='Find matches')
@@ -103,9 +105,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self._stripNotifiers = []  # list to store GuiNotifiers for strips
 
         ## main table options
-        self.tableWidget.multiSelect = True
-        self.tableWidget.setSelectionMode(self.tableWidget.SingleSelection)
-        self.tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
+        self._tableWidget.multiSelect = True
+        self._tableWidget.setSelectionMode(self._tableWidget.SingleSelection)
+        self._tableWidget.setActionCallback(self.navigateToNmrResidueCallBack)
         self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
         self.layout.setContentsMargins(0, 1, 0, 0)
 
@@ -344,7 +346,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """Navigate in selected displays to nmrResidue; skip if none defined
         """
         try:
-            if not (objs := list(lastItem[self.tableWidget._OBJECT])):
+            if not (objs := list(lastItem[self._tableWidget._OBJECT])):
                 return
         except Exception as es:
             getLogger().debug2(f'{self.__class__.__name__}.navigateToNmrResidueCallBack: No selection\n{es}')
@@ -728,7 +730,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # # update the NmrResidueTable - outside of the undoBlock for notifiers to catch up
         # print(f'   dropped {droppedNmrResidue.nmrChain.pid}')
         # self.tableFrame._modulePulldown.select(droppedNmrResidue.nmrChain.pid)
-        # self.tableWidget._update(useSelected=True)  # droppedNmrResidue.nmrChain)
+        # self._tableWidget._update(useSelected=True)  # droppedNmrResidue.nmrChain)
 
         from ccpn.ui.gui.lib.OpenGL.CcpnOpenGL import GLNotifier
 
