@@ -43,8 +43,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-27 10:35:43 +0100 (Thu, June 27, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-06-27 17:06:23 +0100 (Thu, June 27, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -358,7 +358,7 @@ class PickAndAssignModule(NmrResidueTableModule):
                 undoStack.undo()
 
     def _restrictedPeakPickIterator(self, nmrResidues: Iterable[NmrResidue]) \
-            -> Iterator[Tuple[int | None, NmrResidue, str | None, List[Peak] | None]]:
+            -> Iterator[tuple[int | None, NmrResidue, str | None, list[Peak] | None]]:
 
         currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
