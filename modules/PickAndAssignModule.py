@@ -43,8 +43,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-27 10:35:43 +0100 (Thu, June 27, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-07-04 18:51:59 +0100 (Thu, July 04, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -325,38 +325,23 @@ class PickAndAssignModule(NmrResidueTableModule):
         ic('orig', originalUndoState)
 
         with undoBlockWithoutSideBar():
-
             msg = "Picking and Assigning Peaks..." if assign else "Picking peaks..."
             stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
 
             numResidues = len(nmrResidues)
-            progress = QProgressDialog(msg, stopButtonText, 0, numResidues, self)
-            progress.setWindowModality(QtCore.Qt.WindowModal)
-            # progress = progressHandler(self, text=msg, cancelButtonText=stopButtonText,
-            #                            minimum=0, maximum=numResidues, autoClose=True)
-
-            incomplete = False
-            for i, nmrResidue, errorMsg, peaks in self._restrictedPeakPickIterator(nmrResidues):
-                if progress.wasCanceled():
-                    incomplete = True
-                    break
-
-                if errorMsg:
-                    incomplete = True
-                    showWarning(self._getActionMsg(assign), errorMsg)
-                    break
-
-                progress.setValue(i)
-
-                if peaks and assign:
-                    self._assignPeaks(peaks, [nmrResidue, ])
-
-            # progress.hide()
-            progress.setValue(numResidues)
-
-        if incomplete:
-            while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
-                undoStack.undo()
+            with progressHandler(text=msg, cancelButtonText=stopButtonText,
+                                 maximum=numResidues) as progress:
+                for i, nmrResidue, errorMsg, peaks in self._restrictedPeakPickIterator(nmrResidues):
+                    progress.checkCancel()
+                    if errorMsg:
+                        showWarning(self._getActionMsg(assign), errorMsg)
+                        progress.cancel()
+                    progress.setValue(i)
+                    if peaks and assign:
+                        self._assignPeaks(peaks, [nmrResidue, ])
+            if progress.cancelled:
+                while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
+                    undoStack.undo()
 
     def _restrictedPeakPickIterator(self, nmrResidues: Iterable[NmrResidue]) \
             -> Iterator[Tuple[int | None, NmrResidue, str | None, List[Peak] | None]]:
