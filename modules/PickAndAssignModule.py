@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-04 18:51:59 +0100 (Thu, July 04, 2024) $"
+__dateModified__ = "$dateModified: 2024-07-05 13:27:41 +0100 (Fri, July 05, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -55,13 +55,11 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 from functools import partial
-from typing import Iterator, Tuple, List, Iterable
-
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QProgressDialog
+from typing import Iterator, Iterable
 from icecream import ic
 
 from ccpn.core import Peak
+from ccpn.core.NmrResidue import NmrResidue
 from ccpn.ui.gui.lib import PeakListLib
 from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
@@ -69,9 +67,9 @@ from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier
-from ccpn.core.NmrResidue import NmrResidue
-from ccpn.util.Logging import getLogger
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+from ccpn.util.OrderedSet import OrderedSet
+from ccpn.util.Logging import getLogger
 
 
 logger = getLogger()
@@ -210,7 +208,7 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         return msg
 
-    def _getNmrResidues(self) -> List[NmrResidue]:
+    def _getNmrResidues(self) -> list[NmrResidue]:
         """ get the current selected NmrResidues
         """
 
@@ -270,11 +268,10 @@ class PickAndAssignModule(NmrResidueTableModule):
                 shiftDict[atom.isotopeCode] = []
 
             for peak in peaks:
+                if (spectrum := peak.peakList.spectrum) not in self.nmrResidueTableSettings.spectrumIndex:
+                    continue
+
                 shiftList = peak.peakList.spectrum.chemicalShiftList
-
-                # TODO: should we be checking the spectrum is one of ours
-                spectrum = peak.peakList.spectrum
-
                 for nmrAtom in nmrResidue.nmrAtoms:
                     if nmrAtom.isotopeCode in shiftDict.keys():
                         cShift = shiftList.getChemicalShift(nmrAtom)
@@ -282,21 +279,17 @@ class PickAndAssignModule(NmrResidueTableModule):
                             shiftDict[nmrAtom.isotopeCode].append((nmrAtom, cShift.value))
 
                 for ii, isotopeCode in enumerate(spectrum.isotopeCodes):
-
                     if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]:
                         _restrictedIdx = self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)
                         if (_restrictedIdx not in currentAxisCodeIndexes):
                             continue
-
                     pValue = peak.position[ii]
                     if isotopeCode in shiftDict.keys():
-
                         shiftList = set()
                         for shift in shiftDict[isotopeCode]:
                             sValue = shift[1]
                             if abs(sValue - pValue) <= spectrum.assignmentTolerances[ii]:
                                 shiftList.add(shift[0])
-
                         if shiftList:
                             peak.assignDimension(spectrum.axisCodes[ii], list(shiftList))
 
@@ -329,6 +322,8 @@ class PickAndAssignModule(NmrResidueTableModule):
             stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
 
             numResidues = len(nmrResidues)
+            curPeaks = set()
+            self.current.peaks = []  # option to do this?
             with progressHandler(text=msg, cancelButtonText=stopButtonText,
                                  maximum=numResidues) as progress:
                 for i, nmrResidue, errorMsg, peaks in self._restrictedPeakPickIterator(nmrResidues):
@@ -339,12 +334,15 @@ class PickAndAssignModule(NmrResidueTableModule):
                     progress.setValue(i)
                     if peaks and assign:
                         self._assignPeaks(peaks, [nmrResidue, ])
+                    curPeaks |= OrderedSet(peaks)
+
+            self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
             if progress.cancelled:
                 while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
                     undoStack.undo()
 
     def _restrictedPeakPickIterator(self, nmrResidues: Iterable[NmrResidue]) \
-            -> Iterator[Tuple[int | None, NmrResidue, str | None, List[Peak] | None]]:
+            -> Iterator[tuple[int | None, NmrResidue, str | None, list[Peak] | None]]:
 
         currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
