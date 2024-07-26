@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-20 16:42:20 +0100 (Thu, June 20, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__modifiedBy__ = "$modifiedBy: Vicky Higman $"
+__dateModified__ = "$dateModified: 2024-07-05 14:51:42 +0100 (Fri, July 05, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2038,7 +2038,8 @@ class SequenceGraphModule(CcpnModule):
                                                          '_init'   : None,
                                                          }),
                                     ('peakAssignments', {'label'   : 'Show peak assignments',
-                                                         'tipText' : 'Show peak assignments on display coloured by positiveContourColour.',
+                                                         'tipText' : 'Show peak assignments on display coloured by positiveContourColour. '
+                                                                     'Requires Spectrum Reference Experiment Type and Dimensions to be set.',
                                                          'callBack': self.showNmrChainFromPulldown,
                                                          'enabled' : True,
                                                          'checked' : True,
