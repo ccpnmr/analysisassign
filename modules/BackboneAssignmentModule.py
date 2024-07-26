@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-27 10:08:02 +0100 (Thu, June 27, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-07-05 12:50:33 +0100 (Fri, July 05, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -461,34 +461,34 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                     strips[0].spectrumDisplay.setColumnStretches(True)
                     strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
-            # ejb
-            # if 'i-1' residue, take CA CB, and take H, N from the 'i' residue (.mainNmrResidue)
-            # check if contains '-1' in pid, is this robust? no :)
-            #
-            # VAH:
-            # Changed, so marks are drawn for the C atoms that are being matched and the base
-            # atoms specified here. Relies on use of NEF atom names, but makes it easier to
-            # make more generic at a later stage.
-            baseNmrAtoms = ['H', 'N']
-            if self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked():
-                if nmrResidue.relativeOffset is not None and nmrResidue.relativeOffset != 0:
-                    # offset residue (not necessarily i-1!) so need to split the match nmrAtoms
-                    # (e.g. CA/CB) from the base nmrAtoms (e.g. N, H)
-                    nmrAtomsOffset = nmrAtomsFromResidue(nmrResidue)
-                    nmrAtomsCentre = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
+                    # ejb
+                    # if 'i-1' residue, take CA CB, and take H, N from the 'i' residue (.mainNmrResidue)
+                    # check if contains '-1' in pid, is this robust? no :)
+                    #
+                    # VAH:
+                    # Changed, so marks are drawn for the C atoms that are being matched and the base
+                    # atoms specified here. Relies on use of NEF atom names, but makes it easier to
+                    # make more generic at a later stage.
+                    baseNmrAtoms = ['H', 'N']
+                    if self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked():
+                        if nmrResidue.relativeOffset is not None and nmrResidue.relativeOffset != 0:
+                            # offset residue (not necessarily i-1!) so need to split the match nmrAtoms
+                            # (e.g. CA/CB) from the base nmrAtoms (e.g. N, H)
+                            nmrAtomsOffset = nmrAtomsFromResidue(nmrResidue)
+                            nmrAtomsCentre = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
 
-                    nmrAtoms = [naOffset for naOffset in nmrAtomsOffset if naOffset.name in self.nmrAtomsToMatch]
-                    nmrAtoms.extend(naCentre for naCentre in nmrAtomsCentre if naCentre.name in baseNmrAtoms)
+                            nmrAtoms = [naOffset for naOffset in nmrAtomsOffset if naOffset.name in self.nmrAtomsToMatch]
+                            nmrAtoms.extend(naCentre for naCentre in nmrAtomsCentre if naCentre.name in baseNmrAtoms)
 
-                elif MARKCONNECTED:
-                    nmrAtoms = [na for na in nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
-                                if na.name in self.nmrAtomsToMatch
-                                or na.name in baseNmrAtoms]
-                else:
-                    nmrAtoms = [na for na in nmrResidue.mainNmrResidue.nmrAtoms
-                                if na.name in self.nmrAtomsToMatch
-                                or na.name in baseNmrAtoms]
-                markNmrAtoms(mainWindow=self.mainWindow, nmrAtoms=nmrAtoms)
+                        elif MARKCONNECTED:
+                            nmrAtoms = [na for na in nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
+                                        if na.name in self.nmrAtomsToMatch
+                                        or na.name in baseNmrAtoms]
+                        else:
+                            nmrAtoms = [na for na in nmrResidue.mainNmrResidue.nmrAtoms
+                                        if na.name in self.nmrAtomsToMatch
+                                        or na.name in baseNmrAtoms]
+                        markNmrAtoms(mainWindow=self.mainWindow, nmrAtoms=nmrAtoms, guiTarget=strips[0])
 
             if self.matchCheckBoxWidget.isChecked():
                 self.findAndDisplayMatches(nmrResidue)
