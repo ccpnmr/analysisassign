@@ -43,8 +43,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-07-31 16:41:47 +0100 (Wed, July 31, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__dateModified__ = "$dateModified: 2024-08-05 10:53:09 +0100 (Mon, August 05, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -190,7 +190,11 @@ class PickAndAssignModule(NmrResidueTableModule):
         """
         if self.nmrResidueTableSettings.spectrumDisplayPulldown and \
                 (gid := self.nmrResidueTableSettings.spectrumDisplayPulldown.getText()):
-            return self.application.getByGid(gid)
+            if gid == '> All <':
+                return [self.application.getByGid(gid) for gid in
+                        self.nmrResidueTableSettings.spectrumDisplayPulldown.getTexts()
+                        if gid not in ['> All <', '> Select <']]
+            return [self.application.getByGid(gid)]
 
     def _getMsgIfSetupInvalid(self):
         msg = None
@@ -267,31 +271,32 @@ class PickAndAssignModule(NmrResidueTableModule):
             for atom in nmrResidue.nmrAtoms:
                 shiftDict[atom.isotopeCode] = []
 
-            for peak in peaks:
-                if (spectrum := peak.peakList.spectrum) not in self.nmrResidueTableSettings.spectrumIndex:
-                    continue
+            for specInd in self.nmrResidueTableSettings.spectrumIndex:
+                for peak in peaks:
+                    if (spectrum := peak.peakList.spectrum) not in specInd:
+                        continue
 
-                shiftList = peak.peakList.spectrum.chemicalShiftList
-                for nmrAtom in nmrResidue.nmrAtoms:
-                    if nmrAtom.isotopeCode in shiftDict.keys():
-                        cShift = shiftList.getChemicalShift(nmrAtom)
-                        if cShift:
-                            shiftDict[nmrAtom.isotopeCode].append((nmrAtom, cShift.value))
+                    shiftList = peak.peakList.spectrum.chemicalShiftList
+                    for nmrAtom in nmrResidue.nmrAtoms:
+                        if nmrAtom.isotopeCode in shiftDict.keys():
+                            cShift = shiftList.getChemicalShift(nmrAtom)
+                            if cShift:
+                                shiftDict[nmrAtom.isotopeCode].append((nmrAtom, cShift.value))
 
-                for ii, isotopeCode in enumerate(spectrum.isotopeCodes):
-                    if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]:
-                        _restrictedIdx = self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)
-                        if (_restrictedIdx not in currentAxisCodeIndexes):
-                            continue
-                    pValue = peak.position[ii]
-                    if isotopeCode in shiftDict.keys():
-                        shiftList = set()
-                        for shift in shiftDict[isotopeCode]:
-                            sValue = shift[1]
-                            if abs(sValue - pValue) <= spectrum.assignmentTolerances[ii]:
-                                shiftList.add(shift[0])
-                        if shiftList:
-                            peak.assignDimension(spectrum.axisCodes[ii], list(shiftList))
+                    for ii, isotopeCode in enumerate(spectrum.isotopeCodes):
+                        if ii in specInd[spectrum]:
+                            _restrictedIdx = specInd[spectrum].index(ii)
+                            if (_restrictedIdx not in currentAxisCodeIndexes):
+                                continue
+                        pValue = peak.position[ii]
+                        if isotopeCode in shiftDict.keys():
+                            shiftList = set()
+                            for shift in shiftDict[isotopeCode]:
+                                sValue = shift[1]
+                                if abs(sValue - pValue) <= spectrum.assignmentTolerances[ii]:
+                                    shiftList.add(shift[0])
+                            if shiftList:
+                                peak.assignDimension(spectrum.axisCodes[ii], list(shiftList))
 
     @staticmethod
     def _getActionMsg(assign):
@@ -346,40 +351,43 @@ class PickAndAssignModule(NmrResidueTableModule):
 
         currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptions.getSelectedIndexes()
 
-        displays = [self._getDisplay()]
-        validPeakListViews = self._getValidPeakListViews(displays)
+        displays = self._getDisplay()
+        for display in displays:
+            validPeakListViews = self._getValidPeakListViews([display])
 
-        badAxisCodeMsg = """\
-            Cannot pick some or peaks all peaks; check selected spectrumDisplay
-            possibly missing axis-codes or one of the selected nmrResidues has no matching axis-codes
-        """
+            badAxisCodeMsg = """\
+                Cannot pick some or peaks all peaks; check selected spectrumDisplay
+                possibly missing axis-codes or one of the selected nmrResidues has no matching axis-codes
+            """
+            for specInd in self.nmrResidueTableSettings.spectrumIndex:
+                try:
 
-        try:
+                    specAxisCodes = [[spectrum.axisCodes[specInd[spectrum].index(ii)]
+                                      for ii in currentAxisCodeIndexes
+                                      if ii in specInd[spectrum]]
+                                     for spectrum, peakListView in validPeakListViews.values()]
+                except Exception:
+                    # TODO: this should be a DataClass or named tuple for clarity,,,
+                    continue
+                    # return None, None, badAxisCodeMsg, None
 
-            specAxisCodes = [[spectrum.axisCodes[self.nmrResidueTableSettings.spectrumIndex[spectrum].index(ii)]
-                              for ii in currentAxisCodeIndexes
-                              if ii in self.nmrResidueTableSettings.spectrumIndex[spectrum]]
-                             for spectrum, peakListView in validPeakListViews.values()]
-        except Exception:
-            # TODO: this should be a DataClass or named tuple for clarity,,,
-            return None, None, badAxisCodeMsg, None
+                for i, nmrResidue in enumerate(nmrResidues):
 
-        for i, nmrResidue in enumerate(nmrResidues):
+                    peaks = []
+                    try:
+                        for (spectrum, peakListView), axisCodes in zip(validPeakListViews.values(), specAxisCodes):
 
-            peaks = []
-            try:
-                for (spectrum, peakListView), axisCodes in zip(validPeakListViews.values(), specAxisCodes):
+                            # axis-codes should be valid at this point
+                            peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
+                                                                       axisCodes=axisCodes, nmrResidue=nmrResidue)
+                            if pks:
+                                peaks += list(pks)
 
-                    # axis-codes should be valid at this point
-                    peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
-                                                               axisCodes=axisCodes, nmrResidue=nmrResidue)
-                    if pks:
-                        peaks += list(pks)
+                    except Exception:
+                        continue
+                        # return None, nmrResidue, badAxisCodeMsg, None
 
-            except Exception:
-                return None, nmrResidue, badAxisCodeMsg, None
-
-            yield i, nmrResidue, None, list(peaks)
+                    yield i, nmrResidue, None, list(peaks)
 
     def goToPositionInModules(self, nmrResidue=None, row=None, col=None):
         """Go to the positions defined my NmrAtoms of nmrResidue in the active displays"""
