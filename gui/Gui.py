@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-08-08 13:12:39 +0100 (Thu, August 08, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-08 15:43:19 +0100 (Thu, August 08, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -29,7 +29,7 @@ __date__ = "$Date: 2024-02-09 10:28:40 +0000 (Fri, Feb 09, 2024) $"
 
 from ccpn.ui.gui.Gui import Gui
 from ccpn.ui.gui.Menus import VIEW_MENU, MACRO_MENU, VIEW_CHEMICAL_SHIFT_MAPPING, \
-    Separator, _projectHasSpectra, _projectHasPeaks
+    Separator, options, _projectHasSpectra, _projectHasPeaks
 from ccpn.ui.gui.widgets import MessageDialog
 
 from ccpn.util.Logging import getLogger
@@ -46,25 +46,26 @@ class AnalysisAssignGui(Gui):
         menuDefs = super()._getMenuDefs()
 
         app = self.application
-        menuDef = ('Assign',  [("Set up NmrResidues", app.showSetupNmrResiduesPopup, [('shortcut', 'sn')],_projectHasSpectra),
-                               ("Pick and Assign", app.showPickAndAssignModule, [('shortcut', 'pa')], _projectHasSpectra),
+        menuDef = ('Assign',  [("Set up NmrResidues", app.showSetupNmrResiduesPopup, options(shortcut = 'sn'), _projectHasSpectra),
+                               ("Pick and Assign", app.showPickAndAssignModule, options(shortcut = 'pa'), _projectHasSpectra),
 
                                Separator(),
-                               ("Backbone Assignment", app.showBackboneAssignmentModule, [('shortcut', 'bb')], _projectHasSpectra),
-                               # ("Sidechain Assignment", self.showSidechainAssignmentModule, [('shortcut', 'sc'), ('enabled', False)]),
+                               ("Backbone Assignment", app.showBackboneAssignmentModule, options(shortcut = 'bb'), _projectHasSpectra),
+                               # ("Sidechain Assignment", self.showSidechainAssignmentModule, options(shortcut = 'sc', enabled = False)),
 
                                Separator(),
-                               ("Peak Assigner", app.showPeakAssigner, [('shortcut', 'ap')], _projectHasPeaks),
-                               ("NmrAtom Assigner", app.showAtomSelector, [('shortcut', 'an')], _projectHasPeaks),
-                               ("Assignment Inspector", app.showAssignmentInspectorModule, [('shortcut', 'ai')], _projectHasPeaks),
-                               # ("Residue Information", app.showResidueInformation, [('shortcut', 'ri')]),
-                               ])
+                               ("Peak Assigner", app.showPeakAssigner, options(shortcut = 'ap'), _projectHasPeaks),
+                               ("NmrAtom Assigner", app.showAtomSelector, options(shortcut = 'an'), _projectHasPeaks),
+                               ("Assignment Inspector", app.showAssignmentInspectorModule, options(shortcut = 'ai'), _projectHasPeaks),
+                               # ("Residue Information", app.showResidueInformation, options(shortcut = 'ri')),
+                               ]
+                   )
 
         # put it before the MACRO_MENU
         menuDefs.insertBefore([MACRO_MENU], menuDef=menuDef)
 
         # Add sequence graph to VIEW menu
-        _seqGraphMenu = ("Sequence Graph", app.showSequenceGraph, [('shortcut', 'sg')])
+        _seqGraphMenu = ("Sequence Graph", app.showSequenceGraph, options(shortcut = 'sg'))
         menuDefs.insertBefore([VIEW_MENU, VIEW_CHEMICAL_SHIFT_MAPPING], menuDef=_seqGraphMenu)
 
         return menuDefs
