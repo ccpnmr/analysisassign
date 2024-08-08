@@ -5,8 +5,9 @@ AnalysisAssign Gui
 # Licence, Reference and Credits
 #=========================================================================================
 __copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
-__credits__ = ("Ed Brooksbank, Joanna Fox, Morgan Hayward, Victoria A Higman, Luca Mureddu",
-               "Eliza Płoskoń, Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Daniel Thompson",
+               "Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -15,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-02-20 13:09:56 +0000 (Tue, February 20, 2024) $"
-__version__ = "$Revision: 3.2.2 $"
+__dateModified__ = "$dateModified: 2024-08-08 13:12:39 +0100 (Thu, August 08, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -27,7 +28,8 @@ __date__ = "$Date: 2024-02-09 10:28:40 +0000 (Fri, Feb 09, 2024) $"
 #=========================================================================================
 
 from ccpn.ui.gui.Gui import Gui
-from ccpn.ui.gui.Menus import MACRO_MENU, _projectHasSpectra, _projectHasPeaks
+from ccpn.ui.gui.Menus import VIEW_MENU, MACRO_MENU, VIEW_CHEMICAL_SHIFT_MAPPING, \
+    Separator, _projectHasSpectra, _projectHasPeaks
 from ccpn.ui.gui.widgets import MessageDialog
 
 from ccpn.util.Logging import getLogger
@@ -41,16 +43,17 @@ class AnalysisAssignGui(Gui):
     def _getMenuDefs(self):
         """:return the MenuDefs instance; modified with AnalysisAssign menu additions
         """
-        from ccpn.ui.gui.Menus import VIEW_MENU
         menuDefs = super()._getMenuDefs()
 
         app = self.application
         menuDef = ('Assign',  [("Set up NmrResidues", app.showSetupNmrResiduesPopup, [('shortcut', 'sn')],_projectHasSpectra),
                                ("Pick and Assign", app.showPickAndAssignModule, [('shortcut', 'pa')], _projectHasSpectra),
-                               (),
+
+                               Separator(),
                                ("Backbone Assignment", app.showBackboneAssignmentModule, [('shortcut', 'bb')], _projectHasSpectra),
                                # ("Sidechain Assignment", self.showSidechainAssignmentModule, [('shortcut', 'sc'), ('enabled', False)]),
-                               (),
+
+                               Separator(),
                                ("Peak Assigner", app.showPeakAssigner, [('shortcut', 'ap')], _projectHasPeaks),
                                ("NmrAtom Assigner", app.showAtomSelector, [('shortcut', 'an')], _projectHasPeaks),
                                ("Assignment Inspector", app.showAssignmentInspectorModule, [('shortcut', 'ai')], _projectHasPeaks),
@@ -62,7 +65,7 @@ class AnalysisAssignGui(Gui):
 
         # Add sequence graph to VIEW menu
         _seqGraphMenu = ("Sequence Graph", app.showSequenceGraph, [('shortcut', 'sg')])
-        menuDefs.insertBefore([VIEW_MENU, 11], menuDef=_seqGraphMenu)
+        menuDefs.insertBefore([VIEW_MENU, VIEW_CHEMICAL_SHIFT_MAPPING], menuDef=_seqGraphMenu)
 
         return menuDefs
 
