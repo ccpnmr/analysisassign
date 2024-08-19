@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-08-19 14:19:23 +0100 (Mon, August 19, 2024) $"
+__dateModified__ = "$dateModified: 2024-08-19 15:20:00 +0100 (Mon, August 19, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -28,7 +28,7 @@ __date__ = "$Date: 2024-02-09 10:28:40 +0000 (Fri, Feb 09, 2024) $"
 #=========================================================================================
 
 from ccpn.ui.gui.Gui import Gui
-from ccpn.ui.gui.menus.Menus import VIEW_MENU, MACRO_MENU, VIEW_CHEMICAL_SHIFT_MAPPING, \
+from ccpn.ui.gui.menus.MenuDefs import VIEW_MENU, MACRO_MENU, VIEW_CHEMICAL_SHIFT_MAPPING, \
     Menu, Action, Separator, _projectHasSpectra, _projectHasPeaks
 
 
