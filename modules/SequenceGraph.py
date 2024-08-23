@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Vicky Higman $"
-__dateModified__ = "$dateModified: 2024-07-05 14:51:42 +0100 (Fri, July 05, 2024) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:54 +0100 (Fri, August 23, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -48,10 +48,11 @@ from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
-from ccpn.ui.gui.guiSettings import getColours, BORDERNOFOCUS, BORDERFOCUS, \
-    GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, GUINMRRESIDUE, \
-    SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
+from ccpn.ui.gui.guiSettings import (getColours, BORDERNOFOCUS, BORDERFOCUS,
+    GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, GUINMRRESIDUE, HIGHLIGHT_BORDER,
+    SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT)
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
+from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Menu import Menu
 from ccpn.ui.gui.widgets.Icon import Icon
 from ccpn.ui.gui.widgets.Label import Label
@@ -114,33 +115,14 @@ class GuiNmrAtom(QtWidgets.QGraphicsSimpleTextItem):
 
         setWidgetFont(self, name=SEQUENCEGRAPHFONT)
         # self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        #
-        # # set the highlight colour for dragging to chain
-        # self.colours = getColours()
-        # if self.isSelected:
-        #     self.setBrush(QtGui.QColor(self.colours[GUINMRATOM_SELECTED]))
-        # else:
-        #     self.setBrush(QtGui.QColor(self.colours[GUINMRATOM_NOTSELECTED]))
-        #
-        QtWidgets.QApplication.instance().paletteChanged.connect(self._checkPalette)
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
         self._checkPalette(self.mainWindow.palette())
 
-    def _checkPalette(self, pal: QtGui.QPalette):
-        # print the colours from the updated palette - only 'highlight' seems to be effective
-        # QT modifies this to give different selection shades depending on the widget
-        # print(f'--> setting {self.__class__.__name__} styleSheet')
-        base = pal.base().color().lightness()
-        highlight = pal.highlight().color()
-        _highlightColour = QtGui.QColor.fromHslF(0.625,  #highlight.hueF(),
-                                       # tweak the highlight colour depending on the theme
-                                       #    needs to go in the correct place
-                                       0.8 if base > 127 else 0.75,
-                                       0.5 if base > 127 else 0.65
-                                       )
-        if self.isSelected:
-            self.setBrush(_highlightColour)
-        else:
-            self.setBrush(QtGui.QColor('#808080'))
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        """Change text colour when theme changes.
+        QGraphicsItems have no palette/stylesheet, so need change-event.
+        """
+        self.setBrush(pal.text().color())
 
     def mouseDoubleClickEvent(self, event):
         """CCPN INTERNAL - re-implementation of double click event
@@ -224,46 +206,22 @@ class GuiNmrResidue(QtWidgets.QGraphicsSimpleTextItem):
     def __init__(self, parent, nmrResidue, caAtom, lineSpacing):
 
         super().__init__(nmrResidue.id)
-        # self.setPlainText(nmrResidue.id)
 
-        # self.mainWindow = parent.mainWindow
-        # self.application = parent.mainWindow.application
-        # self.project = parent.mainWindow.project
         self.current = parent.mainWindow.application.current
-
-        # self.setFont(self.mainWindow.application._fontSettings.textFontSmall)
-        setWidgetFont(self, name=SEQUENCEGRAPHFONT, size='MEDIUM')
-
-        # self.colours = getColours()
-        # # self.setDefaultTextColor(QtGui.QColor(self.colours[GUINMRRESIDUE]))
-        # self.setBrush(QtGui.QColor(self.colours[GUINMRRESIDUE]))
-
-        self.setPos(caAtom.x() - caAtom.boundingRect().width(), caAtom.y() + (2 * lineSpacing))
-
-        self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable)
         self._parent = parent
         self.nmrResidue = nmrResidue
-
+        setWidgetFont(self, name=SEQUENCEGRAPHFONT, size='MEDIUM')
+        self.setPos(caAtom.x() - caAtom.boundingRect().width(), caAtom.y() + (2 * lineSpacing))
+        self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable)
         # self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        QtWidgets.QApplication.instance().paletteChanged.connect(self._checkPalette)
+        QtWidgets.QApplication.instance()._sigPaletteChanged.connect(self._checkPalette)
         self._checkPalette(parent.mainWindow.palette())
 
-    def _checkPalette(self, pal: QtGui.QPalette):
-        # print the colours from the updated palette - only 'highlight' seems to be effective
-        # QT modifies this to give different selection shades depending on the widget
-        # print(f'--> setting {self.__class__.__name__} styleSheet')
-        base = pal.base().color().lightness()
-        highlight = pal.highlight().color()
-        _highlightColour = QtGui.QColor.fromHslF(0.625, #highlight.hueF(),
-                                                 # tweak the highlight colour depending on the theme
-                                                 #    needs to go in the correct place
-                                                 0.8 if base > 127 else 0.75,
-                                                 0.5 if base > 127 else 0.65
-                                                 )
-        if self.isSelected:
-            self.setBrush(_highlightColour)
-        else:
-            self.setBrush(QtGui.QColor('#808080'))
+    def _checkPalette(self, pal: QtGui.QPalette, *args):
+        """Change text colour when theme changes.
+        QGraphicsItems have no palette/stylesheet, so need change-event.
+        """
+        self.setBrush(pal.text().color())
 
     def _update(self):
         # self.setPlainText(self.nmrResidue.id)
@@ -503,13 +461,13 @@ class GuiSelectionBoxes(QtWidgets.QGraphicsItemGroup):
     def addSelectionRightBracket(self, nmrResidue, guiRes, colour, width, style, spacing):
         self._addItem(nmrResidue, guiRes, colour, width, style, spacing, 'right')
 
-    def _addItem(self, nmrResidue, guiRes, colour, width, style, spacing, type):
-        _name = nmrResidue.pid + type
+    def _addItem(self, nmrResidue, guiRes, colour, width, style, spacing, itemType):
+        _name = nmrResidue.pid + itemType
         if _name in self.selectionBoxes:
             self._scene.removeItem(self.selectionBoxes[_name])
 
         # add the new selection lines, and push to the back
-        _newGroup = GuiSelection(guiRes, colour, width, style, spacing, type)
+        _newGroup = GuiSelection(guiRes, colour, width, style, spacing, itemType)
         _newGroup.setParentItem(guiRes)
         _newGroup.setZValue(-2)
 
@@ -527,7 +485,7 @@ class GuiSelection(QtWidgets.QGraphicsItemGroup):
     Item to hold the lines for a selection
     """
 
-    def __init__(self, guiRes, colour, width, style, spacing, type):
+    def __init__(self, guiRes, colour, width, style, spacing, itemType):
         super().__init__()
 
         self._colour = colour
@@ -548,7 +506,7 @@ class GuiSelection(QtWidgets.QGraphicsItemGroup):
         _xOffset = spacing * 0.4
         _yOffset = spacing * 0.45
 
-        if type == 'selected':
+        if itemType == 'selected':
             # lines for a box
             # coords = ((0, 0), (1, 0), (1, 0), (1, 1), (1, 1), (0, 1), (0, 1), (0, 0))
             # _scale = spacing * 2.8
@@ -573,8 +531,8 @@ class GuiSelection(QtWidgets.QGraphicsItemGroup):
             _lineGroup.addToGroup(_line)
             return
 
-        elif type in ['left', 'right']:
-            if type == 'left':
+        elif itemType in ['left', 'right']:
+            if itemType == 'left':
                 # lines for a left square bracket
                 coords = ((0.125, 0), (0, 0), (0, 0), (0, 1), (0, 1), (0.125, 1))
 
@@ -992,7 +950,8 @@ class NmrResidueList():
         for nmrResidue in nmrResidues:
             if nmrResidue in self.guiNmrResidues:
                 guiRes = self.guiNmrResidues[nmrResidue]
-                self.guiSelectionBoxes.addSelection(nmrResidue, guiRes, getColours()[BORDERFOCUS], self._lineWidth,
+                self.guiSelectionBoxes.addSelection(nmrResidue, guiRes,
+                                                    Base._highlightMid, 2,
                                                     None, self._atomSpacing)
 
     #==========================================================================================
@@ -3177,13 +3136,20 @@ class SequenceGraphModule(CcpnModule):
                     if self.application._isInDebugMode:
                         raise es
 
-    def _setFocusColour(self, focusColour=None, noFocusColour=None):
+    def _setStyle(self):
         """Set the focus/noFocus colours for the widget
         """
-        styleSheet = """QGraphicsView {
-                            border-radius: 2px;
-                        }"""
-        self.scrollContents.setStyleSheet(styleSheet)
+        _style = """QGraphicsView {
+                        border: 1px solid palette(mid);
+                        border-radius: 2px;
+                    }
+                    QGraphicsView:focus {
+                        border: 1px solid palette(highlight);
+                        border-radius: 2px;
+                    }
+                    QGraphicsView:disabled { background-color: palette(midlight); }
+                    """
+        self.scrollContents.setStyleSheet(_style)
 
     def initialiseScene(self):
         """Replace the scene with a new one to reset the size of the scrollbars.
@@ -3199,7 +3165,7 @@ class SequenceGraphModule(CcpnModule):
 
         self._sequenceGraphScrollArea.setWidget(self.scrollContents)
 
-        self._setFocusColour()
+        self._setStyle()
 
     def predictSequencePosition(self, nmrResidueList: list, showPredictions=True):
         """
