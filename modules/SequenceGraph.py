@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Vicky Higman $"
-__dateModified__ = "$dateModified: 2024-07-05 14:51:42 +0100 (Fri, July 05, 2024) $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-09-10 17:36:58 +0100 (Tue, September 10, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -81,7 +81,6 @@ from ccpnc.clibrary import Clibrary
 
 _getNmrIndex = Clibrary.getNmrResidueIndex
 
-logger = getLogger()
 ALL = '<Use all>'
 _EDIT_OPTION = 'Edit NmrResidue'
 _SHOW_OPTION = 'Show NmrResidue'
@@ -2240,7 +2239,7 @@ class SequenceGraphModule(CcpnModule):
         """Manually select a Sequence from the pullDown
         """
         if nmrChain is None:
-            # logger.warning('select: No Sequence selected')
+            # getLogger().warning('select: No Sequence selected')
             # raise ValueError('select: No Sequence selected')
             self.nmrChainPulldown.selectFirstItem()
 
@@ -2250,7 +2249,7 @@ class SequenceGraphModule(CcpnModule):
                     self.nmrChainPulldown.select(nmrChain.pid)
 
         else:
-            logger.warning('select: Object is not of type Sequence')
+            getLogger().warning('select: Object is not of type Sequence')
             raise TypeError('select: Object is not of type Sequence')
 
     def _registerNotifiers(self):
@@ -2365,7 +2364,7 @@ class SequenceGraphModule(CcpnModule):
     #     self.modePulldown.select(mode)
     #     self.setNmrChainDisplay(self.nmrChainPulldown.getText())
     #   else:
-    #     logger.warning('No valid NmrChain is selected.')
+    #     getLogger().warning('No valid NmrChain is selected.')
 
     # def _addAdjacentResiduesToSet(self, nmrResidue, residueSet):
     #     residueSet.add(nmrResidue)
@@ -3257,12 +3256,12 @@ class SequenceGraphModule(CcpnModule):
         if not nmrResidue:
             return
 
-        logger.debug('nmrResidue=%s' % (nmrResidue.id))
+        getLogger().debug('nmrResidue=%s' % (nmrResidue.id))
 
         displays = self._SGwidget.displaysWidget.getDisplays()
 
         if len(displays) == 0:
-            logger.warning('Undefined display module(s); select in settings first')
+            getLogger().warning('Undefined display module(s); select in settings first')
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
             return
 
