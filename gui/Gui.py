@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-09-12 08:50:01 +0100 (Thu, September 12, 2024) $"
+__dateModified__ = "$dateModified: 2024-09-12 10:40:56 +0100 (Thu, September 12, 2024) $"
 __version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
@@ -49,7 +49,6 @@ class AnalysisAssignGui(Gui):
         """
         menuDefs = super()._getMenuDefs()
 
-        app = self.application
         _assignMenu = \
     Menu("Assign",
 
