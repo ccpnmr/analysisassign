@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:54 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-09-19 13:38:31 +0100 (Thu, September 19, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2295,13 +2295,13 @@ class SequenceGraphModule(CcpnModule):
                                                       partial(self._queueGeneralNotifier, self._updateSpectra),
                                                       onceOnly=True)
 
-        self._currentNmrResidueNotifier = self.setCurrentNotifier(targetName=NmrResidue._pluralLinkName,
-                                                                  callback=self._selectCurrentNmrResidues)
+        self.setCurrentNotifier(targetName=NmrResidue._pluralLinkName,
+                                callback=self._selectCurrentNmrResidues)
 
         # new notifier to respond to changing current nmrChain
         if self.activePulldownClass:
-            self._setCurrentPulldown = self.setCurrentNotifier(targetName=self.activePulldownClass._pluralLinkName,
-                                                               callback=self._selectCurrentPulldownClass)
+            self.setCurrentNotifier(targetName=self.activePulldownClass._pluralLinkName,
+                                    callback=self._selectCurrentPulldownClass)
 
     def _selectCurrentPulldownClass(self, data):
         """Respond to change in current activePulldownClass
@@ -2995,12 +2995,8 @@ class SequenceGraphModule(CcpnModule):
             self._nmrAtomNotifier.unRegisterNotifier()
         if self._spectrumListNotifier:
             self._spectrumListNotifier.unRegisterNotifier()
-        if self._currentNmrResidueNotifier:
-            self._currentNmrResidueNotifier.unRegisterNotifier()
         if self.nmrChainPulldown:
             self.nmrChainPulldown.unRegister()
-        if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegisterNotifier()
 
     def unlinkNearestNmrResidue(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
