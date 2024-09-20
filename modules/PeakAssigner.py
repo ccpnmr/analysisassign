@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:42 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-08-23 19:21:54 +0100 (Fri, August 23, 2024) $"
+__version__ = "$Revision: 3.2.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -1016,9 +1016,6 @@ class AxisAssignmentObject(Frame):
         self.chainPulldown.activated.connect(self._userSelectChainFromPulldown)
         self.seqCodePulldown.activated.connect(self._userSelectSeqCodeFromPulldown)
         self.resTypePulldown.activated.connect(self._userSelectResTypeFromPulldown)
-        # just to change the colour
-        self.resTypePulldown.currentIndexChanged.connect(partial(self._setPulldownTextColour, self.resTypePulldown))
-        self.atomTypePulldown.currentIndexChanged.connect(partial(self._setPulldownTextColour, self.atomTypePulldown))
         return _frame
 
     def _userSelectChainFromPulldown(self, *args):
@@ -1039,7 +1036,7 @@ class AxisAssignmentObject(Frame):
             resType = nmrResidue.residueType
             _ind = self.resTypePulldown.texts.index(resType) if resType in self.resTypePulldown.texts else 0
             self.resTypePulldown.setIndex(_ind)
-            self._setPulldownTextColour(self.resTypePulldown)
+            self.resTypePulldown.repaint()
             # set the atom-names
             self._setAtomNames(nmrResidue=nmrResidue)
             # colour as required
@@ -1062,24 +1059,6 @@ class AxisAssignmentObject(Frame):
             self._setPulldownColours(nmrResidue)
         else:
             self._resetPulldownColours()
-
-    @staticmethod
-    def _setPulldownTextColour(combo):
-        """Set the colour of the pulldown text
-        """
-        ind = combo.currentIndex()
-        model = combo.model()
-        item = model.item(ind)
-        if item is not None and item.text():
-            # use the palette to change the colour of the selection text - may not match for other themes
-            palette = combo.palette()
-            palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, item.foreground().color())
-        else:
-            palette = combo.palette()
-            fg = palette.color(QtGui.QPalette.Active, QtGui.QPalette.BrightText)
-            palette.setColor(QtGui.QPalette.Active, QtGui.QPalette.Text, fg)
-
-        combo.setPalette(palette)
 
     def _acceptNmrAtomCallback(self, pulldown=None, *args):
         """Perform different acceptFunc depending on the mode
@@ -1322,6 +1301,10 @@ class AxisAssignmentObject(Frame):
 
         mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)),
                             None)
+        for combo in {self.chainPulldown, self.seqCodePulldown, self.resTypePulldown, self.atomTypePulldown}:
+            # need to change from editable->non-editable->editable to force stylesheets to update correctly
+            combo.setEditable(False)
+            combo.setEditable(True)
         self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
                               side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
                               target_screen=mouse_screen)
@@ -1416,9 +1399,14 @@ class AxisAssignmentObject(Frame):
 
         mouse_screen = next((screen for screen in QtGui.QGuiApplication.screens() if screen.geometry().contains(pos)),
                             None)
+        for combo in {self.chainPulldown, self.seqCodePulldown, self.resTypePulldown, self.atomTypePulldown}:
+            # need to change from editable->non-editable->editable to force stylesheets to update correctly
+            combo.setEditable(False)
+            combo.setEditable(True)
         self.editPopup.showAt(global_rect, preferred_side=Side.TOP,
                               side_priority=(Side.TOP, Side.BOTTOM, Side.RIGHT, Side.LEFT),
                               target_screen=mouse_screen)
+
         # give the popup time to appear
         QtCore.QTimer.singleShot(0, self.chainPulldown.setFocus)
 
@@ -1808,30 +1796,31 @@ class AxisAssignmentObject(Frame):
             self.lastNmrAtomSelected = None
 
     def _resetPulldownColours(self):
+        # reset all items to the palette foreground colour
         for combo in (self.resTypePulldown, self.atomTypePulldown):
             model = combo.model()
             for ii in range(len(combo.texts)):
                 itm = model.item(ii)
                 if PULLDOWNPREFIX not in itm.text():
-                    itm.setForeground(DEFAULT_COLOR)
-            self._setPulldownTextColour(combo)
+                    # clear the colour and revert to palette.Text
+                    itm.setData(None, QtCore.Qt.ForegroundRole)
+            combo.repaint()
 
     def _setPulldownColours(self, nmrResidue: NmrResidue):
         if not nmrResidue:
             return
 
         residueType = nmrResidue.residueType
-        blueCol = QtGui.QColor('blue')
+        blueCol = QtGui.QColor('dodgerblue')
         greenCol = QtGui.QColor('seagreen')
-
         combo = self.resTypePulldown
         model = combo.model()
         _inds = [ii for ii, val in enumerate(self.resTypePulldown.texts) if val and val == residueType]
         for ind in range(len(combo.texts)):
             itm = model.item(ind)
-            if PULLDOWNPREFIX not in itm.text():
-                itm.setForeground(blueCol if ind in _inds else DEFAULT_COLOR)
-        self._setPulldownTextColour(combo)
+            if PULLDOWNPREFIX not in itm.text() and ind in _inds:
+                itm.setData(blueCol, QtCore.Qt.ForegroundRole)
+        combo.repaint()
 
         combo = self.atomTypePulldown
         model = combo.model()
@@ -1839,8 +1828,8 @@ class AxisAssignmentObject(Frame):
                  val in [nmrAt.name for nmrAt in nmrResidue.nmrAtoms]}
         for ind in range(len(combo.texts)):
             itm = model.item(ind)
-            if PULLDOWNPREFIX not in itm.text():
-                itm.setForeground(greenCol if ind in _inds else DEFAULT_COLOR)
+            if PULLDOWNPREFIX not in itm.text() and ind in _inds:
+                itm.setData(greenCol, QtCore.Qt.ForegroundRole)
 
         if self._clickedNmrAtom:
             _inds = {ii for ii, val in enumerate(self.atomTypePulldown.texts) if
@@ -1848,9 +1837,8 @@ class AxisAssignmentObject(Frame):
             for ind in _inds:
                 itm = model.item(ind)
                 if PULLDOWNPREFIX not in itm.text():
-                    itm.setForeground(blueCol)
-
-        self._setPulldownTextColour(combo)
+                    itm.setData(blueCol, QtCore.Qt.ForegroundRole)
+        combo.repaint()
 
     def _setDefaultPulldowns(self):
         """Clear the contents of the pullDowns
@@ -1906,10 +1894,9 @@ class AxisAssignmentObject(Frame):
         residueTypes = list(set(OrderedDict.fromkeys(residueTypes)))
 
         self.resTypePulldown.setData(sorted(residueTypes, key=CcpnSorting.stringSortKey))
-        self.resTypePulldown.setIndex(
-                self.resTypePulldown.texts.index(thisRes) if thisRes in self.resTypePulldown.texts else 0)
-
-        self._setPulldownTextColour(self.resTypePulldown)
+        self.resTypePulldown.setIndex(self.resTypePulldown.texts.index(thisRes)
+                                      if thisRes in self.resTypePulldown.texts else 0)
+        self.resTypePulldown.repaint()
 
     def _setAtomNames(self, nmrAtom=None, nmrResidue=None):
         """Populate the atomNames pulldown from the project
@@ -1984,7 +1971,8 @@ class AxisAssignmentObject(Frame):
         if nmrAtomName:
             self.atomTypePulldown.setIndex(self.atomTypePulldown.texts.index(thisAtom)
                                            if thisAtom in self.atomTypePulldown.texts else 0)
-        self._setPulldownTextColour(self.resTypePulldown)
+        self.atomTypePulldown.repaint()
+        self.resTypePulldown.repaint()
 
         self.atomTypePulldown.disableLabelsOnPullDown([OtherNames, OtherByIC, OtherByResType])
 
