@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-05 12:50:33 +0100 (Fri, July 05, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2024-10-03 15:35:35 +0100 (Thu, October 03, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -127,12 +127,15 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.settingsTabWidget.addTab(self.extensionsSettingsFrame, 'Extensions')
         self._addExtensionsToSettings()
 
-    def _setupGeneralSettings(self):
+    def _setupGeneralSettings(self):  # here?
         """add to the layout of the general settings widgets"""
         ### Settings ###
+        settingsDict = self.application.preferences.modules.backBoneAssignment
 
         # change defaults setting inherited from NmrResidueTableModule
-        self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(True)
+        self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(settingsDict["showSequentialStrips"])
+        self.nmrResidueTableSettings.markPositionsWidget.checkBox.setChecked(settingsDict["markPositions"])
+        self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.setChecked(settingsDict["autoClearMarks"])
         if self.nmrResidueTableSettings.displaysWidget:
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
 
@@ -172,7 +175,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                                 fixedWidths=(colWidth0, colWidth0 // 3, None),
                                                                 labelText=texts[0],
                                                                 minimum=1, maximum=MAXMATCHES,
-                                                                value=DEFAULTMATCHES
+                                                                value=settingsDict["numberOfMinusMatchesWidget"]
                                                                 )
         row += 1
         self.numberOfPlusMatchesWidget = SpinBoxCompoundWidget(self.nmrResidueTableSettings,
@@ -181,7 +184,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                                fixedWidths=(colWidth0, colWidth0 // 3, None),
                                                                labelText=texts[1],
                                                                minimum=1, maximum=MAXMATCHES,
-                                                               value=DEFAULTMATCHES
+                                                               value=settingsDict["numberOfPlusMatchesWidget"]
                                                                )
 
         row += 1
@@ -190,7 +193,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                         fixedWidths=(colWidth0, None),
                                                         orientation='left',
                                                         labelText='Show Search Strip in Match Module',
-                                                        checked=False
+                                                        checked=settingsDict["showStripInMatch"]
                                                         )
 
         # new search module pulldown list
@@ -209,7 +212,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                  fixedWidths=(colWidth0, None),
                                                  orientation='left',
                                                  labelText='Focus Y-Axis',
-                                                 checked=True
+                                                 checked=settingsDict["focusYAxis"]
                                                  )
 
         # re-order, move the sequential checkbox to here, swap with focusYAxis checkbox - not nice method :|
@@ -227,7 +230,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                               orientation='left',
                                               labelText='Match CA NmrAtoms',
                                               callback=self._setNmrAtomsToMatch,
-                                              checked=True
+                                              checked=settingsDict["matchCA"]
                                               )
         row += 1
         self.matchCB = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
@@ -236,7 +239,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                               orientation='left',
                                               labelText='Match CB NmrAtoms',
                                               callback=self._setNmrAtomsToMatch,
-                                              checked=True
+                                              checked=settingsDict["matchCB"]
                                               )
         row += 1
         self.matchC = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
@@ -245,7 +248,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                              orientation='left',
                                              labelText='Match C NmrAtoms',
                                              callback=self._setNmrAtomsToMatch,
-                                             checked=False
+                                             checked=settingsDict["matchC"]
                                              )
         self._setNmrAtomsToMatch()
 
@@ -263,7 +266,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self._setupShiftDicts()
 
         self._activeLinkCheckbox = self.activePulldownClass and getattr(self.nmrResidueTableSettings, LINKTOPULLDOWNCLASS, None)
-
+        self._activeLinkCheckbox.set(settingsDict["linkToCurrentNmrChain"])
         # align the widgets in the settings-widget
         alignWidgets(self.nmrResidueTableSettings)
 
@@ -966,11 +969,28 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             if notifier:
                 notifier.unRegister()
 
+        self._saveSettings()
+
         self._stripNotifiers = []
         if self.shiftListWidget:
             self.shiftListWidget.unRegister()
         super()._closeModule()
 
+    def _saveSettings(self):
+        """Save settings as a dict into preferences."""
+        self.application.preferences.modules.backBoneAssignment = {
+            "markPositions": self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked(),
+            "autoClearMarks": self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked(),
+            "linkToCurrentNmrChain": self._activeLinkCheckbox.isChecked(),
+            "focusYAxis": self.focusYAxis.isChecked(),
+            "numberOfMinusMatchesWidget": self.numberOfMinusMatchesWidget.getValue(),
+            "numberOfPlusMatchesWidget": self.numberOfPlusMatchesWidget.getValue(),
+            "showStripInMatch" : self.showSearchInMatch.isChecked(),
+            "showSequentialStrips": self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.isChecked(),
+            "matchCA": self.matchCA.isChecked(),
+            "matchCB": self.matchCB.isChecked(),
+            "matchC": self.matchC.isChecked()
+            }
 
 def nmrAtomsFromResidue(nmrResidue):
     """
