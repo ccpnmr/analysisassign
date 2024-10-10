@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-26 14:52:13 +0100 (Wed, June 26, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__dateModified__ = "$dateModified: 2024-10-02 09:59:39 +0100 (Wed, October 02, 2024) $"
+__version__ = "$Revision: 3.2.7 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -44,7 +44,7 @@ class Assign(Framework):
 
     def _setupMenus(self):
         super()._setupMenus()
-        menuSpec = ('Assign', [("Set up NmrResidues", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
+        menuSpec = ('Assign', [("Set up NmrResidues...", self.showSetupNmrResiduesPopup, [('shortcut', 'sn')]),
                                ("Pick and Assign", self.showPickAndAssignModule, [('shortcut', 'pa')]),
                                ("Propagate Assignments", self.propagateAssignments, [('shortcut', 'pg')]),
                                ("Copy Assignments", self.copyAssignments, [('shortcut', 'ca')]),
