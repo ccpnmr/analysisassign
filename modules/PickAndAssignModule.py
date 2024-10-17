@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 10:36:04 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 10:43:50 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -414,14 +414,16 @@ class PickAndAssignModule(CcpnModule):
                 nmrResidues = self._getSelected()
                 self._assignSelectedResidues(peaks, nmrResidues)
 
+            if self.automaticBbNmrAtomAssignment:
+                self.bbAssignCarbonNmrAtoms()
+
     def _assignSelectedPeaks(self, peaks):
         peakSet = set(self.current.peaks)
         if peaks:
             peakSet.update(peaks)
         copyAssignments(list(peakSet))
 
-        if self.automaticBbNmrAtomAssignment:
-            self.bbAssignCarbonNmrAtoms()
+
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
@@ -548,11 +550,10 @@ class PickAndAssignModule(CcpnModule):
                         if isinstance(obj, NmrResidue):
                             self._assignSelectedResidues(peaks, [obj, ])
                     curPeaks |= OrderedSet(peaks)
+                    self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
 
-            self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
-
-            if self.automaticBbNmrAtomAssignment:
-                self.bbAssignCarbonNmrAtoms()
+                    if self.automaticBbNmrAtomAssignment and assign and self.current.peaks:
+                        self.bbAssignCarbonNmrAtoms()
 
             if progress.cancelled:
                 while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
