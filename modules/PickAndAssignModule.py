@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-06 16:35:02 +0000 (Thu, March 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 10:36:04 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -60,6 +60,8 @@ from typing import Iterator, Iterable
 from OpenGL.logs import getLog
 from PyQt5.QtWidgets import QStackedWidget
 from PyQt5 import QtWidgets, QtCore
+from statistics import mean
+from collections import defaultdict
 # from icecream import ic
 
 from ccpn.core.Peak import Peak
@@ -93,6 +95,17 @@ logger = getLogger()
 ALL = '<Use all>'
 SelectToAdd = '> select-to-add <'
 
+# ------------------------------------ BbAssign settings ------------------------------------ #
+
+assignIsotope = '13C'  # Isotope of dimension to be assigned
+rootIsotope = '1H'  # Isotope of one of the root dimensions which has already been assigned
+
+iSpectra = ['H[N[CA]]', 'H[N[ca[CO]]]', 'H[N[{CA|ca[Cali]}]]']
+
+exptTypeFilter = ['H[N[CA]]', 'H[N[co[CA]]]', 'H[N[ca[CO]]]', 'H[N[CO]]',
+                  'H[N[{CA|ca[Cali]}]]', 'h{CA|Cca}coNH', 'H[N[co[{CA|ca[C]}]]]']
+
+# ------------------------------------------------------------------------------------------- #
 
 # class PickAndAssignModuleO(NmrResidueTableModule):
 #     """
@@ -263,6 +276,22 @@ class PickAndAssignModule(CcpnModule):
         self.tables = [self.nmrChainTable, self.peakTable]
         # self.stackedTableWidget.addTablesToFrame(self.tables)
 
+    @property
+    def automaticBbNmrAtomAssignment(self):
+        return self.nmrResidueTableSettings.automaticBbNmrAtomAssignment.isChecked()
+
+    @property
+    def glyHasCaSign(self):
+        return self.nmrResidueTableSettings.glyHasCaSign.isChecked()
+
+    @property
+    def casPosCbsNeg(self):
+        radInd = self.nmrResidueTableSettings.casPosCbsNeg.getIndex()
+        if radInd == 0:
+            return True
+        elif radInd == 1:
+            return False
+
     def _registerNotifiers(self):
         """
         set up the notifiers
@@ -290,11 +319,10 @@ class PickAndAssignModule(CcpnModule):
     def _getDisplay(self):
         """Get the current selected spectrum-display from the pulldown
         """
-        if (pulldown := self.nmrResidueTableSettings.spectrumDisplayPulldown) and \
+        if self.nmrResidueTableSettings.spectrumDisplayPulldown and \
                 (texts := self.nmrResidueTableSettings.spectrumDisplayPulldown.getTexts()):
             if ALL in texts:
-                gids = [self.application.getByGid(gid) for gid in pulldown.pulldownList.texts
-                        if gid not in [ALL, SelectToAdd]]
+                gids = self.project.spectrumDisplays
             else:
                 gids = [self.application.getByGid(gid) for gid in texts if gid not in [ALL, SelectToAdd]]
             return gids
@@ -391,6 +419,9 @@ class PickAndAssignModule(CcpnModule):
         if peaks:
             peakSet.update(peaks)
         copyAssignments(list(peakSet))
+
+        if self.automaticBbNmrAtomAssignment:
+            self.bbAssignCarbonNmrAtoms()
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
@@ -519,6 +550,10 @@ class PickAndAssignModule(CcpnModule):
                     curPeaks |= OrderedSet(peaks)
 
             self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
+
+            if self.automaticBbNmrAtomAssignment:
+                self.bbAssignCarbonNmrAtoms()
+
             if progress.cancelled:
                 while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
                     undoStack.undo()
@@ -766,3 +801,241 @@ class StackedTableFrameWidget(Frame):
 #                 self.current.nmrResidue = nmrResidue
 
 
+
+    def bbAssignCarbonNmrAtoms(self):
+        if len(self.current.peaks) == 0:
+            showWarning('No Peaks selected', 'Please make sure you have selected some peaks with '
+                                             'assigned root (NH) resonances.')
+            return
+
+        with undoBlockWithoutSideBar():
+            pkDict = defaultdict(list)
+            GlyCheck = False
+            glyCheckDict = {'CA-1': {'shifts': [], 'peaks': []},
+                            'CB-1': {'shifts': [], 'peaks': []},
+                            'CA0' : {'shifts': [], 'peaks': []},
+                            'CB0' : {'shifts': [], 'peaks': []}}
+            GSTCheck = False
+            gstCheckDict = {'CA-1': {'shifts': [], 'peaks': []},
+                            'CB-1': {'shifts': [], 'peaks': []}}
+
+            for peak in self.current.peaks:
+                rootDim = \
+                    [ind for ind, value in enumerate(peak.peakList.spectrum.isotopeCodes) if value == rootIsotope][0]
+
+                # Check peak root dim is assigned
+                if peak.assignmentsByDimensions[rootDim]:
+                    peakNmrRes = peak.assignmentsByDimensions[rootDim][0].nmrResidue
+                    peakNmrChain = peak.assignmentsByDimensions[rootDim][0].nmrResidue.nmrChain
+                else:
+                    showWarning('Missing Root Assignment', 'Please make sure all your peaks have '
+                                                           'their root NH NmrAtoms assigned')
+                    return
+                # Put peaks into pkDict
+                peakExptType = peak.peakList.spectrum.experimentType
+
+                if peakExptType not in exptTypeFilter:
+                    getLogger().warning('Spectrum Experiment Type not valid for automatic C/CA/CB NmrAtom '
+                                        'assignment...skipping')
+                    continue
+
+                if peakExptType is None:
+                    showWarning('Missing Experiment Type', 'Please make sure all '
+                                                           'your spectra have an Experiment Type '
+                                                           'associated with them (use shortcut ET '
+                                                           'to set these)')
+                    return
+
+                if peakExptType not in pkDict:
+                    pkDict[peakExptType] = [peak]
+                else:
+                    pkDict[peakExptType].append(peak)
+
+            for expt in pkDict:
+                if expt in iSpectra:
+                    allPeaks = sorted(pkDict[expt], key=lambda x: x.height if x.height else 0, reverse=True)
+                    highestPeak = allPeaks[0]
+                    lowestPeak = allPeaks[-1]
+                for peak in pkDict[expt]:
+                    assignDim = getAssignDim(peak)
+                    peakNmrRes = peak.assignmentsByDimensions[rootDim][0].nmrResidue
+                    peakSeqCode = peakNmrRes.sequenceCode
+                    peakShift = peak.ppmPositions[assignDim]
+
+                    if expt == 'H[N[CA]]':
+                        if peak == highestPeak:
+                            assignNmrAtom(peakSeqCode, atomName='CA', offset=0, pkNmrChain=peakNmrChain, pk=peak,
+                                          pkNmrRes=peakNmrRes)
+                        else:
+                            assignNmrAtom(peakSeqCode, atomName='CA', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                          pkNmrRes=peakNmrRes)
+                    elif expt == 'H[N[co[CA]]]':
+                        assignNmrAtom(peakSeqCode, atomName='CA', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                      pkNmrRes=peakNmrRes)
+                    elif expt == 'H[N[ca[CO]]]':
+                        if peak == highestPeak:
+                            assignNmrAtom(peakSeqCode, atomName='C', offset=0, pkNmrChain=peakNmrChain, pk=peak,
+                                          pkNmrRes=peakNmrRes)
+                        else:
+                            assignNmrAtom(peakSeqCode, atomName='C', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                          pkNmrRes=peakNmrRes)
+                    elif expt == 'H[N[CO]]':
+                        assignNmrAtom(peakSeqCode, atomName='C', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                      pkNmrRes=peakNmrRes)
+                    elif expt == 'H[N[{CA|ca[Cali]}]]':
+                        if peak == highestPeak:
+                            if self.casPosCbsNeg:
+                                assignNmrAtom(peakSeqCode, atomName='CA', offset=0, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CA0', glyCheckDict=glyCheckDict)
+                            else:
+                                assignNmrAtom(peakSeqCode, atomName='CB', offset=0, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CB0', glyCheckDict=glyCheckDict)
+                        elif peak == lowestPeak:
+                            if self.casPosCbsNeg:
+                                assignNmrAtom(peakSeqCode, atomName='CB', offset=0, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CB0', glyCheckDict=glyCheckDict)
+                            else:
+                                assignNmrAtom(peakSeqCode, atomName='CA', offset=0, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CA0', glyCheckDict=glyCheckDict)
+                        elif peak.height > 0:
+                            if self.casPosCbsNeg:
+                                assignNmrAtom(peakSeqCode, atomName='CA', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CA-1', glyCheckDict=glyCheckDict)
+                            else:
+                                assignNmrAtom(peakSeqCode, atomName='CB', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CB-1', glyCheckDict=glyCheckDict)
+                        elif peak.height < 0:
+                            if self.casPosCbsNeg:
+                                assignNmrAtom(peakSeqCode, atomName='CB', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CB-1', glyCheckDict=glyCheckDict)
+                            else:
+                                assignNmrAtom(peakSeqCode, atomName='CA', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                              pkNmrRes=peakNmrRes)
+                                storeDataForGlyCheck(peakShift, peak, atomType='CA-1', glyCheckDict=glyCheckDict)
+                        GlyCheck = True
+                    elif expt == 'H[N[co[{CA|ca[C]}]]]' or expt == 'h{CA|Cca}coNH':
+                        if peakShift >= 47.0:
+                            assignNmrAtom(peakSeqCode, atomName='CA', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                          pkNmrRes=peakNmrRes)
+                            storeDataForGSTCheck(peakShift, peak, atomType='CA-1', checkDict=gstCheckDict)
+                        elif peakShift < 47.0:
+                            assignNmrAtom(peakSeqCode, atomName='CB', offset=-1, pkNmrChain=peakNmrChain, pk=peak,
+                                          pkNmrRes=peakNmrRes)
+                            storeDataForGSTCheck(peakShift, peak, atomType='CB-1', checkDict=gstCheckDict)
+                        GSTCheck = True
+
+            if GlyCheck:
+                checkForGly(glyCheckDict, self.glyHasCaSign)
+            if GSTCheck:
+                checkForGST(gstCheckDict)
+
+
+def getAssignDim(peak):
+    try:
+        assignDim = [ind for ind, value in enumerate(peak.peakList.spectrum.isotopeCodes) if value == assignIsotope][0]
+    except IndexError as e:
+        print(f'{e}, {peak}, {peak.peakList.spectrum.isotopeCodes}')
+        return
+    return assignDim
+
+
+def getAssignAxisCode(peak):
+    assignDim = getAssignDim(peak)
+    assignAxCde = peak.peakList.spectrum.axisCodes[assignDim]
+    return assignAxCde
+
+
+def assignNmrAtom(seqCode, atomName, offset, pkNmrChain, pk, pkNmrRes):
+    if offset == -1:
+        newsc = ''.join((seqCode, '-1'))
+        newnr = pkNmrChain.fetchNmrResidue(sequenceCode=newsc, residueType=None)
+        newna = newnr.fetchNmrAtom(name=atomName, isotopeCode=assignIsotope)
+        assignAxCde = getAssignAxisCode(pk)
+        pk.assignDimension(axisCode=assignAxCde, value=newna)
+    elif offset == 0:
+        newna = pkNmrRes.fetchNmrAtom(name=atomName, isotopeCode=assignIsotope)
+        assignAxCde = getAssignAxisCode(pk)
+        pk.assignDimension(axisCode=assignAxCde, value=newna)
+
+
+def storeDataForGlyCheck(peakShift, peak, atomType, glyCheckDict):
+    glyCheckDict[atomType]['shifts'].append(peakShift)
+    glyCheckDict[atomType]['peaks'].append(peak)
+
+
+def checkForGly(glyDict, hasCaSign):
+    cas_1 = glyDict['CA-1']['shifts']
+    cbs_1 = glyDict['CB-1']['shifts']
+    cas0 = glyDict['CA0']['shifts']
+    cbs0 = glyDict['CB0']['shifts']
+    if hasCaSign:
+        if len(cbs_1) == 0 and 48.5 > mean(cas0) > 40.0:
+            # this is an i Glycine
+            for pk in glyDict['CB0']['peaks']:
+                assignDim = getAssignDim(pk)
+                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.getOffsetNmrResidue(-1)
+                na = nr.fetchNmrAtom(name='CB', isotopeCode=assignIsotope)
+                assignAxCde = getAssignAxisCode(pk)
+                pk.assignDimension(axisCode=assignAxCde, value=na)
+    else:
+        if len(cas_1) == 0 and 48.5 > mean(cbs_1) > 40.0:
+            # this is an i-1 Glycine
+            for pk in glyDict['CB-1']['peaks']:
+                assignDim = getAssignDim(pk)
+                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.mainNmrResidue
+                na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
+                assignAxCde = getAssignAxisCode(pk)
+                pk.assignDimension(axisCode=assignAxCde, value=na)
+        elif len(cas_1) == 0 and 48.5 > mean(cbs0) > 40.0:
+            # this is an i Glycine
+            for pk in glyDict['CB0']['peaks']:
+                assignDim = getAssignDim(pk)
+                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue
+                na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
+                assignAxCde = getAssignAxisCode(pk)
+                pk.assignDimension(axisCode=assignAxCde, value=na)
+            for pk in glyDict['CA0']['peaks']:
+                assignDim = getAssignDim(pk)
+                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.getOffsetNmrResidue(-1)
+                na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
+                assignAxCde = getAssignAxisCode(pk)
+                pk.assignDimension(axisCode=assignAxCde, value=na)
+
+
+def storeDataForGSTCheck(peakShift, peak, atomType, checkDict):
+    checkDict[atomType]['shifts'].append(peakShift)
+    checkDict[atomType]['peaks'].append(peak)
+
+
+def checkForGST(gstDict):
+    cas = gstDict['CA-1']['shifts']
+    cbs = gstDict['CB-1']['shifts']
+    peaks = gstDict['CA-1']['peaks'] + gstDict['CB-1']['peaks']
+    if len(cas) == 0 and len(cbs) != 0:
+        # this is a Glycine
+        for pk in peaks:
+            assignDim = getAssignDim(pk)
+            nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue
+            if 48.5 > pk.ppmPositions[assignDim] > 40.0:
+                na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
+                assignAxCde = getAssignAxisCode(pk)
+                pk.assignDimension(axisCode=assignAxCde, value=na)
+            na = nr.fetchNmrAtom(name='CB', isotopeCode=assignIsotope)
+            if not na.assignedPeaks:
+                na.delete()
+    elif len(cbs) == 0 and len(cas) >= 2:
+        # this is a Serine or Threonine
+        for pk in peaks:
+            assignDim = getAssignDim(pk)
+            if pk.ppmPositions[assignDim] > mean(cas):
+                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue
+                na = nr.fetchNmrAtom(name='CB', isotopeCode=assignIsotope)
+                assignAxCde = getAssignAxisCode(pk)
+                pk.assignDimension(axisCode=assignAxCde, value=na)
