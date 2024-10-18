@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-09-10 17:36:58 +0100 (Tue, September 10, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-10-18 10:05:09 +0100 (Fri, October 18, 2024) $"
+__version__ = "$Revision: 3.2.5.GWV $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -84,6 +84,9 @@ _getNmrIndex = Clibrary.getNmrResidueIndex
 ALL = '<Use all>'
 _EDIT_OPTION = 'Edit NmrResidue'
 _SHOW_OPTION = 'Show NmrResidue'
+
+
+_SPECTRUM_DISPLAYS = 'SpectrumDisplays'
 
 
 #==========================================================================================
@@ -1964,7 +1967,7 @@ class SequenceGraphModule(CcpnModule):
         """Set up the settings widget
         """
         # add the settings widgets defined from the following orderedDict - test for refactored
-        settingsDict = OrderedDict((('SpectrumDisplays', {'label'   : '',
+        settingsDict = OrderedDict(((_SPECTRUM_DISPLAYS, {'label'   : '',
                                                           'tipText' : '',
                                                           'callBack': None,  #self.restraintTablePulldown,
                                                           'enabled' : True,
@@ -3286,6 +3289,14 @@ class SequenceGraphModule(CcpnModule):
                                                       'widget'].isChecked()
                                                   )
 
+    def _navigateToPeakCallback(self, peak):
+        """Callback from AssignmentLine context menu
+        """
+        displays = self._SGwidget.widgetsDict[_SPECTRUM_DISPLAYS].getDisplays()
+        # if len(displays) == 0:
+        for _display in displays:
+            _display.strips[0].navigateToPeak(peak)
+
     def _raiseContextMenu(self, obj, pos):
         """Creates and raises a context menu enabling items to be disconnected
         """
@@ -3297,20 +3308,26 @@ class SequenceGraphModule(CcpnModule):
             thisLine = pressed  #self.selectedLine
 
             if thisLine._peak and thisLine._peak.assignedNmrAtoms:
-                contextMenu.addAction('Deassign NmrAtoms from Peak: %s' % str(thisLine._peak.id))
+
+                self.current.peaks = [thisLine._peak]
+
+                contextMenu.addAction(f'Navigate to Peak: {thisLine._peak.id}',
+                                      partial(self._navigateToPeakCallback, thisLine._peak))
                 contextMenu.addSeparator()
+                contextMenu.addAction(f'Deassign Peak: {thisLine._peak.id}')
 
                 # add the nmrAtoms to the menu
                 for nmrAtomList in thisLine._peak.assignedNmrAtoms:
-                    for nmrAtom in nmrAtomList:
+                    for _ii, nmrAtom in enumerate(nmrAtomList):
                         if nmrAtom:
 
                             # contextMenu.addAction(nmrAtom.id, partial(self.deassignPeak, thisLine._peak, nmrAtom))
 
                             if nmrAtom.nmrResidue is None or nmrAtom.nmrResidue.offsetNmrResidues:
-                                contextMenu.addAction(nmrAtom.id, partial(self.deassignPeak, thisLine._peak, nmrAtom))
+                                contextMenu.addAction(f'F{_ii}: {nmrAtom.id}',
+                                                      partial(self.deassignPeak, thisLine._peak, nmrAtom))
                             else:
-                                contextMenu.addAction('(' + nmrAtom.id + ')',
+                                contextMenu.addAction(f'F{_ii}: ({nmrAtom.id})',
                                                       partial(self.deassignPeak, thisLine._peak, nmrAtom))
 
                 contextMenu.move(pos.x(), pos.y() + 10)

@@ -17,9 +17,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-06-21 19:48:42 +0100 (Fri, June 21, 2024) $"
-__version__ = "$Revision: 3.2.4 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-10-18 10:05:09 +0100 (Fri, October 18, 2024) $"
+__version__ = "$Revision: 3.2.5.GWV $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -636,10 +636,14 @@ class AssignmentTable(_ProjectTableABC):
     defaultSortColumn = 'Delta'
     defaultSortOrder = QtCore.Qt.AscendingOrder
 
-    def __init__(self, parent, dim=0, *args, **kwds):
-        """Intitialise the table and store as top-or-bottom table
+    def __init__(self, parent, dim=0, dimIndex=None, *args, **kwds):
+        """Initialise the table and store as top- (dim=0) or-bottom (dim=1) table
+        :param dimIndex: the dimension index for the assignments of a peak.
         """
         self._dim = dim
+        if dimIndex is None or dimIndex < 0:
+            raise ValueError(f'Initialising AssignmentTable: invalid {dimIndex = }')
+        self._dimIndex = dimIndex
 
         super(AssignmentTable, self).__init__(parent, *args, **kwds)
 
@@ -727,21 +731,27 @@ class AssignmentTable(_ProjectTableABC):
         super().addTableMenuOptions(menu)
 
         if self._dim == 0:
-            self._peakMenuAction = menu.addAction(f'Deassign from Peak', self._peakActionCallback)
+            self._peakMenuAction = menu.addAction(f'Deassign from Peak(s)', self._peakActionCallback)
+            self._peakSwapAction = None
         else:
-            self._peakMenuAction = menu.addAction(f'Assign to Peak', self._peakActionCallback)
+            self._peakMenuAction = menu.addAction(f'Assign to Peak(s)', self._peakActionCallback)
+            self._peakSwapAction = menu.addAction(f'Replace existing assignment of Peak(s)',
+                                                  self._peakReplaceAssignmentActionCallback)
 
         self._editMenuAction = menu.addAction(f'{_EDIT_OPTION}...', self._editNmrAtom)
         self._newMenuAction = menu.addAction(_NEW_OPTION, self._newNmrAtom)
 
+        # GWV 17/10/2024: why so complicated, can we not just add them at the right place to begin with?
         if (_actions := menu.actions()):
             _topMenuItem = _actions[0]
             _topSeparator = menu.insertSeparator(_topMenuItem)
 
             # move new actions to the top of the list
+            menu.insertAction(_topSeparator, self._peakMenuAction)
+            if self._peakSwapAction:
+                menu.insertAction(_topSeparator, self._peakSwapAction)
             menu.insertAction(_topSeparator, self._newMenuAction)
             menu.insertAction(_topSeparator, self._editMenuAction)
-            menu.insertAction(self._newMenuAction, self._peakMenuAction)
 
     def setTableMenuOptions(self, menu):
         """Update options in the right-mouse menu
@@ -793,6 +803,28 @@ class AssignmentTable(_ProjectTableABC):
         elif self._dim == 1:
             # assign bottom - up
             self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
+
+    def _peakReplaceAssignmentActionCallback(self):
+        """Deassign Peak(s) and assign to selected one
+        """
+        self._owner.lastTableSelected = self._dim
+
+        if self._dim == 0:
+            getLogger().debug(f'_peakAssignmentSwapActionCallback(): self._dim=0: this should not happen')
+            return
+
+        selectedObjects = self.getSelectedObjects()
+        if not (selectedObjects and selectedObjects[0]):
+            return
+        nmrAtom = selectedObjects[0]
+        if not isinstance(nmrAtom, NmrAtom) or nmrAtom.isDeleted:
+            return
+
+        with undoBlockWithoutSideBar():
+            for peak in self.current.peaks:
+                _aCode = peak.axisCodes[self._dimIndex]
+                # set the new value
+                peak.assignDimension(_aCode, nmrAtom)
 
     #=========================================================================================
     # Selection/action callbacks
@@ -934,7 +966,8 @@ class AxisAssignmentObject(Frame):
                                          # tipText='Click to select; double-click to de-assign'
                                          showVerticalHeader=False,
                                          multiSelect=False,
-                                         dim=0
+                                         dim=0,
+                                         dimIndex=dimIndex
                                          )
 
         self.tables[0].moduleParent = self._parent
@@ -952,7 +985,8 @@ class AxisAssignmentObject(Frame):
                                          # tipText='Click to select; double-click to assign'
                                          showVerticalHeader=False,
                                          multiSelect=False,
-                                         dim=1
+                                         dim=1,
+                                         dimIndex=dimIndex
                                          )
 
         self.tables[1].moduleParent = self._parent
