@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 10:43:50 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 10:45:23 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -415,7 +415,7 @@ class PickAndAssignModule(CcpnModule):
                 self._assignSelectedResidues(peaks, nmrResidues)
 
             if self.automaticBbNmrAtomAssignment:
-                self.bbAssignCarbonNmrAtoms()
+                self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
     def _assignSelectedPeaks(self, peaks):
         peakSet = set(self.current.peaks)
@@ -549,12 +549,13 @@ class PickAndAssignModule(CcpnModule):
                             self._assignSelectedPeaks(peaks)
                         if isinstance(obj, NmrResidue):
                             self._assignSelectedResidues(peaks, [obj, ])
+
+                        if self.automaticBbNmrAtomAssignment:
+                            self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
+
                     curPeaks |= OrderedSet(peaks)
-                    self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
 
-                    if self.automaticBbNmrAtomAssignment and assign and self.current.peaks:
-                        self.bbAssignCarbonNmrAtoms()
-
+            self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
             if progress.cancelled:
                 while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
                     undoStack.undo()
@@ -803,8 +804,8 @@ class StackedTableFrameWidget(Frame):
 
 
 
-    def bbAssignCarbonNmrAtoms(self):
-        if len(self.current.peaks) == 0:
+    def bbAssignCarbonNmrAtoms(self, currentPeaks: list[Peak] | None = None):
+        if len(currentPeaks) == 0:
             showWarning('No Peaks selected', 'Please make sure you have selected some peaks with '
                                              'assigned root (NH) resonances.')
             return
@@ -820,7 +821,7 @@ class StackedTableFrameWidget(Frame):
             gstCheckDict = {'CA-1': {'shifts': [], 'peaks': []},
                             'CB-1': {'shifts': [], 'peaks': []}}
 
-            for peak in self.current.peaks:
+            for peak in currentPeaks:
                 rootDim = \
                     [ind for ind, value in enumerate(peak.peakList.spectrum.isotopeCodes) if value == rootIsotope][0]
 
@@ -939,12 +940,7 @@ class StackedTableFrameWidget(Frame):
 
 
 def getAssignDim(peak):
-    try:
-        assignDim = [ind for ind, value in enumerate(peak.peakList.spectrum.isotopeCodes) if value == assignIsotope][0]
-    except IndexError as e:
-        print(f'{e}, {peak}, {peak.peakList.spectrum.isotopeCodes}')
-        return
-    return assignDim
+    return [ind for ind, value in enumerate(peak.peakList.spectrum.isotopeCodes) if value == assignIsotope][0]
 
 
 def getAssignAxisCode(peak):
