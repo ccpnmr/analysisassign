@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-09-19 13:38:31 +0100 (Thu, September 19, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-10-18 10:05:09 +0100 (Fri, October 18, 2024) $"
+__version__ = "$Revision: 3.2.5.GWV $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -82,10 +82,12 @@ from ccpnc.clibrary import Clibrary
 
 _getNmrIndex = Clibrary.getNmrResidueIndex
 
-logger = getLogger()
 ALL = '<Use all>'
 _EDIT_OPTION = 'Edit NmrResidue'
 _SHOW_OPTION = 'Show NmrResidue'
+
+
+_SPECTRUM_DISPLAYS = 'SpectrumDisplays'
 
 
 #==========================================================================================
@@ -1963,7 +1965,7 @@ class SequenceGraphModule(CcpnModule):
         """Set up the settings widget
         """
         # add the settings widgets defined from the following orderedDict - test for refactored
-        settingsDict = OrderedDict((('SpectrumDisplays', {'label'   : '',
+        settingsDict = OrderedDict(((_SPECTRUM_DISPLAYS, {'label'   : '',
                                                           'tipText' : '',
                                                           'callBack': None,  #self.restraintTablePulldown,
                                                           'enabled' : True,
@@ -2238,7 +2240,7 @@ class SequenceGraphModule(CcpnModule):
         """Manually select a Sequence from the pullDown
         """
         if nmrChain is None:
-            # logger.warning('select: No Sequence selected')
+            # getLogger().warning('select: No Sequence selected')
             # raise ValueError('select: No Sequence selected')
             self.nmrChainPulldown.selectFirstItem()
 
@@ -2248,7 +2250,7 @@ class SequenceGraphModule(CcpnModule):
                     self.nmrChainPulldown.select(nmrChain.pid)
 
         else:
-            logger.warning('select: Object is not of type Sequence')
+            getLogger().warning('select: Object is not of type Sequence')
             raise TypeError('select: Object is not of type Sequence')
 
     def _registerNotifiers(self):
@@ -2363,7 +2365,7 @@ class SequenceGraphModule(CcpnModule):
     #     self.modePulldown.select(mode)
     #     self.setNmrChainDisplay(self.nmrChainPulldown.getText())
     #   else:
-    #     logger.warning('No valid NmrChain is selected.')
+    #     getLogger().warning('No valid NmrChain is selected.')
 
     # def _addAdjacentResiduesToSet(self, nmrResidue, residueSet):
     #     residueSet.add(nmrResidue)
@@ -3250,12 +3252,12 @@ class SequenceGraphModule(CcpnModule):
         if not nmrResidue:
             return
 
-        logger.debug('nmrResidue=%s' % (nmrResidue.id))
+        getLogger().debug('nmrResidue=%s' % (nmrResidue.id))
 
         displays = self._SGwidget.displaysWidget.getDisplays()
 
         if len(displays) == 0:
-            logger.warning('Undefined display module(s); select in settings first')
+            getLogger().warning('Undefined display module(s); select in settings first')
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
             return
 
@@ -3280,6 +3282,14 @@ class SequenceGraphModule(CcpnModule):
                                                       'widget'].isChecked()
                                                   )
 
+    def _navigateToPeakCallback(self, peak):
+        """Callback from AssignmentLine context menu
+        """
+        displays = self._SGwidget.widgetsDict[_SPECTRUM_DISPLAYS].getDisplays()
+        # if len(displays) == 0:
+        for _display in displays:
+            _display.strips[0].navigateToPeak(peak)
+
     def _raiseContextMenu(self, obj, pos):
         """Creates and raises a context menu enabling items to be disconnected
         """
@@ -3291,20 +3301,26 @@ class SequenceGraphModule(CcpnModule):
             thisLine = pressed  #self.selectedLine
 
             if thisLine._peak and thisLine._peak.assignedNmrAtoms:
-                contextMenu.addAction('Deassign NmrAtoms from Peak: %s' % str(thisLine._peak.id))
+
+                self.current.peaks = [thisLine._peak]
+
+                contextMenu.addAction(f'Navigate to Peak: {thisLine._peak.id}',
+                                      partial(self._navigateToPeakCallback, thisLine._peak))
                 contextMenu.addSeparator()
+                contextMenu.addAction(f'Deassign Peak: {thisLine._peak.id}')
 
                 # add the nmrAtoms to the menu
                 for nmrAtomList in thisLine._peak.assignedNmrAtoms:
-                    for nmrAtom in nmrAtomList:
+                    for _ii, nmrAtom in enumerate(nmrAtomList):
                         if nmrAtom:
 
                             # contextMenu.addAction(nmrAtom.id, partial(self.deassignPeak, thisLine._peak, nmrAtom))
 
                             if nmrAtom.nmrResidue is None or nmrAtom.nmrResidue.offsetNmrResidues:
-                                contextMenu.addAction(nmrAtom.id, partial(self.deassignPeak, thisLine._peak, nmrAtom))
+                                contextMenu.addAction(f'F{_ii}: {nmrAtom.id}',
+                                                      partial(self.deassignPeak, thisLine._peak, nmrAtom))
                             else:
-                                contextMenu.addAction('(' + nmrAtom.id + ')',
+                                contextMenu.addAction(f'F{_ii}: ({nmrAtom.id})',
                                                       partial(self.deassignPeak, thisLine._peak, nmrAtom))
 
                 contextMenu.move(pos.x(), pos.y() + 10)

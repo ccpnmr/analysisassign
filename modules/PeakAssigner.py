@@ -17,9 +17,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:54 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-10-20 17:14:06 +0100 (Sun, October 20, 2024) $"
+__version__ = "$Revision: 3.2.5.GWV $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -36,6 +36,7 @@ from functools import partial
 from collections import OrderedDict, Counter
 from PyQt5 import QtGui, QtCore, QtWidgets
 from time import time_ns
+
 from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
 from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue, MoveToEnd
 from ccpn.core.Peak import Peak
@@ -113,7 +114,6 @@ PULLDOWNPREFIX = '--'
 OtherByIC = f'{PULLDOWNPREFIX} Amino/Isotope specific {PULLDOWNPREFIX}'
 OtherByResType = f'{PULLDOWNPREFIX} In this nmrResidue {PULLDOWNPREFIX}'
 OtherNames = f'{PULLDOWNPREFIX} All other atom-types {PULLDOWNPREFIX}'
-
 
 #=========================================================================================
 # PeakAssigner
@@ -607,8 +607,13 @@ _NEW_OPTION = 'New nmrAtom'
 # AssignmentTable
 #=========================================================================================
 
+# The two AssignmentTables for each dimension
+_ASSIGNED_TABLE = 0
+_ALTERNATIVES_TABLE = 1
+
 class AssignmentTable(_ProjectTableABC):
-    """Subclassed for some added functionality"""
+    """Subclassed for some added functionality
+    """
 
     # define the notifiers that are required for the specific table-type
     tableClass = None
@@ -636,12 +641,20 @@ class AssignmentTable(_ProjectTableABC):
     defaultSortColumn = 'Delta'
     defaultSortOrder = QtCore.Qt.AscendingOrder
 
-    def __init__(self, parent, dim=0, *args, **kwds):
-        """Intitialise the table and store as top-or-bottom table
+    def __init__(self, parent, dim=0, dimIndex=None, *args, **kwds):
+        """Initialise the table and store as top- (dim=0) or-bottom (dim=1) table
+        :param dimIndex: the dimension index for the assignments of a peak.
         """
         self._dim = dim
+        if dimIndex is None or dimIndex < 0:
+            raise ValueError(f'Initialising AssignmentTable: invalid {dimIndex = }')
+        self._dimIndex = dimIndex
 
         super(AssignmentTable, self).__init__(parent, *args, **kwds)
+
+        self._owner = None          # The AxisAssignmentObject; Set after initialisation
+        self.moduleParent = None    # The module; ie. PeakAssigner instance. Set after initialisation
+                                    # by the AxisAssignmentObject
 
         self.headerColumnMenu.setInternalColumns(self._internalColumns)
         self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
@@ -727,21 +740,29 @@ class AssignmentTable(_ProjectTableABC):
         super().addTableMenuOptions(menu)
 
         if self._dim == 0:
-            self._peakMenuAction = menu.addAction(f'Deassign from Peak', self._peakActionCallback)
+            self._peakMenuAction = menu.addAction(f'Deassign from Peak(s)',
+                                                  self._peakDeassignActionCallback)
+            self._peakSwapAction = None
         else:
-            self._peakMenuAction = menu.addAction(f'Assign to Peak', self._peakActionCallback)
+            self._peakMenuAction = menu.addAction(f'Assign to Peak(s)',
+                                                  self._peakAssignActionCallback)
+            self._peakSwapAction = menu.addAction(f'Replace existing assignment of Peak(s)',
+                                                  self._peakReplaceAssignmentActionCallback)
 
         self._editMenuAction = menu.addAction(f'{_EDIT_OPTION}...', self._editNmrAtom)
         self._newMenuAction = menu.addAction(_NEW_OPTION, self._newNmrAtom)
 
+        # GWV 17/10/2024: why so complicated, can we not just add them at the right place to begin with?
         if (_actions := menu.actions()):
             _topMenuItem = _actions[0]
             _topSeparator = menu.insertSeparator(_topMenuItem)
 
             # move new actions to the top of the list
+            menu.insertAction(_topSeparator, self._peakMenuAction)
+            if self._peakSwapAction:
+                menu.insertAction(_topSeparator, self._peakSwapAction)
             menu.insertAction(_topSeparator, self._newMenuAction)
             menu.insertAction(_topSeparator, self._editMenuAction)
-            menu.insertAction(self._newMenuAction, self._peakMenuAction)
 
     def setTableMenuOptions(self, menu):
         """Update options in the right-mouse menu
@@ -783,23 +804,37 @@ class AssignmentTable(_ProjectTableABC):
         # call the new popup balloon
         self._owner._newNmrAtomPopup(mode=1)
 
-    def _peakActionCallback(self):
-        """Assign/deassign the peak
+    def _peakDeassignActionCallback(self):
+        """Deassign the peak
         """
-        self._owner.lastTableSelected = self._dim
-        if self._dim == 0:
-            # deAssign from top to bottom
-            self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
-        elif self._dim == 1:
-            # assign bottom - up
-            self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
+        if self._dim != _ASSIGNED_TABLE:
+            getLogger().debug(f'_peakDeAssignActionCallback(): self._dim != 0: this should not happen')
+            return
+        self._owner._deassignNmrAtom()
+
+    def _peakAssignActionCallback(self):
+        """Assign the peak
+        """
+        if self._dim != _ALTERNATIVES_TABLE:
+            getLogger().debug(f'_peakAssignActionCallback(): self._dim != 1: this should not happen')
+            return
+        self._owner._assignNmrAtom(append=True)
+
+    def _peakReplaceAssignmentActionCallback(self):
+        """Deassign Peak(s) and assign to selected one
+        """
+        if self._dim != _ALTERNATIVES_TABLE:
+            getLogger().debug(f'_peakAssignmentSwapActionCallback(): self._dim != 1: this should not happen')
+            return
+        self._owner._assignNmrAtom(append=False)
 
     #=========================================================================================
     # Selection/action callbacks
     #=========================================================================================
 
     def actionCallback(self, selection, lastItem):
-        """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
+        """Notifier DoubleClick action on item in table.
+        Assign or deassign, depending on the table
         """
         try:
             objs = list(lastItem[self._OBJECT])
@@ -808,14 +843,14 @@ class AssignmentTable(_ProjectTableABC):
             getLogger().debug2(f'{self.__class__.__name__}.actionCallback: No selection\n{es}')
 
         else:
-            # nmrAtom = objs[0] if isinstance(objs, (list, tuple)) else objs
 
-            if self._dim == 0:
+            if self._dim == _ASSIGNED_TABLE:
                 # deAssign from top to bottom
-                self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
-            elif self._dim == 1:
+                self._owner._deassignNmrAtom()
+
+            elif self._dim == _ALTERNATIVES_TABLE:
                 # assign bottom - up
-                self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
+                self._owner._assignNmrAtom()
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
@@ -828,7 +863,7 @@ class AssignmentTable(_ProjectTableABC):
 
         else:
             # enable the edit-button
-            self._parent._thisparent._clickedTableCallback(self._dim, {Notifier.OBJECT: objs})
+            self._owner._clickedTableCallback(self._dim, {Notifier.OBJECT: objs})
 
     def _selectCurrentCallBack(self, data):
         """Callback from a current changed notifier to highlight the current objects
@@ -928,36 +963,38 @@ class AxisAssignmentObject(Frame):
                                   colour=getColours()[DIVIDER])
 
         row += 1
-        self.tables[0] = AssignmentTable(parent=self._assignmentsFrame,
+        self.tables[_ASSIGNED_TABLE] = AssignmentTable(parent=self._assignmentsFrame,
                                          mainWindow=mainWindow,
                                          grid=(row, 0), gridSpan=(1, 1),
                                          # tipText='Click to select; double-click to de-assign'
                                          showVerticalHeader=False,
                                          multiSelect=False,
-                                         dim=0
+                                         dim=_ASSIGNED_TABLE,
+                                         dimIndex=dimIndex
                                          )
 
-        self.tables[0].moduleParent = self._parent
-        self.tables[0]._owner = self
-        self.tables[0].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
+        self.tables[_ASSIGNED_TABLE].moduleParent = self._parent
+        self.tables[_ASSIGNED_TABLE]._owner = self
+        self.tables[_ASSIGNED_TABLE].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
         # self.tables[0]._dim = 0
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
         self._alternativesLabel.setMinimumHeight(height)
         row += 1
-        self.tables[1] = AssignmentTable(parent=self._assignmentsFrame,
+        self.tables[_ALTERNATIVES_TABLE] = AssignmentTable(parent=self._assignmentsFrame,
                                          mainWindow=mainWindow,
                                          grid=(row, 0), gridSpan=(1, 1),
                                          # tipText='Click to select; double-click to assign'
                                          showVerticalHeader=False,
                                          multiSelect=False,
-                                         dim=1
+                                         dim=_ALTERNATIVES_TABLE,
+                                         dimIndex=dimIndex
                                          )
 
-        self.tables[1].moduleParent = self._parent
-        self.tables[1]._owner = self
-        self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
+        self.tables[_ALTERNATIVES_TABLE].moduleParent = self._parent
+        self.tables[_ALTERNATIVES_TABLE]._owner = self
+        self.tables[_ALTERNATIVES_TABLE].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
         # self.tables[1]._dim = 1
 
         row += 1
@@ -1104,10 +1141,10 @@ class AxisAssignmentObject(Frame):
 
         if self.current.peak:
             failedNmrAtoms = []
-            isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[self.dimIndex]
+            isotopeCode = self.current.peak.spectrum.isotopeCodes[self.dimIndex]
             for nmrAtom in nmrAtoms:
                 if isotopeCode == nmrAtom.isotopeCode or nmrAtom.isotopeCode in [UnknownIsotopeCode, None]:
-                    self._assignNmrAtom(self.dimIndex, nmrAtoms=[nmrAtom])
+                    self._assignNmrAtom(nmrAtoms=[nmrAtom])
                 else:
                     failedNmrAtoms.append(nmrAtom)
             if failedNmrAtoms:
@@ -1127,38 +1164,40 @@ class AxisAssignmentObject(Frame):
         else:
             self._clearTableOveray()
 
-    def _handleDroppedItems(self, droppingToTableNum: int, dataDict, ):
-        """
-        Notifier callback activated upon a DropEvent of an object.
-        Note, the source of the drag can be from anywhere, therefore here is limited only if the source is
-        within the module and right tables pairs. The correct instance of the dropped object is checked afterwards.
-        """
-        assignmentTableNum = 0
-        alternativeTableNum = 1
-        sourceTable = dataDict.get('source')
-        nmrAtoms = self.project.getObjectsByPids(dataDict.get(DropBase.PIDS))
+    # GWV 20/20/2024: not used?
+    # def _handleDroppedItems(self, droppingToTableNum: int, dataDict, ):
+    #     """
+    #     Notifier callback activated upon a DropEvent of an object.
+    #     Note, the source of the drag can be from anywhere, therefore here is limited only if the source is
+    #     within the module and right tables pairs. The correct instance of the dropped object is checked afterwards.
+    #     """
+    #     sourceTable = dataDict.get('source')
+    #     nmrAtoms = self.project.getObjectsByPids(dataDict.get(DropBase.PIDS))
+    #
+    #     ## Action 0, Assignment: dropping to Assignment (Table-0) from Alternative (Table-1)
+    #     if droppingToTableNum == _ASSIGNED_TABLE and sourceTable == self.tables[_ALTERNATIVES_TABLE]:
+    #         self._assignNmrAtom(nmrAtoms=nmrAtoms)
+    #         return
+    #
+    #     ## Action 1, DeAssign from top to bottom: dropping to Alternative (Table-1) from Assignment (Table-0)
+    #     if droppingToTableNum == _ALTERNATIVES_TABLE and sourceTable == self.tables[_ASSIGNED_TABLE]:
+    #         self._deassignNmrAtom(nmrAtoms=nmrAtoms)
+    #         return
 
-        ## Action 0, Assignment: dropping to Assignment (Table-0) from Alternative (Table-1)
-        if droppingToTableNum == assignmentTableNum and sourceTable == self.tables[alternativeTableNum]:
-            self._assignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
-            return
-        ## Action 1, DeAssign from top to bottom: dropping to Alternative (Table-1) from Assignment (Table-0)
-        if droppingToTableNum == alternativeTableNum and sourceTable == self.tables[assignmentTableNum]:
-            self._deassignNmrAtom(self.dimIndex, nmrAtoms=nmrAtoms)
-            return
-
-    def _assignDeassignNmrAtom(self, tableNum: int, data):
-        """
-        Assign/Deassign the nmrAtom that is double-clicked to
-        the corresponding dimension of the selected
-        peaks.
-        """
-        if tableNum == 0:
-            # deAssign from top to bottom
-            self._deassignNmrAtom(self.dimIndex)
-        elif tableNum == 1:
-            # assign bottom - up
-            self._assignNmrAtom(self.dimIndex, action=True)
+    # GWV 20/20/2024: not used?
+    # def _assignDeassignNmrAtom(self, tableNum: int, data):
+    #     """
+    #     Assign/Deassign the nmrAtom that is double-clicked to
+    #     the corresponding dimension of the selected
+    #     peaks.
+    #     """
+    #     if tableNum == _ASSIGNED_TABLE:
+    #         # deAssign from top to bottom
+    #         self._deassignNmrAtom()
+    #
+    #     elif tableNum == _ALTERNATIVES_TABLE:
+    #         # assign bottom - up
+    #         self._assignNmrAtom()
 
     def _clickedTableCallback(self, tableNum, data):
         if obj := data[Notifier.OBJECT]:
@@ -1506,227 +1545,109 @@ class AxisAssignmentObject(Frame):
             # okay, close the popup
             self.editPopup.setVisible(False)
 
-    def _assignNmrAtom(self, dim: int, action: bool = False, create: bool = True, nmrAtoms=None):
-        """
-        Assigns dimensionNmrAtoms to peak dimension when called using Assign Button in assignment widget.
-        :param dim - axis dimension of the atom:
-        :param action - True if callback is action from the table:
-        """
-        # FIXME Potential Bug: no error checks for dim. It can give easily an IndexError
-
-        # return if no peaks selected
-        if not self.current.peaks:
-            return
-
-        try:
-            selectedObjects = nmrAtoms or self.tables[1].getSelectedObjects()
-            if not (selectedObjects and selectedObjects[0]):
-                return
-            nmrAtom = selectedObjects[0]
-            if not isinstance(nmrAtom, NmrAtom) or nmrAtom.isDeleted:
-                return
-
-            # nmrAtom = None
-
-            # wrap all actions in a single undo block
-            with undoBlockWithoutSideBar():
-
-                # NOTE:ED need to keep for the minute
-                # _chainPid = 'NC:{}'.format(nmrChainName)
-                # if create and not action:
-                #     # get the current chain (but may create a new one)
-                #     _nmrChain = self.project.fetchNmrChain(nmrChainName)
-                # else:
-                #     # find the existing nmrChain
-                #     _nmrChain = self.project.getByPid(_chainPid)
-                #     if not _nmrChain:
-                #         # raise error to notify popup
-                #         raise ValueError("NmrChain doesn't exists")
-                #
-                # nmrResidue = _getNmrResidue(_nmrChain, seqCode, )
-                # nmrAtom = nmrResidue.getNmrAtom(nmrAtomName) if nmrResidue else None
-                #
-                # if not action:
-                #     if create:
-                #         if nmrResidue:
-                #             if self._clickedNmrAtom and self._clickedNmrAtom.nmrResidue == nmrResidue and nmrResidue.residueType != newResType:
-                #                 if len(nmrResidue.nmrAtoms) > 1:
-                #                     yes = showYesNoWarning('Assigning nmrAtoms',
-                #                                            'This will change all nmrAtoms to the residueType {}, continue?'.format(newResType))
-                #                     if yes:
-                #                         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-                #                 else:
-                #                     nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-                #
-                #         else:
-                #             # can do a residueType rename
-                #             nmrResidue = _nmrChain.fetchNmrResidue(seqCode, newResType)
-                #
-                #         nmrAtom = nmrResidue.fetchNmrAtom(nmrAtomName)
-                #
-                #     else:
-                #         pass
-
-                # if not self._clickedNmrAtom:
-                #     showWarning("Rename NmrAtom", "Please select an NmrAtom from the tables")
-                #     return
-                #
-                # # edit existing
-                # if nmrResidue and self._clickedNmrAtom.nmrResidue != nmrResidue:
-                #     # existing different nmrResidue
-                #     nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                #     if nmrAtom:
-                #         yesNo = showYesNo('Merge NmrAtom', "Do you want to merge\n\n"
-                #                                             "{}   into   {}".format(self._clickedNmrAtom.id,
-                #                                                                     nmrAtom.id))
-                #         if yesNo:
-                #             # merge into the new nmrAtom
-                #             nmrAtom.mergeNmrAtoms(self._clickedNmrAtom)
-                #
-                #     else:
-                #         # assign to a new nmrAtom
-                #         self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
-                #                                       sequenceCode=seqCode,
-                #                                       residueType=newResType,
-                #                                       name=nmrAtomName,
-                #                                       mergeToExisting=False)
-                #
-                # elif nmrResidue and self._clickedNmrAtom.nmrResidue == nmrResidue:
-                #     # rename the same nmrAtom
-                #     if newResType != nmrResidue.residueType:
-                #         nmrResidue.moveToNmrChain(_chainPid, seqCode, newResType)
-                #
-                #     if nmrAtomName != self._clickedNmrAtom.name:
-                #         nmrAtom = nmrResidue.getNmrAtom(nmrAtomName)
-                #         if nmrAtom:
-                #             raise ValueError('NmrAtom already exists {}'.format(nmrAtom))
-                #         self._clickedNmrAtom.rename(nmrAtomName)
-                #
-                # else:
-                #     # nmrResidue doesn't exists
-                #     self._clickedNmrAtom.assignTo(chainCode=nmrChainName,
-                #                                   sequenceCode=seqCode,
-                #                                   residueType=newResType,
-                #                                   name=nmrAtomName,
-                #                                   mergeToExisting=False)
-
-                try:
-
-                    for peak in self.current.peaks:
-
-                        dimNmrAtoms = list(peak.dimensionNmrAtoms[dim])
-
-                        currentObject = nmrAtom
-                        if nmrAtom not in dimNmrAtoms:
-                            dimNmrAtoms.append(nmrAtom)
-
-                            toAssign = dimNmrAtoms.index(currentObject)
-
-                            dimNmrAtoms[toAssign] = nmrAtom
-                            allAtoms = list(peak.dimensionNmrAtoms)
-                            allAtoms[dim] = dimNmrAtoms
-                            peak.dimensionNmrAtoms = allAtoms
-
-                    ## Set the isotopeCode here if was not defined yet
-                    if not nmrAtom.isotopeCode:
-                        isotopeCode = self.current.peak.peakList.spectrum.isotopeCodes[dim]
-                        nmrAtom._setIsotopeCode(isotopeCode)
-
-
-                except Exception as es:
-                    showWarning(str(self.windowTitle()), str(es))
-
-            self._parent._updateInterface()
-
-            self.tables[0].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
-            self.lastTableSelected = 0
-
-            # if nmrAtom:
-            #     # self._updateAssignmentWidget(0, nmrAtom)
-            #     self.lastTableSelected = 0
-            #
-            # else:
-            #     # self._updateAssignmentWidget(0, None)
-            #     self.lastTableSelected = 0
-
-            # update the module
-            self.update()
-
-        except Exception as es:
-            showWarning('Assign NmrAtom', str(es))
-
-    def _deassignNmrAtom(self, dim: int, nmrAtoms=None):
-        """
-        remove nmrAtom from peak assignment
+    def _assignCurrentPeaks(self, nmrAtom: NmrAtom | None, append):
+        """Assign current.peaks; either by:
+        - appending nmrAtom (append == True)
+        - exclusively assigning to nmrAtom (append==False)
+        All wrapped in single undo block
         """
         # return if no peaks selected
         if not self.current.peaks:
             return
 
-        try:
-            currentObjects = nmrAtoms or self.tables[0].getSelectedObjects()
-            if not currentObjects:
-                return
-            nmrAtom = currentObjects[0]
+        with undoBlockWithoutSideBar():
+            for peak in self.current.peaks:
+
+                _aCode = peak.axisCodes[self.dimIndex]
+                _assignments = list(peak.assignmentsByDimensions[self.dimIndex])
+                if nmrAtom is not None and append:
+                    _assignments.append(nmrAtom)
+                else:
+                    _assignments = [nmrAtom]
+
+                peak.assignDimension(_aCode, _assignments)
+
+    def _deassignCurrentPeaks(self, nmrAtom: NmrAtom | None):
+        """Deassign current.peaks; either by:
+        - de-assigning all: nmrAtom == None
+        - removing nmrAtom from assignment
+        All wrapped in single undo block
+        """
+        # return if no peaks selected
+        if not self.current.peaks:
+            return
+
+        with undoBlockWithoutSideBar():
+            for peak in self.current.peaks:
+
+                _aCode = peak.axisCodes[self.dimIndex]
+                _assignments = list(peak.assignmentsByDimensions[self.dimIndex])
+                if nmrAtom is None:
+                    _assignments = []
+                else:
+                    try:
+                        _assignments.remove(nmrAtom)
+                    except ValueError:
+                        getLogger().debug2(f'_assignCurrentPeaks(): cant remove {nmrAtom}; not in _assignments')
+
+                peak.assignDimension(_aCode, _assignments)
+
+    def _assignNmrAtom(self, nmrAtoms=None, append=True):
+        """Add or set selected nmrAtom(s) to assignment
+        :param nmrAtoms: a list or tuple of NmrAtom instances;
+                         if None: obtained from selected objects
+        :param append: if True: append to existing assignment
+        """
+
+        selectedObjects = nmrAtoms or self.tables[_ALTERNATIVES_TABLE].getSelectedObjects()
+        if not (selectedObjects and selectedObjects[0]):
+            getLogger().debug2(f'_assignNmrAtom(): nothing selected')
+            return
+
+        nmrAtom = None
+        for nmrAtom in selectedObjects:
             if not isinstance(nmrAtom, NmrAtom) or nmrAtom.isDeleted:
-                return
+                getLogger().debug2(f'_assignNmrAtom(): invalid type {nmrAtom = }')
+                continue
+            self._assignCurrentPeaks(nmrAtom, append=append)
 
-            try:
-                with undoBlockWithoutSideBar():
-                    for peak in self.current.peaks:
-                        peakDimNmrAtoms = peak.dimensionNmrAtoms
-                        dimNmrAtoms = list(peakDimNmrAtoms[dim])  # ejb - changed to list
-                        if nmrAtom in dimNmrAtoms:
-                            dimNmrAtoms.remove(nmrAtom)
+        self._parent._updateInterface()
+        if nmrAtom:
+            self.tables[_ASSIGNED_TABLE].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
+        self.lastTableSelected = _ASSIGNED_TABLE
+        self.update()
 
-                        allAtoms = list(peakDimNmrAtoms)
-                        allAtoms[dim] = dimNmrAtoms
-                        peak.dimensionNmrAtoms = allAtoms
+    def _deassignNmrAtom(self, nmrAtoms=None):
+        """remove selected nmrAtom from assignment
+        :param nmrAtoms: a list or tuple of NmrAtom instances;
+                         if None: obtained from selected objects
+                         First of the list is removed.
+        """
+        selectedObjects = nmrAtoms or self.tables[_ASSIGNED_TABLE].getSelectedObjects()
+        if not (selectedObjects and selectedObjects[0]):
+            getLogger().debug2(f'_deassignNmrAtom(): nothing selected')
+            return
 
-            except Exception as es:
-                showWarning(str(self.windowTitle()), str(es))
+        nmrAtom = selectedObjects[0]
+        if not isinstance(nmrAtom, NmrAtom) or nmrAtom.isDeleted:
+            getLogger().debug2(f'_deassignNmrAtom(): invalid type {nmrAtom = }')
+            return
 
-            self._parent._updateInterface()
-            self.tables[1].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
-            nextAtom = self.tables[1].getSelectedObjects()
-            self.lastTableSelected = 1
-
-            # if nextAtom:
-            #     # self._updateAssignmentWidget(1, currentObject[0])
-            #
-            #     self.lastTableSelected = 1
-            #     # self.buttonList.setButtonEnabled('Delete', True)
-            #     # self.buttonList.setButtonEnabled('Deassign', False)
-            #     # self.buttonList.setButtonEnabled('Assign', True)
-            #
-            # else:
-            #     # self._updateAssignmentWidget(1, None)
-            #
-            #     self.lastTableSelected = 1
-            #     # self.buttonList.setButtonEnabled('Delete', False)
-            #     # self.buttonList.setButtonEnabled('Deassign', False)
-            #     # self.buttonList.setButtonEnabled('Assign', True) #False)
-
-        except Exception as es:
-            showWarning('Deassign NmrAtom', str(es))
+        self._deassignCurrentPeaks(nmrAtom)
+        self._parent._updateInterface()
+        self.tables[_ALTERNATIVES_TABLE].highlightObjects([nmrAtom])  #, setUpdatesEnabled=False)
+        self.lastTableSelected = _ALTERNATIVES_TABLE
+        self.update()
 
     def setAssignedTable(self, atomList: list):
 
-        self.tables[0]._table = atomList
-        self.tables[0].populateTable(
-                # rowObjects=atomList,
-                #                      columnDefs=self.columnDefs
-                )
-        # self.tables[0].sortByColumn(4, QtCore.Qt.AscendingOrder)
+        self.tables[_ASSIGNED_TABLE]._table = atomList
+        self.tables[_ASSIGNED_TABLE].populateTable()
 
     def setAlternativesTable(self, atomList: list):
 
-        self.tables[1]._table = atomList
-        self.tables[1].populateTable(
-                # rowObjects=atomList,
-                #                      columnDefs=self.columnDefs
-                )
-        # self.tables[1].sortByColumn(4, QtCore.Qt.AscendingOrder)
+        self.tables[_ALTERNATIVES_TABLE]._table = atomList
+        self.tables[_ALTERNATIVES_TABLE].populateTable()
 
     def _updateAssignmentWidget(self, tableNum: int, item: object):
         """
