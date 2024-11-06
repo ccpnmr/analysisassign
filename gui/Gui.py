@@ -29,7 +29,7 @@ __date__ = "$Date: 2024-02-09 10:28:40 +0000 (Fri, Feb 09, 2024) $"
 
 from ccpn.ui.gui.Gui import Gui
 from ccpn.ui.gui.menus.MenuDefs import \
-    VIEW_MENU, MACRO_MENU, VIEW_CHEMICAL_SHIFT_MAPPING, \
+    VIEW_MENU, MACRO_MENU, VIEW_CHEMICAL_SHIFT_PERTURBATION, \
     _projectHasSpectra, _projectHasPeaks
 from ccpn.ui.gui.menus._MenuItems import Menu, Action, Separator
 
@@ -72,7 +72,7 @@ class AnalysisAssignGui(Gui):
 
         # Add sequence graph to VIEW menu, before CHEMICAL_SHIFT_MAPPING
         _seqGraphMenu = Action("Sequence Graph", self.showSequenceGraph, shortcut = 'sg')
-        menuDefs.insertBefore([VIEW_MENU, VIEW_CHEMICAL_SHIFT_MAPPING], menuDef=_seqGraphMenu)
+        menuDefs.insertBefore([VIEW_MENU, VIEW_CHEMICAL_SHIFT_PERTURBATION], menuDef=_seqGraphMenu)
 
         return menuDefs
 
