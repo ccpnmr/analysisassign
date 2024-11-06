@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-10-18 10:05:09 +0100 (Fri, October 18, 2024) $"
-__version__ = "$Revision: 3.2.5.GWV $"
+__dateModified__ = "$dateModified: 2024-11-06 17:17:14 +0000 (Wed, November 06, 2024) $"
+__version__ = "$Revision: 3.2.7.GWV $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2227,9 +2227,10 @@ class SequenceGraphModule(CcpnModule):
             trigger = data.get(Notifier.TRIGGER)
             if trigger in [Notifier.CREATE, Notifier.DELETE] or \
                     (trigger == Notifier.CHANGE and (data[Notifier.SPECIFIERS].get('updateMagnetisationTransfers') or
-                                                     data[Notifier.SPECIFIERS].get('updateExperimentType') or
-                                                     data[Notifier.SPECIFIERS].get(
-                                                             'updateReferenceExperimentDimensions'))):
+                                                     data[Notifier.ATTRIBUTE_NAME].get('updateExperimentType') or
+                                                     data[Notifier.SPECIFIERS].get('updateReferenceExperimentDimensions')
+                                                    )
+                    ):
 
                 self._updateMagnetisationTransfers()
                 if self.nmrChainPulldown.getText():
