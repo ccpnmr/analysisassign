@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-11-06 17:17:14 +0000 (Wed, November 06, 2024) $"
-__version__ = "$Revision: 3.2.7.GWV $"
+__dateModified__ = "$dateModified: 2024-11-08 18:41:43 +0000 (Fri, November 08, 2024) $"
+__version__ = "$Revision: 3.2.10.GWV $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2220,22 +2220,24 @@ class SequenceGraphModule(CcpnModule):
         self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-30, -50, 30, 30))
         self.scene.update()
 
-    def _updateSpectra(self, data=None):
+    def _updateSpectraCallback(self, data=None):
         """Update list of current spectra and generate new magnetisationTransfer list
         """
-        if data:
-            trigger = data.get(Notifier.TRIGGER)
-            if trigger in [Notifier.CREATE, Notifier.DELETE] or \
-                    (trigger == Notifier.CHANGE and (data[Notifier.SPECIFIERS].get('updateMagnetisationTransfers') or
-                                                     data[Notifier.ATTRIBUTE_NAME].get('updateExperimentType') or
-                                                     data[Notifier.SPECIFIERS].get('updateReferenceExperimentDimensions')
-                                                    )
-                    ):
+        if not data:
+            raise RuntimeError(f'_updateSpectraCallback called with no data callback dict; this should not happen')
 
-                self._updateMagnetisationTransfers()
-                if self.nmrChainPulldown.getText():
-                    with self.sceneBlocking():
-                        self.nmrResidueList.rebuildPeakAssignments()
+        trigger = data.get(Notifier.TRIGGER)
+        if trigger in [Notifier.CREATE, Notifier.DELETE] or \
+                (trigger == Notifier.CHANGE and (data[Notifier.SPECIFIERS].get('updateMagnetisationTransfers') or
+                                                 data[Notifier.ATTRIBUTE_NAME].get('updateExperimentType') or
+                                                 data[Notifier.SPECIFIERS].get('updateReferenceExperimentDimensions')
+                                                )
+                ):
+
+            self._updateMagnetisationTransfers()
+            if self.nmrChainPulldown.getText():
+                with self.sceneBlocking():
+                    self.nmrResidueList.rebuildPeakAssignments()
 
     def selectSequence(self, nmrChain=None):
         """Manually select a Sequence from the pullDown
@@ -2257,7 +2259,7 @@ class SequenceGraphModule(CcpnModule):
     def _registerNotifiers(self):
         """Register the required notifiers
         """
-        self._peakNotifier = self.setNotifier(self.project,
+        self.setNotifier(self.project,
                                               [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
                                               Peak.className,
                                               # self._updatePeaks,
@@ -2265,25 +2267,25 @@ class SequenceGraphModule(CcpnModule):
                                               onceOnly=True)
 
         # explicitly update the sequence-widget
-        self._chainNotifier = self.setNotifier(self.project, [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+        self.setNotifier(self.project, [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                Chain.className,
                                                partial(self._queueGeneralNotifier, self.showChainsChanged),
                                                onceOnly=True)
 
-        self._nmrResidueNotifier = self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+        self.setNotifier(self.project, [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
                                                     NmrResidue.className,
                                                     # self._updateNmrResidues,
                                                     partial(self._queueGeneralNotifier, self._updateNmrResidues),
                                                     onceOnly=True)
 
-        self._nmrResidueChangeNotifier = self.setNotifier(self.project,
+        self.setNotifier(self.project,
                                                           [Notifier.CHANGE],
                                                           NmrResidue.className,
                                                           # self._changeNmrResidues,
                                                           partial(self._queueGeneralNotifier, self._changeNmrResidues),
                                                           onceOnly=True)
 
-        self._nmrAtomNotifier = self.setNotifier(self.project,
+        self.setNotifier(self.project,
                                                  [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
                                                  NmrAtom.className,
                                                  # self._updateNmrAtoms,
@@ -2291,11 +2293,10 @@ class SequenceGraphModule(CcpnModule):
                                                  onceOnly=True)
 
         # notifier to change the magnetisationTransfer list when new spectrum added
-        self._spectrumListNotifier = self.setNotifier(self.project,
+        self.setNotifier(self.project,
                                                       [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
                                                       Spectrum.className,
-                                                      # self._updateSpectra,
-                                                      partial(self._queueGeneralNotifier, self._updateSpectra),
+                                                      partial(self._queueGeneralNotifier, self._updateSpectraCallback),
                                                       onceOnly=True)
 
         self.setCurrentNotifier(targetName=NmrResidue._pluralLinkName,
@@ -2986,18 +2987,20 @@ class SequenceGraphModule(CcpnModule):
         if self._SGwidget:
             self._SGwidget._cleanupWidget()
 
-        if self._peakNotifier:
-            self._peakNotifier.unRegisterNotifier()
-        if self._chainNotifier:
-            self._chainNotifier.unRegisterNotifier()
-        if self._nmrResidueNotifier:
-            self._nmrResidueNotifier.unRegisterNotifier()
-        if self._nmrResidueChangeNotifier:
-            self._nmrResidueChangeNotifier.unRegisterNotifier()
-        if self._nmrAtomNotifier:
-            self._nmrAtomNotifier.unRegisterNotifier()
-        if self._spectrumListNotifier:
-            self._spectrumListNotifier.unRegisterNotifier()
+        self.deleteAllNotifiers()
+
+        # if self._peakNotifier:
+        #     self._peakNotifier.unRegisterNotifier()
+        # if self._chainNotifier:
+        #     self._chainNotifier.unRegisterNotifier()
+        # if self._nmrResidueNotifier:
+        #     self._nmrResidueNotifier.unRegisterNotifier()
+        # if self._nmrResidueChangeNotifier:
+        #     self._nmrResidueChangeNotifier.unRegisterNotifier()
+        # if self._nmrAtomNotifier:
+        #     self._nmrAtomNotifier.unRegisterNotifier()
+        # if self._spectrumListNotifier:
+        #     self._spectrumListNotifier.unRegisterNotifier()
         if self.nmrChainPulldown:
             self.nmrChainPulldown.unRegister()
 
