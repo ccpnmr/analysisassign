@@ -18,9 +18,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2024-06-06 18:27:49 +0100 (Thu, June 06, 2024) $"
-__version__ = "$Revision: 3.2.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -302,12 +302,6 @@ class AssignmentInspectorModule(CcpnModule):
         minHeight = max(self._tickLisWidget.sizeHint().height(), self.displaysWidget.minimumSizeHint().height()) + (
                 self.SETTING_PADDING * 2) + marginsTotalVertical
         return minHeight
-
-    def _maximise(self):
-        """
-        refresh the table on a maximise event
-        """
-        self._refreshTable()
 
     def _registerNotifiers(self):
         """Set up the notifiers

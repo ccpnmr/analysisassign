@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-08-23 19:21:54 +0100 (Fri, August 23, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2137,11 +2137,6 @@ class SequenceGraphModule(CcpnModule):
     #     """
     #     self._updateShowTreeAssignments()
     #     self.assignmentsTreeCheckBox.checkBox.stateChanged.disconnect(self._checkLayoutInit)
-
-    def _maximise(self):
-        """Maximise the attached table
-        """
-        pass
 
     def _updateMagnetisationTransfers(self):
         """Generate the list that defines which couplings there are between the nmrAtoms attached to each peak.
