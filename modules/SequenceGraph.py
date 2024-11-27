@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-11-27 15:46:51 +0000 (Wed, November 27, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -1950,9 +1950,9 @@ class SequenceGraphModule(CcpnModule):
         self.selectSequence(nmrChain)
 
         # not working for the minute :|
-        self.setAcceptDrops(True)
-        self.setGuiNotifier(self.mainWidget, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
-                            callback=self._processDroppedItems)
+        # self.setAcceptDrops(True)
+        # self.setGuiNotifier(self.mainWidget, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
+        #                     callback=self._processDroppedItems)
 
     def _setQueueHandler(self):
         """Set up the handler for notifier-queue
