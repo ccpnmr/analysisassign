@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-11-10 18:15:47 +0000 (Sun, November 10, 2024) $"
-__version__ = "$Revision: 3.2.10.GWV $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -2150,54 +2150,6 @@ class SequenceGraphModule(CcpnModule):
     #     """
     #     self._updateShowTreeAssignments()
     #     self.assignmentsTreeCheckBox.checkBox.stateChanged.disconnect(self._checkLayoutInit)
-
-    #=========================================================================================
-    # Process dropped items
-    #=========================================================================================
-
-    def _processDroppedItems(self, data):
-        """CallBack for Drop events
-        """
-        point = self.scrollContents.mapFromGlobal(QtGui.QCursor.pos())
-        if not self.scrollContents.visibleRegion().contains(point):
-            # only allow drops onto the actual table-widget
-            return
-        if self._tableWidget and data:
-            pids = data.get('pids', [])
-            self._handleDroppedItems(pids, self._tableWidget.tableClass, self._modulePulldown)
-
-    def _handleDroppedItems(self, pids, objType, pulldown):
-        """handle dropping pids onto the table
-        :param pids: the selected objects pids
-        :param objType: the instance of the obj to handle, e.g. PeakList
-        :param pulldown: the pulldown of the module wich updates the table
-        :return: Actions: Select the dropped item on the table or/and open a new modules if multiple drops.
-        If multiple different obj instances, then asks first.
-        """
-        from ccpn.ui.gui.lib.MenuActions import _openItemObject
-        from ccpn.ui.gui.widgets.MessageDialog import showYesNo
-
-        objs = [self.project.getByPid(pid) for pid in pids]
-
-        selectableObjects = [obj for obj in objs if isinstance(obj, objType)]
-        others = [obj for obj in objs if not isinstance(obj, objType)]
-        if selectableObjects:
-            _openItemObject(self.mainWindow, selectableObjects[1:])
-            pulldown.select(selectableObjects[0].pid)
-
-        elif othersClassNames := list({obj.className for obj in others if hasattr(obj, 'className')}):
-            title, msg = ('Dropped wrong item.',
-                          f"Do you want to open the {''.join(othersClassNames)} in a new module?") \
-                if len(othersClassNames) == 1 else \
-                ('Dropped wrong items.', 'Do you want to open items in new modules?')
-
-            if showYesNo(title, msg):
-                _openItemObject(self.mainWindow, others)
-
-    def _maximise(self):
-        """Maximise the attached table
-        """
-        pass
 
     def _updateMagnetisationTransfers(self):
         """Generate the list that defines which couplings there are between the nmrAtoms attached to each peak.

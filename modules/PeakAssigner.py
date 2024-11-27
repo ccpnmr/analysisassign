@@ -17,9 +17,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-10-20 17:14:06 +0100 (Sun, October 20, 2024) $"
-__version__ = "$Revision: 3.2.5.GWV $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -162,8 +162,6 @@ class PeakAssigner(CcpnModule):
         # populate the tables
         self._updateInterface(self.current.peaks)
 
-        self.installMaximiseEventHandler(self._maximise, self._closeModule)
-
         # notifier queue handling
         self._queuePending = UpdateQueue()
         self._queueActive = None
@@ -181,12 +179,6 @@ class PeakAssigner(CcpnModule):
         if event.type() == QtCore.QEvent.Resize:
             self._resize(event.size().width())
         return super().eventFilter(target, event)
-
-    def _maximise(self):
-        """
-        Maximise the attached table
-        """
-        self.chemicalShiftTable._maximise()
 
     def _setWidgets(self):
         """Add the widgets to the module
