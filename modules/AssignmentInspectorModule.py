@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-02 12:15:28 +0000 (Mon, December 02, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -318,13 +318,19 @@ class AssignmentInspectorModule(CcpnModule):
         CCPN-INTERNAL: used to close the module
         """
         self.displaysWidget._close()
+        self.displaysWidget = None
         self._modulePulldown.unRegister()
+        self._modulePulldown = None
         self.chemicalShiftTable._close()
+        self.chemicalShiftTable = None
         self.assignedPeaksTable._close()
+        self.assignedPeaksTable = None
         if self._currentNotifier:
             self._currentNotifier.unRegister()
+            self._currentNotifier = None
         if self._nmrAtomNotifier:
             self._nmrAtomNotifier.unRegister()
+            self._nmrAtomNotifier = None
         super()._closeModule()
 
     def _selectionPulldownCallback(self, item):

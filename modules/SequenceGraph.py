@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-02 12:15:28 +0000 (Mon, December 02, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -2930,28 +2930,39 @@ class SequenceGraphModule(CcpnModule):
         """
         self._SGwidget.chainsWidget._close()
         self._SGwidget.displaysWidget._close()
+        self._SGwidget.chainsWidget = None
+        self._SGwidget.displaysWidget = None
         self.shiftListPulldown.unRegister()
         if self._SGwidget:
             self._SGwidget._cleanupWidget()
-
+            self._SGwidget = None
         if self._peakNotifier:
             self._peakNotifier.unRegister()
+            self._peakNotifier = None
         if self._chainNotifier:
             self._chainNotifier.unRegister()
+            self._chainNotifier = None
         if self._nmrResidueNotifier:
             self._nmrResidueNotifier.unRegister()
+            self._nmrResidueNotifier = None
         if self._nmrResidueChangeNotifier:
             self._nmrResidueChangeNotifier.unRegister()
+            self._nmrResidueChangeNotifier = None
         if self._nmrAtomNotifier:
             self._nmrAtomNotifier.unRegister()
+            self._nmrAtomNotifier = None
         if self._spectrumListNotifier:
             self._spectrumListNotifier.unRegister()
+            self._spectrumListNotifier = None
         if self._currentNmrResidueNotifier:
             self._currentNmrResidueNotifier.unRegister()
+            self._currentNmrResidueNotifier = None
         if self.nmrChainPulldown:
             self.nmrChainPulldown.unRegister()
+            self.nmrChainPulldown = None
         if self.activePulldownClass and self._setCurrentPulldown:
             self._setCurrentPulldown.unRegister()
+            self._setCurrentPulldown = None
 
     def unlinkNearestNmrResidue(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
