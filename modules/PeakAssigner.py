@@ -17,9 +17,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2024-12-05 17:31:13 +0000 (Thu, December 05, 2024) $"
+__version__ = "$Revision: 3.3.0.develop $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -38,6 +38,7 @@ from PyQt5 import QtGui, QtCore, QtWidgets
 from time import time_ns
 
 from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
+from ccpn.core.NmrChain import DEFAULT_NMRCHAINCODE
 from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue, MoveToEnd
 from ccpn.core.Peak import Peak
 from ccpn.core.lib import CcpnSorting
@@ -65,7 +66,6 @@ from ccpn.util.Common import greekKey, _truncateText, getIsotopeListFromCode, ma
 from ccpn.util.UpdateScheduler import UpdateScheduler
 from ccpn.util.UpdateQueue import UpdateQueue
 from ccpn.util.OrderedSet import OrderedSet
-from ccpnmodel.ccpncore.lib.Constants import defaultNmrChainCode
 
 
 allowedResidueTypes = [('', '', ''),
@@ -1299,6 +1299,7 @@ class AxisAssignmentObject(Frame):
         """Callback for the newNmrAtom button
         """
         from ccpn.core.NmrAtom import NmrAtom
+        from ccpn.core.NmrChain import DEFAULT_NMRCHAINCODE
         from ccpn.ui.gui.widgets.BalloonMetrics import Side
 
         # get the next available Ids
@@ -1355,7 +1356,7 @@ class AxisAssignmentObject(Frame):
                 nmrAtomName = self.atomTypePulldown.currentText()
 
                 # search for an existing nmrAtom or create a new one
-                nmrChain = self.project.fetchNmrChain(shortName=nmrChainName or defaultNmrChainCode)
+                nmrChain = self.project.fetchNmrChain(shortName=nmrChainName or DEFAULT_NMRCHAINCODE)
                 if not (nmrResidue := _getNmrResidue(nmrChain, seqCode)):
                     nmrResidue = nmrChain.fetchNmrResidue(sequenceCode=seqCode, residueType=resType)
 
