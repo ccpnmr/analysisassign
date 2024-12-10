@@ -636,9 +636,6 @@ class AssignmentTable(_ProjectTableABC):
 
         super(AssignmentTable, self).__init__(parent, *args, **kwds)
 
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
-
     #=========================================================================================
     # Build the dataFrame for the table
     #=========================================================================================
