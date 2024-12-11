@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-02 12:15:28 +0000 (Mon, December 02, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:07 +0000 (Wed, December 11, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -306,9 +306,9 @@ class AssignmentInspectorModule(CcpnModule):
     def _registerNotifiers(self):
         """Set up the notifiers
         """
-        self._currentNotifier = self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrResidue._pluralLinkName,
+        self.setNotifier(self.current, [Notifier.CURRENT], targetName=NmrResidue._pluralLinkName,
                          callback=self._highlightNmrResidues)
-        self._nmrAtomNotifier = self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
+        self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
                          NmrAtom.__name__, self._updateNmrAtoms, onceOnly=True)
 
         self.nmrAtomBlocking = False
@@ -325,12 +325,6 @@ class AssignmentInspectorModule(CcpnModule):
         self.chemicalShiftTable = None
         self.assignedPeaksTable._close()
         self.assignedPeaksTable = None
-        if self._currentNotifier:
-            self._currentNotifier.unRegister()
-            self._currentNotifier = None
-        if self._nmrAtomNotifier:
-            self._nmrAtomNotifier.unRegister()
-            self._nmrAtomNotifier = None
         super()._closeModule()
 
     def _selectionPulldownCallback(self, item):
@@ -490,7 +484,8 @@ class AssignmentInspectorModule(CcpnModule):
 
             chemicalShifts = self.chemicalShiftTable._table.chemicalShifts
             residues = set(nmrResidues)
-            highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in residues]
+            highlightList = [cs for cs in chemicalShifts if
+                             cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in residues]
 
             self.chemicalShiftTable._highLightObjs(highlightList)
 
@@ -507,8 +502,10 @@ class AssignmentInspectorModule(CcpnModule):
             getLogger().debug('_highlightNmrResidues ', objList)
 
             chemicalShifts = self.chemicalShiftTable._table.chemicalShifts
-            nmrResidues = set(objList.nmrResidues)  #        set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
-            highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
+            nmrResidues = set(
+                objList.nmrResidues)  #        set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
+            highlightList = [cs for cs in chemicalShifts if
+                             cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
             self.chemicalShiftTable._highLightObjs(highlightList)
 
@@ -530,7 +527,8 @@ class AssignmentInspectorModule(CcpnModule):
 
             chemicalShifts = self.chemicalShiftTable._table.chemicalShifts
             nmrResidues = set([atom.nmrResidue for atom in self.current.nmrAtoms if atom])
-            highlightList = [cs for cs in chemicalShifts if cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
+            highlightList = [cs for cs in chemicalShifts if
+                             cs.nmrAtom and not cs.nmrAtom.isDeleted and cs.nmrAtom.nmrResidue in nmrResidues]
 
             self.chemicalShiftTable._highLightObjs(highlightList)
 
@@ -599,7 +597,8 @@ class AssignmentInspectorModule(CcpnModule):
             with self.attachedNmrAtomsList.blockWidgetSignals(self.attachedNmrAtomsList):
                 self.attachedNmrAtomsList.clear()
 
-                _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not _nmrRes.isDeleted for atm in _nmrRes.nmrAtoms if not atm.isDeleted]
+                _nmrAtoms = [atm for _nmrRes in self._nmrResidues if not _nmrRes.isDeleted for atm in _nmrRes.nmrAtoms
+                             if not atm.isDeleted]
                 self.ids = [atm.id for atm in _nmrAtoms]
                 self.attachedNmrAtomsList.addItems(self.ids)
                 self.attachedNmrAtomsList.selectItems(_select)
@@ -705,7 +704,8 @@ class AssignmentInspectorModule(CcpnModule):
                                               )
 
         else:
-            logger.warning('Impossible to navigate to peak position. Set a current strip first or select spectrumDisplays in gearbox settings')
+            logger.warning('Impossible to navigate to peak position. '
+                           'Set a current strip first or select spectrumDisplays in gearbox settings')
 
 
 #=========================================================================================
