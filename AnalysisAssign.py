@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-10-02 09:59:39 +0100 (Wed, October 02, 2024) $"
-__version__ = "$Revision: 3.2.7 $"
+__dateModified__ = "$dateModified: 2024-12-12 13:43:33 +0000 (Thu, December 12, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -117,9 +117,7 @@ class Assign(Framework):
     def showSidechainAssignmentModule(self, position: str = 'bottom', relativeTo: CcpnModule = None):
         """Display the SideChain module.
         """
-        MessageDialog.showWarning('Not implemented',
-                                  'Sidechain Assignment Module\n'
-                                  'is not implemented yet')
+        MessageDialog.showNotImplementedMessage()
 
     @logCommand('application.')
     def showPeakAssigner(self, position='bottom', relativeTo=None):
