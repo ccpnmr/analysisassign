@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:07 +0000 (Wed, December 11, 2024) $"
+__dateModified__ = "$dateModified: 2024-12-20 10:52:57 +0000 (Fri, December 20, 2024) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -318,7 +318,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """return list of displays to navigate"""
         displays = []
 
-        if self.nmrResidueTableSettings.displaysWidget:
+        if self.nmrResidueTableSettings and self.nmrResidueTableSettings.displaysWidget:
             dGids = self.nmrResidueTableSettings.displaysWidget.getTexts()  # gids of displays
             if len(dGids) == 0: return displays
 
