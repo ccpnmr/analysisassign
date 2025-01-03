@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-20 10:52:57 +0000 (Fri, December 20, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -386,7 +386,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch.isChecked():
             getLogger().warning(
-                'Undefined Search module; select Search module in Settings, unselect "Find matches" or select "Show Search Strip in Match Module"')
+                    'Undefined Search module; select Search module in Settings, unselect "Find matches" or select "Show Search Strip in Match Module"')
             showWarning('startAssignment',
                         'Undefined Search module;\nSelect your Search module in the Backbone Assignment Settings panel, '
                         'unselect "Find matches" or\nselect "Show Search Strip in Match Module" in the Settings')
@@ -548,7 +548,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             else:
                 queryShifts = [shift for shift in self.interShifts[nmrResidue]
                                if (shift and not shift.isDeleted) and shift.nmrAtom and (
-                                           shift.nmrAtom.name in self.nmrAtomsToMatch)]
+                                       shift.nmrAtom.name in self.nmrAtomsToMatch)]
             matchShifts = self.intraShifts
 
         # If NmrResidue is not an offset NmrResidue, set queryShifts as value from self.intraShifts dictionary
@@ -564,7 +564,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # If NmrResidue has offset other than -1 or 0/None, tell user that we are not able to match
         else:
             getLogger().warning(
-                f"Assignment matching not supported for NmrResidue offset {nmrResidue.relativeOffset}. Matching display skipped")
+                    f"Assignment matching not supported for NmrResidue offset {nmrResidue.relativeOffset}. Matching display skipped")
             return
 
         assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
@@ -599,7 +599,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             getLogger().warning('Backbone assignment: item is not an nmrResidue')
             return
 
-        getLogger().debug('nmrResidue:%s, droppedNmrResidue:%s', nmrResidue, droppedNmrResidue)
+        getLogger().debug(f'nmrResidue: {nmrResidue}, droppedNmrResidue: {droppedNmrResidue}')
         if droppedNmrResidue == nmrResidue:
             return
 
@@ -987,19 +987,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         for display in self._getDisplays() + self._getMatchDisplays():
             if display:
                 display.hideAllStripHeaders(handle=STRIPBACKBONE)
-        for notifier in self._stripNotifiers:
-            if notifier:
-                notifier.unRegister()
-        self._stripNotifiers = []
-        if self.shiftListWidget:
-            self.shiftListWidget.unRegister()
-            self.shiftListWidget = None
-        if self.matchWidget:
-            self.matchWidget.deleteNotifiers()
-            self.matchWidget = None
-        if self.targetWidget:
-            self.targetWidget.deleteNotifiers()
-            self.targetWidget = None
         super()._closeModule()
 
 

@@ -22,7 +22,7 @@ Reworked by EJB
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -34,7 +34,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-12 13:43:57 +0000 (Thu, December 12, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -269,7 +269,8 @@ class NmrAtomAssignerModule(CcpnModule):
                grid=(labRow, 4), gridSpan=(1, 1))
 
         resRow += 1
-        self._assignWidget = Frame(self._residueFrame, setLayout=True, showBorder=False, grid=(resRow, 0), spacing=(5, 5))
+        self._assignWidget = Frame(self._residueFrame, setLayout=True, showBorder=False, grid=(resRow, 0),
+                                   spacing=(5, 5))
         self._scrollAreaWidget.setWidget(self._residueFrame)
         resRow += 1
         # add spacer to stop columns changing width
@@ -306,17 +307,6 @@ class NmrAtomAssignerModule(CcpnModule):
         # allow drop-event
         self.setGuiNotifier(self._residueFrame, [GuiNotifier.DROPEVENT],
                             [DropBase.PIDS], callback=self._handleNmrResidue)
-
-    def _unRegisterNotifiers(self):
-        """clean up the notifiers
-        """
-        # _closeModule() will do most of them
-        self._nmrResiduePulldown.unRegister()
-        self._nmrChainPulldown.unRegister()
-
-    def _closeModule(self):
-        self._unRegisterNotifiers()
-        super()._closeModule()
 
     #================================================================================================================
     # callbacks and functionalities
@@ -665,7 +655,8 @@ class NmrAtomAssignerModule(CcpnModule):
         label = self.axisCodeOptions.get()
         if nmrs:
             # if there are assignments then use the average of the chemical-shifts
-            if chs := [shift.value for nmr in nmrs for shift in nmr.chemicalShifts if not shift.isDeleted and shift.value is not None]:
+            if chs := [shift.value for nmr in nmrs for shift in nmr.chemicalShifts if
+                       not shift.isDeleted and shift.value is not None]:
                 shift = sum(chs) / len(chs)
                 self.shiftlabel.setText(f'{label}: {shift:.3f}')
             else:
@@ -716,7 +707,8 @@ class NmrAtomAssignerModule(CcpnModule):
         for peak in peaks:
             counts = set()
             if self.selectAxisCode.isChecked():
-                peakList = makeIterableList(peak.dimensionNmrAtoms[currentAxis]) if currentAxis < len(peak.dimensionNmrAtoms) else []
+                peakList = makeIterableList(peak.dimensionNmrAtoms[currentAxis]) if currentAxis < len(
+                    peak.dimensionNmrAtoms) else []
             else:
                 peakList = makeIterableList(peak.assignedNmrAtoms)
 
@@ -732,7 +724,8 @@ class NmrAtomAssignerModule(CcpnModule):
 
                 else:  #Try to search in + and - 1 offset
                     for offset in ['-1', '+1']:
-                        if r := self._getNmrResidue(nmrResidue.nmrChain, sequenceCode=nmrResidue.mainNmrResidue.sequenceCode + offset):
+                        if r := self._getNmrResidue(nmrResidue.nmrChain,
+                                                    sequenceCode=nmrResidue.mainNmrResidue.sequenceCode + offset):
                             if assignedNmrAtom in r.nmrAtoms:
                                 for button in currentDisplayedButtons:
                                     if assignedNmrAtom:
@@ -939,7 +932,8 @@ class NmrAtomAssignerModule(CcpnModule):
             residueZetas = [atom for atom in zetaAtoms if atom in residueAtoms]
             residueEtas = [atom for atom in etaAtoms if atom in residueAtoms]
             residueMoreEtas = [atom for atom in moreEtaAtoms if atom in residueAtoms]
-            return [residueAdditional, residueAlphas, residueBetas, residueGammas, residueMoreGammas, residueDeltas, residueMoreDeltas, residueEpsilons, residueMoreEpsilons, residueZetas, residueEtas, residueMoreEtas]
+            return [residueAdditional, residueAlphas, residueBetas, residueGammas, residueMoreGammas, residueDeltas,
+                    residueMoreDeltas, residueEpsilons, residueMoreEpsilons, residueZetas, residueEtas, residueMoreEtas]
 
     @staticmethod
     def _getDnaRnaButtonList(atomList=None, residueType=None):

@@ -5,7 +5,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-02 12:15:28 +0000 (Mon, December 02, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -48,9 +48,7 @@ from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.mouseEvents import makeDragEvent
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
-from ccpn.ui.gui.guiSettings import (getColours, BORDERNOFOCUS, BORDERFOCUS,
-    GUINMRATOM_NOTSELECTED, GUINMRATOM_SELECTED, GUINMRRESIDUE, HIGHLIGHT_BORDER,
-    SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT)
+from ccpn.ui.gui.guiSettings import getColours, SEQUENCEGRAPHMODULE_LINE, SEQUENCEGRAPHMODULE_TEXT
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Menu import Menu
@@ -2199,60 +2197,60 @@ class SequenceGraphModule(CcpnModule):
     def _registerNotifiers(self):
         """Register the required notifiers
         """
-        self._peakNotifier = self.setNotifier(self.project,
-                                              [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
-                                              Peak.className,
-                                              # self._updatePeaks,
-                                              partial(self._queueGeneralNotifier, self._updatePeaks),
-                                              onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
+                         Peak.className,
+                         # self._updatePeaks,
+                         partial(self._queueGeneralNotifier, self._updatePeaks),
+                         onceOnly=True)
 
         # explicitly update the sequence-widget
-        self._chainNotifier = self.setNotifier(self.project,
-                                               [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
-                                               Chain.className,
-                                               partial(self._queueGeneralNotifier, self.showChainsChanged),
-                                               onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+                         Chain.className,
+                         partial(self._queueGeneralNotifier, self.showChainsChanged),
+                         onceOnly=True)
 
-        self._nmrResidueNotifier = self.setNotifier(self.project,
-                                                    [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
-                                                    NmrResidue.className,
-                                                    # self._updateNmrResidues,
-                                                    partial(self._queueGeneralNotifier, self._updateNmrResidues),
-                                                    onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.CREATE, Notifier.DELETE, Notifier.RENAME],
+                         NmrResidue.className,
+                         # self._updateNmrResidues,
+                         partial(self._queueGeneralNotifier, self._updateNmrResidues),
+                         onceOnly=True)
 
-        self._nmrResidueChangeNotifier = self.setNotifier(self.project,
-                                                          [Notifier.CHANGE],
-                                                          NmrResidue.className,
-                                                          # self._changeNmrResidues,
-                                                          partial(self._queueGeneralNotifier, self._changeNmrResidues),
-                                                          onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.CHANGE],
+                         NmrResidue.className,
+                         # self._changeNmrResidues,
+                         partial(self._queueGeneralNotifier, self._changeNmrResidues),
+                         onceOnly=True)
 
-        self._nmrAtomNotifier = self.setNotifier(self.project,
-                                                 [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
-                                                 NmrAtom.className,
-                                                 # self._updateNmrAtoms,
-                                                 partial(self._queueGeneralNotifier, self._updateNmrAtoms),
-                                                 onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.CHANGE, Notifier.CREATE, Notifier.DELETE],
+                         NmrAtom.className,
+                         # self._updateNmrAtoms,
+                         partial(self._queueGeneralNotifier, self._updateNmrAtoms),
+                         onceOnly=True)
 
         # notifier to change the magnetisationTransfer list when new spectrum added
-        self._spectrumListNotifier = self.setNotifier(self.project,
-                                                      [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
-                                                      Spectrum.className,
-                                                      # self._updateSpectra,
-                                                      partial(self._queueGeneralNotifier, self._updateSpectra),
-                                                      onceOnly=True)
+        self.setNotifier(self.project,
+                         [Notifier.CREATE, Notifier.DELETE, Notifier.CHANGE],
+                         Spectrum.className,
+                         # self._updateSpectra,
+                         partial(self._queueGeneralNotifier, self._updateSpectra),
+                         onceOnly=True)
 
-        self._currentNmrResidueNotifier = self.setNotifier(self.current,
-                                                           [Notifier.CURRENT],
-                                                           targetName=NmrResidue._pluralLinkName,
-                                                           callback=self._selectCurrentNmrResidues)
+        self.setNotifier(self.current,
+                         [Notifier.CURRENT],
+                         targetName=NmrResidue._pluralLinkName,
+                         callback=self._selectCurrentNmrResidues)
 
         # new notifier to respond to changing current nmrChain
         if self.activePulldownClass:
-            self._setCurrentPulldown = Notifier(self.current,
-                                                [Notifier.CURRENT],
-                                                targetName=self.activePulldownClass._pluralLinkName,
-                                                callback=self._selectCurrentPulldownClass)
+            self.setNotifier(self.current,
+                             [Notifier.CURRENT],
+                             targetName=self.activePulldownClass._pluralLinkName,
+                             callback=self._selectCurrentPulldownClass)
 
     def _selectCurrentPulldownClass(self, data):
         """Respond to change in current activePulldownClass
@@ -2916,53 +2914,6 @@ class SequenceGraphModule(CcpnModule):
         """Reset the module to the default nmrChain.
         """
         self.nmrChainPulldown.pulldownList.select('NC:@-')
-
-    def _closeModule(self):
-        """CCPN-INTERNAL: used to close the module
-        """
-        self.thisSequenceWidget._unRegisterNotifiers()
-        self._unregisterNotifiers()
-
-        super()._closeModule()
-
-    def _unregisterNotifiers(self):
-        """Clean up notifiers
-        """
-        self._SGwidget.chainsWidget._close()
-        self._SGwidget.displaysWidget._close()
-        self._SGwidget.chainsWidget = None
-        self._SGwidget.displaysWidget = None
-        self.shiftListPulldown.unRegister()
-        if self._SGwidget:
-            self._SGwidget._cleanupWidget()
-            self._SGwidget = None
-        if self._peakNotifier:
-            self._peakNotifier.unRegister()
-            self._peakNotifier = None
-        if self._chainNotifier:
-            self._chainNotifier.unRegister()
-            self._chainNotifier = None
-        if self._nmrResidueNotifier:
-            self._nmrResidueNotifier.unRegister()
-            self._nmrResidueNotifier = None
-        if self._nmrResidueChangeNotifier:
-            self._nmrResidueChangeNotifier.unRegister()
-            self._nmrResidueChangeNotifier = None
-        if self._nmrAtomNotifier:
-            self._nmrAtomNotifier.unRegister()
-            self._nmrAtomNotifier = None
-        if self._spectrumListNotifier:
-            self._spectrumListNotifier.unRegister()
-            self._spectrumListNotifier = None
-        if self._currentNmrResidueNotifier:
-            self._currentNmrResidueNotifier.unRegister()
-            self._currentNmrResidueNotifier = None
-        if self.nmrChainPulldown:
-            self.nmrChainPulldown.unRegister()
-            self.nmrChainPulldown = None
-        if self.activePulldownClass and self._setCurrentPulldown:
-            self._setCurrentPulldown.unRegister()
-            self._setCurrentPulldown = None
 
     def unlinkNearestNmrResidue(self, selectedNmrResidue=None):
         if self.current.nmrResidue:
