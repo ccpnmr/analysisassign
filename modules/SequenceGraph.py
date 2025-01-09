@@ -17,7 +17,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-01-09 16:45:42 +0000 (Thu, January 09, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -946,8 +946,7 @@ class NmrResidueList():
         self.guiSelectionBoxes.clear()
 
         for nmrResidue in nmrResidues:
-            if nmrResidue in self.guiNmrResidues:
-                guiRes = self.guiNmrResidues[nmrResidue]
+            if guiRes := self.guiNmrResidues.get(nmrResidue):
                 self.guiSelectionBoxes.addSelection(nmrResidue, guiRes,
                                                     Base._highlightMid, 2,
                                                     None, self._atomSpacing)
@@ -988,9 +987,7 @@ class NmrResidueList():
 
         # iterate through the adjacent pairs
         for prevRes, thisRes in zip(mainNmrResidues[:-1], mainNmrResidues[1:]):
-
-            thisGroup = self.guiNmrResidues.get(prevRes)
-            if not thisGroup or thisGroup.connected:
+            if not (thisGroup := self.guiNmrResidues.get(prevRes)) or thisGroup.connected:
                 continue
 
             # add the connection the minus residue and point to the right - may need to change for +1 residues
@@ -1087,16 +1084,12 @@ class NmrResidueList():
         # get the list of nmrResidues in the required nmrChain referenced by nmrChainId
         # mainNmrResidues = self.nmrChains[nmrChainId]  #[resPair[0] for resPair in self.nmrChains[nmrChainId]]
 
-        mainNmrResidues = [nmrResidue for nmrResidue in self.nmrChains[nmrChainId] if
-                           nmrResidue.nmrChain.pid == nmrChainId and
-                           not nmrResidue.isDeleted]
+        mainNmrResidues = [nmrResidue for nmrResidue in self.nmrChains[nmrChainId]
+                           if not nmrResidue.isDeleted and
+                           nmrResidue.nmrChain.pid == nmrChainId]
 
         for ii, nmrResidue in enumerate(mainNmrResidues):
-            # nmrResidue, guiAtoms = item
-            # guiAtoms = self.guiNmrAtomsFromNmrResidue[nmrResidue]
-
-            if nmrResidue in self.guiNmrResidues:
-                guiItem = self.guiNmrResidues[nmrResidue]
+            if guiItem := self.guiNmrResidues.get(nmrResidue):
                 guiItem.setPos(ii * self.atomSpacing * 3.0, 0.0)
 
     def updateConnectedChainPositions(self):
@@ -1105,10 +1098,8 @@ class NmrResidueList():
 
         # update crossChainResidue positions
         for res in self.guiGhostNmrResidues.values():
-            if res.crossChainResidue and res.crossChainResidue in self.guiNmrResidues:
-                link = self.guiNmrResidues[res.crossChainResidue]
+            if res.crossChainResidue and (link := self.guiNmrResidues.get(res.crossChainResidue)):
                 count = res.crossChainCount
-
                 newPosx = link.x()
                 newPosy = link.y()
                 res.setPos(newPosx + (count * 0.5 - 1.0) * self.atomSpacing,
@@ -1162,7 +1153,6 @@ class NmrResidueList():
                                   self.guiNmrAtoms.get(nmrAtomPair[1]),
                                   nmrAtomPair[2]
                                   )
-
                 # skip if not defined
                 if None in guiNmrAtomPair:
                     continue
@@ -1173,8 +1163,8 @@ class NmrResidueList():
                 displacement = guiNmrAtomPair[0].getConnectedList(guiNmrAtomPair[1])
 
                 # add the internal line to the guiNmrResidueGroup, should now move when group is moved
-                guiNmrResidue = self.guiNmrResidues[guiNmrAtomPair[0].nmrAtom.nmrResidue]
-
+                if not (guiNmrResidue := self.guiNmrResidues.get(guiNmrAtomPair[0].nmrAtom.nmrResidue)):
+                    continue
                 self._addConnectingLineToGroup(guiNmrResidue,
                                                guiNmrAtomPair[0],
                                                guiNmrAtomPair[1],
@@ -1617,9 +1607,7 @@ class NmrResidueList():
         #     res, oldGuiAtoms = self._getNmrResiduePair(ii)
         #     self._setNmrResiduePair(ii, res, oldGuiAtoms.update(guiAtoms))
 
-        if nmrResidue in self.guiNmrResidues:
-            guiResidueGroup = self.guiNmrResidues[nmrResidue]
-
+        if guiResidueGroup := self.guiNmrResidues.get(nmrResidue):
             # add the guiAtoms to the group and set the reverse link
             for item in guiAtoms.values():
                 guiResidueGroup.addToGroup(item)
@@ -2332,8 +2320,9 @@ class SequenceGraphModule(CcpnModule):
         # assumes that the peakAssignments have changed - possibly use different notifier
         nmrResidues = makeIterableList(nmrResidues)
 
-        nmrAtomIncludeList = tuple(
-                nmrAtom for nmrResidue in nmrResidues if not nmrResidue.isDeleted for nmrAtom in nmrResidue.nmrAtoms)
+        nmrAtomIncludeList = tuple(nmrAtom for nmrResidue in nmrResidues
+                                   if not nmrResidue.isDeleted
+                                   for nmrAtom in nmrResidue.nmrAtoms)
         guiNmrAtomSet = set([self.nmrResidueList.guiNmrAtoms.get(nmrAtom) for nmrAtom in nmrAtomIncludeList]) - {None}
 
         for guiAtom in guiNmrAtomSet:
@@ -2519,15 +2508,10 @@ class SequenceGraphModule(CcpnModule):
         # print(f'>>>  _renameNmrResidue   {nmrResidue}     {oldPid}')
 
         with self.sceneBlocking():
-            if nmrResidue in self.nmrResidueList.guiNmrResidues:
-                # self.nmrResidueList.guiNmrResidues[nmrResidue].nmrResidueLabel._update()
-                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiNmrResidues[nmrResidue],
-                                                                  showPredictions)
-            if nmrResidue in self.nmrResidueList.guiGhostNmrResidues:
-                # self.nmrResidueList.guiGhostNmrResidues[nmrResidue].nmrResidueLabel._update()
-                self.nmrResidueList._updateGroupResiduePrediction(self.nmrResidueList.guiGhostNmrResidues[nmrResidue],
-                                                                  showPredictions)
-
+            if found := self.nmrResidueList.guiNmrResidues.get(nmrResidue):
+                self.nmrResidueList._updateGroupResiduePrediction(found, showPredictions)
+            if found := self.nmrResidueList.guiGhostNmrResidues.get(nmrResidue):
+                self.nmrResidueList._updateGroupResiduePrediction(found, showPredictions)
             self.nmrResidueList.setNmrResidueSelection([self.current.nmrResidue])
 
             # nmrChainPid = self.nmrChainPulldown.getText()
@@ -2644,12 +2628,12 @@ class SequenceGraphModule(CcpnModule):
             # clear connectivity list of guiNmrAtoms
             guiAtom.clearConnectedList()
 
-        self.scene.removeItem(self.nmrResidueList.guiNmrResidues[nmrResidue])
-
-        del self.nmrResidueList.guiNmrResidues[nmrResidue]
-        for nmrAtom in _nmrAtoms:
-            if nmrAtom in self.nmrResidueList.guiNmrAtoms:
-                del self.nmrResidueList.guiNmrAtoms[nmrAtom]
+        if found := self.nmrResidueList.guiNmrResidues.get(nmrResidue):
+            self.scene.removeItem(found)
+            del self.nmrResidueList.guiNmrResidues[nmrResidue]
+            for nmrAtom in _nmrAtoms:
+                if nmrAtom in self.nmrResidueList.guiNmrAtoms:
+                    del self.nmrResidueList.guiNmrAtoms[nmrAtom]
 
     def _deleteGuiNmrResidues(self, nmrResidues, showPredictions):
         """Delete items from an old nmrResidue.
@@ -2663,7 +2647,8 @@ class SequenceGraphModule(CcpnModule):
 
         # nmrChains contain nmrResidue in the wrong place and must be removed before sequence prediction
         for nmrChainId, nmrList in self.nmrResidueList.nmrChains.items():
-            thisResList = [nmrResidue for nmrResidue in nmrList if nmrResidue.nmrChain.pid == nmrChainId]
+            thisResList = [nmrResidue for nmrResidue in nmrList
+                           if not nmrResidue.isDeleted and nmrResidue.nmrChain.pid == nmrChainId]
             if thisResList:
                 # update the prediction in the sequenceModule
                 self.predictSequencePosition(thisResList, showPredictions)
