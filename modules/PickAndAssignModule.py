@@ -42,9 +42,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-10-26 16:23:24 +0100 (Sat, October 26, 2024) $"
-__version__ = "$Revision: 3.2.7.GWV $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2024-12-11 19:13:07 +0000 (Wed, December 11, 2024) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -84,7 +84,7 @@ class PickAndAssignModule(NmrResidueTableModule):
     Do a restricted peak pick along the 'y-axis' of (a set of) spectra.
     Use settings to define the spectral displays, the active spectra and the tolerances for peak picking
 
-    # GST is this true anymore?
+    # GST is this true any more?
     This module closely works with the Atom Selector module
     """
     className = 'PickAndAssignModule'
@@ -136,7 +136,6 @@ class PickAndAssignModule(NmrResidueTableModule):
         self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s)')
 
         # need to feedback to current.nmrResidueTable
-        self._selectOnTableCurrentNmrResiduesNotifier = None
         self._registerNotifiers()
 
         # # these need to change whenever different spectrumDisplays are selected
@@ -155,15 +154,8 @@ class PickAndAssignModule(NmrResidueTableModule):
         """
         set up the notifiers
         """
-        self._selectOnTableCurrentNmrResiduesNotifier = CurrentNotifier(targetName=NmrResidue._pluralLinkName,
-                                                                        callback=self._selectionCallback)
-
-    def _unRegisterNotifiers(self):
-        """
-        clean up the notifiers
-        """
-        if self._selectOnTableCurrentNmrResiduesNotifier is not None:
-            self._selectOnTableCurrentNmrResiduesNotifier.unRegisterNotifier()
+        self.setCurrentNotifier(targetName=NmrResidue._pluralLinkName,
+                                callback=self._selectionCallback)
 
     def _selectionCallback(self, data):
         """
@@ -179,13 +171,6 @@ class PickAndAssignModule(NmrResidueTableModule):
             self.restrictedPickButton.setEnabled(False)
             self.assignSelectedButton.setEnabled(False)
             self.restrictedPickAndAssignButton.setEnabled(False)
-
-    def _closeModule(self):
-        """
-        Unregister notifiers and close module.
-        """
-        self._unRegisterNotifiers()
-        super()._closeModule()
 
     def _getDisplay(self):
         """Get the current selected spectrum-display from the pulldown

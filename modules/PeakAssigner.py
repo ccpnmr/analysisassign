@@ -6,7 +6,7 @@ Responds to current.peaks
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -17,9 +17,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2024-12-05 17:31:13 +0000 (Thu, December 05, 2024) $"
-__version__ = "$Revision: 3.3.0.develop $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-01-10 17:57:36 +0000 (Fri, January 10, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -46,6 +46,7 @@ from ccpn.core.lib.AssignmentLib import nmrAtomsForPeaks, peaksAreOnLine, PROTEI
 from ccpn.core.lib.ContextManagers import undoBlock, undoBlockWithoutSideBar
 from ccpn.core.lib.Notifiers import Notifier, _removeDuplicatedNotifiers
 from ccpn.core.lib.DataFrameObject import DataFrameObject
+from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.ButtonList import ButtonList, Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
@@ -286,9 +287,9 @@ class PeakAssigner(CcpnModule):
                          callback=self._updateNmrResidue,
                          onceOnly=True)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifier queue handling
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def queueFull(self):
         """Method that is called when the queue is deemed to be too big.
@@ -355,9 +356,9 @@ class PeakAssigner(CcpnModule):
             # caught during the queue processing event, need to restart
             self._scheduler.signalRestart()
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Notifier queue handling
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _updateCurrent(self, data):
         # not a very efficient way of doing this
@@ -562,15 +563,6 @@ class PeakAssigner(CcpnModule):
         nmrAtom = objectTable.getCurrentObject()
         self._updateAssignmentWidget(dim, nmrAtom)
 
-    def _closeModule(self):
-        """
-        CCPN-INTERNAL: used to close the module
-        """
-        for dimTab in self.dimensionTabs:
-            dimTab._close()
-        self.dimensionTabs = []
-        super()._closeModule()
-
 
 #=========================================================================================
 # NotOnLine
@@ -629,6 +621,8 @@ class AssignmentTable(_ProjectTableABC):
 
     _dim = None
     _enableSearch = False
+    _owner = WeakRefDescriptor()
+    atomList: list[NmrAtom] | None = []
 
     defaultSortColumn = 'Delta'
     defaultSortOrder = QtCore.Qt.AscendingOrder
@@ -644,16 +638,9 @@ class AssignmentTable(_ProjectTableABC):
 
         super(AssignmentTable, self).__init__(parent, *args, **kwds)
 
-        self._owner = None          # The AxisAssignmentObject; Set after initialisation
-        self.moduleParent = None    # The module; ie. PeakAssigner instance. Set after initialisation
-                                    # by the AxisAssignmentObject
-
-        self.headerColumnMenu.setInternalColumns(self._internalColumns)
-        self.headerColumnMenu.setDefaultColumns(self.defaultHidden)
-
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Build the dataFrame for the table
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def buildTableDataFrame(self):
         """Return a Pandas dataFrame from an internal list of objects
@@ -665,16 +652,15 @@ class AssignmentTable(_ProjectTableABC):
         allItems = []
         objects = []
 
-        if self._table:
-            self._columnDefs = self._getTableColumns(self._table)
+        if self.atomList:
+            self._columnDefs = self._getTableColumns(self.atomList)
 
-            for col, obj in enumerate(self._table):
+            for col, obj in enumerate(self.atomList):
                 listItem = OrderedDict()
                 for header in self._columnDefs.columns:
                     try:
                         listItem[header.headerText] = header.getValue(obj)
                     except Exception as es:
-                        # NOTE:ED - catch any nasty surprises in tables
                         getLogger().debug2(f'Error creating table information {es}')
                         listItem[header.headerText] = None
 
@@ -696,9 +682,9 @@ class AssignmentTable(_ProjectTableABC):
 
         return _dfObject
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Table functions
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def _getTableColumns(self, nmrAtoms=None):
         """Add default columns plus the ones according to peakList.spectrum dimension
@@ -820,9 +806,9 @@ class AssignmentTable(_ProjectTableABC):
             return
         self._owner._assignNmrAtom(append=False)
 
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
     # Selection/action callbacks
-    #=========================================================================================
+    #-----------------------------------------------------------------------------------------
 
     def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table.
@@ -863,12 +849,6 @@ class AssignmentTable(_ProjectTableABC):
         """
         pass
 
-    # def _updateRowCallback(self, data):
-    #     """Notifier callback for updating the table for change in chemicalShifts
-    #     :param data: notifier content
-    #     """
-    #     _CoreTableWidgetABC._updateRowCallback(self, data)
-
 
 #=========================================================================================
 # EditNmrAtomBalloon
@@ -900,21 +880,29 @@ class AxisAssignmentObject(Frame):
     Create a new frame for displaying information in 1 axis of peakassigner
     """
 
+    # soft-links to external classes
+    mainWindow = WeakRefDescriptor()
+    application = WeakRefDescriptor()
+    project = WeakRefDescriptor()
+    current = WeakRefDescriptor()
+    _parent = WeakRefDescriptor()
+
     def __init__(self, parent, parentModule, dimIndex, mainWindow, grid=None, **kwds):
 
         # settings = dict(hPolicy = 'minimum', hAlign='left', vPolicy = 'expanding', vAlign='top')
         settings = dict(vAlign='top', )
 
-        super(AxisAssignmentObject, self).__init__(parent=parent,
-                                                   setLayout=True, showBorder=_showBorders,
-                                                   grid=grid, **settings, **kwds
-                                                   )
+        super().__init__(parent=parent,
+                         setLayout=True, showBorder=_showBorders,
+                         grid=grid, **settings, **kwds
+                         )
 
         # Derive application, project, and current from mainWindow
         self.mainWindow = mainWindow
-        self.application = mainWindow.application
-        self.project = mainWindow.application.project
-        self.current = mainWindow.application.current
+        if self.mainWindow:
+            self.application = mainWindow.application
+            self.project = mainWindow.application.project
+            self.current = mainWindow.application.current
         self.currentAtoms = None
         self._clickedNmrAtom = None
         self._blockEscapeFlag = None
@@ -926,7 +914,7 @@ class AxisAssignmentObject(Frame):
         self.dataFrameAlternatives = None
         self.lastTableSelected = None
         self.lastNmrAtomSelected = None
-        self.tables = [None, None]  # The two tables (assignment and alternatives)
+        self.tables: list[AssignmentTable | None] = [None, None]  # The two tables (assignment and alternatives)
 
         height = 20
         # self._minWidth = 150
@@ -935,15 +923,13 @@ class AxisAssignmentObject(Frame):
         _pullDownWidth = 65
 
         aRow = -1  # Toplevel row in the widget
-        #=========================================
+        #-----------------------------------------------------------------------------------------
         # divider line
-        #=========================================
         # aRow += 1
         # self.hLine = LabeledHLine(self, text='axis', grid=(aRow,0), height=10, colour=getColours()[DIVIDER])
 
-        #=========================================
+        #-----------------------------------------------------------------------------------------
         # assignments
-        #=========================================
         aRow += 1
         self._assignmentsFrame = Frame(self, setLayout=True, showBorder=_showBorders,
                                        grid=(aRow, 0), margins=_margins, acceptDrops=True, **settings)
@@ -999,9 +985,8 @@ class AxisAssignmentObject(Frame):
         self.editButton = _buttons.getButton('Edit')
         self.newNmrAtomButton = _buttons.getButton('New')
 
-        #===========================================
+        #-----------------------------------------------------------------------------------------==
         # Not-aligned frame
-        #===========================================
         # aRow += 1
         self.notAlignedFrame = Frame(self, setLayout=True, showBorder=_showBorders, grid=(aRow, 0),
                                      margins=_margins, )  #**settings)
@@ -1115,15 +1100,6 @@ class AxisAssignmentObject(Frame):
         """Set the text of the notAligned widget"""
         self.notAlignedLabel.setText(text)
 
-    def _close(self):
-        self.tables[0]._close()
-        self.tables[1]._close()
-        self.tables = None
-
-    def _clearTableOveray(self):
-        for table in self.tables:
-            table.setStyleSheet(table._defaultStyleSheet)
-
     def _handleDropsFromSideBar(self, dataDict):
         """
         Handle drops from SideBar. If NmrAtoms, then assign to the selected peaks.
@@ -1142,54 +1118,6 @@ class AxisAssignmentObject(Frame):
             if failedNmrAtoms:
                 showWarning('Incompatible IsotopeCode Error',
                             f'Cannot assign NmrAtoms: {nmrAtoms} to peaks with IsotopeCode {isotopeCode} ')
-
-    def _handleDragMoveEvent(self, enteringToTableNum: int, dataDict):
-        """
-        Notifier callback activated upon a DragEnterEvent of an object.
-        Add a border overlay if the dragEnterEvent is in the permitted table
-        """
-        source = dataDict.get('source')
-        if source == self.tables[0] and enteringToTableNum == 1:
-            self.tables[1]._setDraggingStyleSheet()
-        elif source == self.tables[1] and enteringToTableNum == 0:
-            self.tables[0]._setDraggingStyleSheet()
-        else:
-            self._clearTableOveray()
-
-    # GWV 20/20/2024: not used?
-    # def _handleDroppedItems(self, droppingToTableNum: int, dataDict, ):
-    #     """
-    #     Notifier callback activated upon a DropEvent of an object.
-    #     Note, the source of the drag can be from anywhere, therefore here is limited only if the source is
-    #     within the module and right tables pairs. The correct instance of the dropped object is checked afterwards.
-    #     """
-    #     sourceTable = dataDict.get('source')
-    #     nmrAtoms = self.project.getObjectsByPids(dataDict.get(DropBase.PIDS))
-    #
-    #     ## Action 0, Assignment: dropping to Assignment (Table-0) from Alternative (Table-1)
-    #     if droppingToTableNum == _ASSIGNED_TABLE and sourceTable == self.tables[_ALTERNATIVES_TABLE]:
-    #         self._assignNmrAtom(nmrAtoms=nmrAtoms)
-    #         return
-    #
-    #     ## Action 1, DeAssign from top to bottom: dropping to Alternative (Table-1) from Assignment (Table-0)
-    #     if droppingToTableNum == _ALTERNATIVES_TABLE and sourceTable == self.tables[_ASSIGNED_TABLE]:
-    #         self._deassignNmrAtom(nmrAtoms=nmrAtoms)
-    #         return
-
-    # GWV 20/20/2024: not used?
-    # def _assignDeassignNmrAtom(self, tableNum: int, data):
-    #     """
-    #     Assign/Deassign the nmrAtom that is double-clicked to
-    #     the corresponding dimension of the selected
-    #     peaks.
-    #     """
-    #     if tableNum == _ASSIGNED_TABLE:
-    #         # deAssign from top to bottom
-    #         self._deassignNmrAtom()
-    #
-    #     elif tableNum == _ALTERNATIVES_TABLE:
-    #         # assign bottom - up
-    #         self._assignNmrAtom()
 
     def _clickedTableCallback(self, tableNum, data):
         if obj := data[Notifier.OBJECT]:
@@ -1634,15 +1562,15 @@ class AxisAssignmentObject(Frame):
 
     def setAssignedTable(self, atomList: list):
 
-        self.tables[_ASSIGNED_TABLE]._table = atomList
+        self.tables[_ASSIGNED_TABLE].atomList = atomList
         self.tables[_ASSIGNED_TABLE].populateTable()
 
     def setAlternativesTable(self, atomList: list):
 
-        self.tables[_ALTERNATIVES_TABLE]._table = atomList
+        self.tables[_ALTERNATIVES_TABLE].atomList = atomList
         self.tables[_ALTERNATIVES_TABLE].populateTable()
 
-    def _updateAssignmentWidget(self, tableNum: int, item: object):
+    def _updateAssignmentWidget(self, tableNum: int, item: NmrAtom | None):
         """
         Update all information in assignment widget when NmrAtom is selected in list widget of that
         assignment widget.
@@ -1888,26 +1816,6 @@ class AxisAssignmentObject(Frame):
         self.resTypePulldown.repaint()
 
         self.atomTypePulldown.disableLabelsOnPullDown([OtherNames, OtherByIC, OtherByResType])
-
-    def _deleteNmrAtom(self, dim: int):
-        """
-        delete selected nmrAtom from project
-        """
-        if self.lastTableSelected is not None:
-            # remove from the table
-            deleted = self.tables[self.lastTableSelected].deleteObjFromTable()
-            if deleted:
-                nextAtoms = self.tables[self.lastTableSelected].getSelectedObjects()
-
-                # reset buttons
-                if not nextAtoms:
-                    # self.buttonList.setButtonEnabled('Delete', False)
-                    # self.buttonList.setButtonEnabled('Deassign', False)
-                    # self.buttonList.setButtonEnabled('Assign', True) #False)
-
-                    self._updateAssignmentWidget(self.lastTableSelected, None)
-                else:
-                    self._updateAssignmentWidget(self.lastTableSelected, nextAtoms[0])
 
     @staticmethod
     def _atomCompare(atom1: tuple, atom2: tuple):

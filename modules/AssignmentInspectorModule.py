@@ -7,7 +7,7 @@ modified by Geerten 1-9/12/2016:
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-11-26 10:38:11 +0000 (Tue, November 26, 2024) $"
+__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -312,16 +312,6 @@ class AssignmentInspectorModule(CcpnModule):
         self.setNotifier(self.project, [Notifier.RENAME, Notifier.CREATE, Notifier.DELETE],
                          NmrAtom.__name__, self._updateNmrAtoms, onceOnly=True)
         self.nmrAtomBlocking = False
-
-    def _closeModule(self):
-        """
-        CCPN-INTERNAL: used to close the module
-        """
-        self.displaysWidget._close()
-        self._modulePulldown.unRegister()
-        self.chemicalShiftTable._close()
-        self.assignedPeaksTable._close()
-        super()._closeModule()
 
     def _selectionPulldownCallback(self, item):
         """Notifier Callback for selecting ChemicalShiftList from the pull down menu

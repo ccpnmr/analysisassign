@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-07-05 12:50:33 +0100 (Fri, July 05, 2024) $"
-__version__ = "$Revision: 3.2.5 $"
+__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
+__version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -42,7 +42,8 @@ from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, LINKTOPULLDOWNCLASS
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, CheckBoxCompoundWidget, SpinBoxCompoundWidget
+from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, CheckBoxCompoundWidget, \
+    SpinBoxCompoundWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, showYesNo
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.DropBase import DropBase
@@ -152,12 +153,14 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         col = 0
 
         row += 1
-        HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER], height=15)
+        HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER],
+              height=15)
 
         # new match module pulldown list
         row += 1
         self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[2],
-                                                      fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2),
+                                                      fixedWidths=(colWidth0, colWidth0, None), grid=(row, col),
+                                                      gridSpan=(1, 2),
                                                       vAlign='top', hAlign='left',
                                                       )
         self.matchWidget.setPreSelect(self._fillMatchWidget)
@@ -196,7 +199,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # new search module pulldown list
         row += 1
         self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[3],
-                                                       fixedWidths=(colWidth0, colWidth0, None), grid=(row, col), gridSpan=(1, 2),
+                                                       fixedWidths=(colWidth0, colWidth0, None), grid=(row, col),
+                                                       gridSpan=(1, 2),
                                                        vAlign='top', hAlign='left',
                                                        )
         self.targetWidget.setPreSelect(self._fillTargetWidget)
@@ -214,7 +218,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # re-order, move the sequential checkbox to here, swap with focusYAxis checkbox - not nice method :|
         row += 1
-        self.nmrResidueTableSettings.layout().addWidget(self.nmrResidueTableSettings.sequentialStripsWidget, row, col, 1, 2)
+        self.nmrResidueTableSettings.layout().addWidget(self.nmrResidueTableSettings.sequentialStripsWidget, row, col,
+                                                        1, 2)
         self.nmrResidueTableSettings.layout().addWidget(self.focusYAxis, focusRow, col, 1, 2)
 
         # Select which NmrAtoms to match
@@ -250,7 +255,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self._setNmrAtomsToMatch()
 
         row += 1
-        HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER], height=15)
+        HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER],
+              height=15)
 
         # Chemical shift list selection
         row += 1
@@ -262,14 +268,16 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                          )
         self._setupShiftDicts()
 
-        self._activeLinkCheckbox = self.activePulldownClass and getattr(self.nmrResidueTableSettings, LINKTOPULLDOWNCLASS, None)
+        self._activeLinkCheckbox = self.activePulldownClass and getattr(self.nmrResidueTableSettings,
+                                                                        LINKTOPULLDOWNCLASS, None)
 
         # align the widgets in the settings-widget
         alignWidgets(self.nmrResidueTableSettings)
 
     @staticmethod
     def registerExtension(cls, extension):
-        from ccpn.AnalysisAssign.modules.backboneExtensions.BackboneAssignmentExtensionABC import BackboneAssignmentExtensionFrame
+        from ccpn.AnalysisAssign.modules.backboneExtensions.BackboneAssignmentExtensionABC import \
+            BackboneAssignmentExtensionFrame
 
         if issubclass(extension, BackboneAssignmentExtensionFrame):
             cls.registeredExtensions.add(extension)
@@ -310,7 +318,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """return list of displays to navigate"""
         displays = []
 
-        if self.nmrResidueTableSettings.displaysWidget:
+        if self.nmrResidueTableSettings and self.nmrResidueTableSettings.displaysWidget:
             dGids = self.nmrResidueTableSettings.displaysWidget.getTexts()  # gids of displays
             if len(dGids) == 0: return displays
 
@@ -318,7 +326,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             targetGids = self.targetWidget.getText()  # gid of the target module - don't discard for the minute
 
             if ALL in dGids:
-                displays = [dp for dp in self.application.ui.mainWindow.spectrumDisplays if dp.pid not in (matchGids, targetGids)]
+                displays = [dp for dp in self.application.ui.mainWindow.spectrumDisplays if
+                            dp.pid not in (matchGids, targetGids)]
             else:
                 displays = [self.application.getByGid(gid) for gid in dGids if gid not in (ALL, matchGids, targetGids)]
 
@@ -370,14 +379,17 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         targetIndex = self.targetWidget.getIndex()
         if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
             getLogger().warning('Undefined Match module; select Match module in Settings or unselect "Find matches"')
-            showWarning('startAssignment', 'Undefined Match module;\nSelect your Match module in the Backbone Assignment Settings panel'
-                                           'or unselect "Find matches"')
+            showWarning('startAssignment',
+                        'Undefined Match module;\nSelect your Match module in the Backbone Assignment Settings panel'
+                        'or unselect "Find matches"')
             return
 
         if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch.isChecked():
-            getLogger().warning('Undefined Search module; select Search module in Settings, unselect "Find matches" or select "Show Search Strip in Match Module"')
-            showWarning('startAssignment', 'Undefined Search module;\nSelect your Search module in the Backbone Assignment Settings panel, '
-                                           'unselect "Find matches" or\nselect "Show Search Strip in Match Module" in the Settings')
+            getLogger().warning(
+                    'Undefined Search module; select Search module in Settings, unselect "Find matches" or select "Show Search Strip in Match Module"')
+            showWarning('startAssignment',
+                        'Undefined Search module;\nSelect your Search module in the Backbone Assignment Settings panel, '
+                        'unselect "Find matches" or\nselect "Show Search Strip in Match Module" in the Settings')
             return
 
         if (matchIndex == targetIndex) and matchIndex != 0:
@@ -422,7 +434,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                            widths=newWidths,
                                                            showSequentialResidues=(len(display.axisCodes) > 2) and
                                                                                   self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.isChecked(),
-                                                           markPositions=False,  #self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
+                                                           markPositions=False,
+                                                           #self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
                                                            showDropHeaders=display in targetDisplays,
                                                            )
 
@@ -450,7 +463,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                            widths=newWidths,
                                                            showSequentialResidues=(len(display.axisCodes) > 2) and
                                                                                   self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.isChecked(),
-                                                           markPositions=False,  #self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
+                                                           markPositions=False,
+                                                           #self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
                                                            showDropHeaders=True,
                                                            axisMask=axisMask
                                                            )
@@ -477,7 +491,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                             nmrAtomsOffset = nmrAtomsFromResidue(nmrResidue)
                             nmrAtomsCentre = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
 
-                            nmrAtoms = [naOffset for naOffset in nmrAtomsOffset if naOffset.name in self.nmrAtomsToMatch]
+                            nmrAtoms = [naOffset for naOffset in nmrAtomsOffset if
+                                        naOffset.name in self.nmrAtomsToMatch]
                             nmrAtoms.extend(naCentre for naCentre in nmrAtomsCentre if naCentre.name in baseNmrAtoms)
 
                         elif MARKCONNECTED:
@@ -518,7 +533,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 # align to the match module
                 for tgStrip in target.strips:
                     tgStrip.setAxisPosition(axisIndex=1, position=matchPos, rescale=False, update=False)
-                    tgStrip.setAxisWidth(axisIndex=1, width=matchWidth, rescale=True, update=True)  #(tgStrip == target.strips[-1]))
+                    tgStrip.setAxisWidth(axisIndex=1, width=matchWidth, rescale=True,
+                                         update=True)  #(tgStrip == target.strips[-1]))
                 target.strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
     def findAndDisplayMatches(self, nmrResidue):
@@ -531,7 +547,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 queryShifts = []
             else:
                 queryShifts = [shift for shift in self.interShifts[nmrResidue]
-                               if (shift and not shift.isDeleted) and shift.nmrAtom and (shift.nmrAtom.name in self.nmrAtomsToMatch)]
+                               if (shift and not shift.isDeleted) and shift.nmrAtom and (
+                                       shift.nmrAtom.name in self.nmrAtomsToMatch)]
             matchShifts = self.intraShifts
 
         # If NmrResidue is not an offset NmrResidue, set queryShifts as value from self.intraShifts dictionary
@@ -546,7 +563,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # If NmrResidue has offset other than -1 or 0/None, tell user that we are not able to match
         else:
-            getLogger().warning(f"Assignment matching not supported for NmrResidue offset {nmrResidue.relativeOffset}. Matching display skipped")
+            getLogger().warning(
+                    f"Assignment matching not supported for NmrResidue offset {nmrResidue.relativeOffset}. Matching display skipped")
             return
 
         assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
@@ -581,7 +599,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             getLogger().warning('Backbone assignment: item is not an nmrResidue')
             return
 
-        getLogger().debug('nmrResidue:%s, droppedNmrResidue:%s', nmrResidue, droppedNmrResidue)
+        getLogger().debug(f'nmrResidue: {nmrResidue}, droppedNmrResidue: {droppedNmrResidue}')
         if droppedNmrResidue == nmrResidue:
             return
 
@@ -661,7 +679,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                 # connected an unassigned nmrChain to the current assigned chain
                                 if droppedNmrResidue.nmrChain.id == '@-':
                                     # assume that it is the only one
-                                    droppedNmrResidue.nmrChain.assignSingleResidue(droppedNmrResidue, nmrResidue.residue.previousResidue)
+                                    droppedNmrResidue.nmrChain.assignSingleResidue(droppedNmrResidue,
+                                                                                   nmrResidue.residue.previousResidue)
                                 else:
                                     nRes = nmrResidue.residue
                                     for _ii in range(len(droppedNmrResidue.nmrChain.mainNmrResidues)):
@@ -673,7 +692,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
                                 if nmrResidue.nmrChain.id == '@-':
                                     # assume that it is the only one
-                                    nmrResidue.nmrChain.assignSingleResidue(nmrResidue, droppedNmrResidue.residue.nextResidue)
+                                    nmrResidue.nmrChain.assignSingleResidue(nmrResidue,
+                                                                            droppedNmrResidue.residue.nextResidue)
                                 else:
                                     nmrResidue.nmrChain.assignConnectedResidues(droppedNmrResidue.residue.nextResidue)
 
@@ -691,7 +711,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                 # connected an unassigned nmrChain to the current assigned chain
                                 if droppedNmrResidue.nmrChain.id == '@-':
                                     # assume that it is the only one
-                                    droppedNmrResidue.nmrChain.assignSingleResidue(droppedNmrResidue, nmrResidue.residue.nextResidue)
+                                    droppedNmrResidue.nmrChain.assignSingleResidue(droppedNmrResidue,
+                                                                                   nmrResidue.residue.nextResidue)
                                 else:
                                     droppedNmrResidue.nmrChain.assignConnectedResidues(nmrResidue.residue.nextResidue)
 
@@ -700,7 +721,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
                                 if nmrResidue.nmrChain.id == '@-':
                                     # assume that it is the only one
-                                    nmrResidue.nmrChain.assignSingleResidue(nmrResidue, droppedNmrResidue.residue.previousResidue)
+                                    nmrResidue.nmrChain.assignSingleResidue(nmrResidue,
+                                                                            droppedNmrResidue.residue.previousResidue)
                                 else:
                                     dropRes = droppedNmrResidue.residue
                                     for _ in range(len(nmrResidue.nmrChain.mainNmrResidues)):
@@ -836,7 +858,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if self.matchC.isChecked():
             self.nmrAtomsToMatch.append('C')
 
-    def _createMatchStrips(self, nmrResidue, assignMatrix: typing.Tuple[typing.Dict[NmrResidue, typing.List[ChemicalShift]], typing.List[float]]):
+    def _createMatchStrips(self, nmrResidue, assignMatrix: typing.Tuple[
+        typing.Dict[NmrResidue, typing.List[ChemicalShift]], typing.List[float]]):
         """
         Creates strips in match module corresponding to the best assignment possibilities
         in the assignMatrix.
@@ -848,7 +871,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # Assignment score has the format {score: nmrResidue} where score is a float
         # assignMatrix[0] is a dict {score: nmrResidue} assignMatrix[1] is a concurrent list of scores
         # numberOfMatches = int(self.numberOfMatchesWidget.getText())
-        assignmentScores = ([-1] if self.showSearchInMatch.isChecked() else []) + sorted(list(assignMatrix.keys()))[:MAXMATCHES]
+        assignmentScores = ([-1] if self.showSearchInMatch.isChecked() else []) + sorted(list(assignMatrix.keys()))[
+                                                                                  :MAXMATCHES]
         scoreAssignment = [''] if self.showSearchInMatch.isChecked() else []
         scoreLabelling = [''] if self.showSearchInMatch.isChecked() else []
         nmrAtomPairs = [(None, None)] if self.showSearchInMatch.isChecked() else []
@@ -936,7 +960,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
                 # TODO:ED need to improve this
                 # strip.header.setLabelConnectDir(position='c', connectDir=STRIPCONNECT_LEFT if scoreLabelling[ii].startswith('i-1') else STRIPCONNECT_RIGHT)
-                strip.header.setLabelConnectDir(position='c', connectDir=STRIPCONNECT_LEFT if 'i-1' in scoreLabelling[ii] else STRIPCONNECT_RIGHT)
+                strip.header.setLabelConnectDir(position='c', connectDir=STRIPCONNECT_LEFT if 'i-1' in scoreLabelling[
+                    ii] else STRIPCONNECT_RIGHT)
                 strip.header.setLabelText(position='r', text=scoreAssignment[ii])
 
                 # disable dropping onto these labels
@@ -948,7 +973,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 strip.header.headerVisible = True
 
             # self._centreStripForNmrResidue(assignMatrix[assignmentScores[0]], module.strips[0])
-            self._centreCcpnStripsForNmrResidue(assignMatrix[assignmentScores[1 if self.showSearchInMatch.isChecked() else 0]], module.strips)
+            self._centreCcpnStripsForNmrResidue(
+                    assignMatrix[assignmentScores[1 if self.showSearchInMatch.isChecked() else 0]], module.strips)
             module.setColumnStretches(stretchValue=True)
 
             # this forces a refresh/rescale of all strips in the spectrumDisplay
@@ -961,14 +987,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         for display in self._getDisplays() + self._getMatchDisplays():
             if display:
                 display.hideAllStripHeaders(handle=STRIPBACKBONE)
-
-        for notifier in self._stripNotifiers:
-            if notifier:
-                notifier.unRegisterNotifier()
-
-        self._stripNotifiers = []
-        if self.shiftListWidget:
-            self.shiftListWidget.unRegister()
         super()._closeModule()
 
 
