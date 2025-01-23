@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:07 +0000 (Wed, December 11, 2024) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-01-23 16:03:29 +0000 (Thu, January 23, 2025) $"
 __version__ = "$Revision: 3.2.11 $"
 #=========================================================================================
 # Created
@@ -370,11 +370,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         If matchCheckbox is checked, also call findAndDisplayMatches
         """
         displays = self._getDisplays()
-        # if len(displays) == 0 and self.nmrResidueTableSettings.displaysWidget:
-        #     getLogger().warning('Undefined display module(s); select in settings first')
-        #     showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
-        #     return
-
         matchIndex = self.matchWidget.getIndex()
         targetIndex = self.targetWidget.getIndex()
         if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
@@ -386,10 +381,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch.isChecked():
             getLogger().warning(
-                'Undefined Search module; select Search module in Settings, unselect "Find matches" or select "Show Search Strip in Match Module"')
+                    'Undefined Search module; select Search module in Settings, unselect "Find matches" or select '
+                    '"Show Search Strip in Match Module"')
             showWarning('startAssignment',
-                        'Undefined Search module;\nSelect your Search module in the Backbone Assignment Settings panel, '
-                        'unselect "Find matches" or\nselect "Show Search Strip in Match Module" in the Settings')
+                        'Undefined Search module;\nSelect your Search module in the Backbone Assignment '
+                        'Settings panel, unselect "Find matches" or\nselect "Show Search Strip in Match Module" '
+                        'in the Settings')
             return
 
         if (matchIndex == targetIndex) and matchIndex != 0:
@@ -416,13 +413,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             # navigate to the other displays - not matchDisplay
             for display in displays:
 
-                # display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
-
                 if len(display.strips) > 0:
 
                     # if contains 2D's (e.g. a hsqc) then keep zoom
                     if display.spectrumViews[0].spectrum.dimensionCount <= 2:
-                        newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
+                        newWidths = []
                     else:
                         # set the width in case of nD (n>2)
                         _widths = {'H': 2.5, 'C': 1.0, 'N': 1.0}
@@ -439,10 +434,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                                            showDropHeaders=display in targetDisplays,
                                                            )
 
-                    # for st, strip in enumerate(strips):
-                    #     if strip is not None:
-                    #         strip.header.handle = STRIPBACKBONE
-                    #         strip.header.headerVisible = True
                     strips[0].spectrumDisplay.setColumnStretches(True)
                     # need better way to make sure that the floating axis updates
                     strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
@@ -542,6 +533,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # If NmrResidue is a -1 offset NmrResidue, set queryShifts as value from self.interShifts dictionary
         # Set matchShifts as self.intraShifts
+        self._setupShiftDicts()
+
         if nmrResidue.relativeOffset == -1:
             if nmrResidue not in self.interShifts:
                 queryShifts = []
@@ -564,7 +557,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # If NmrResidue has offset other than -1 or 0/None, tell user that we are not able to match
         else:
             getLogger().warning(
-                f"Assignment matching not supported for NmrResidue offset {nmrResidue.relativeOffset}. Matching display skipped")
+                    f"Assignment matching not supported for NmrResidue offset {nmrResidue.relativeOffset}. Matching "
+                    f"display skipped")
             return
 
         assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
