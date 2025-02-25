@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-02-07 12:03:31 +0000 (Fri, February 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-02-25 14:04:17 +0000 (Tue, February 25, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -56,6 +56,10 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 
 from functools import partial
 from typing import Iterator, Iterable
+
+from OpenGL.logs import getLog
+from PyQt5.QtWidgets import QStackedWidget
+from PyQt5 import QtWidgets, QtCore
 # from icecream import ic
 
 from ccpn.core import Peak
@@ -63,13 +67,24 @@ from ccpn.core.NmrResidue import NmrResidue
 from ccpn.ui.gui.lib import PeakListLib
 from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
-from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule
+from ccpn.ui.gui.modules.CcpnModule import CcpnModule
+from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, _NewNmrResidueTableWidget, NmrResidueTableFrame
+from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget, _PeakTableFrame
+from ccpn.ui.gui.widgets.Base import Base
 from ccpn.ui.gui.widgets.Button import Button
+from ccpn.ui.gui.widgets.Font import getFontHeight
+from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+from ccpn.ui.gui.widgets.PulldownList import PulldownList
+from ccpn.ui.gui.widgets.PulldownListsForObjects import PeakPulldown, NmrChainPulldown
+from ccpn.ui.gui.widgets.SettingsWidgets import PickAndAssignSettings
+from ccpn.ui.gui.widgets.Spacer import Spacer
+from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
+from ccpnmodel.ccpncore.lib.Io.PyMMLibPDB import KEYWDS
 
 
 logger = getLogger()
@@ -78,7 +93,7 @@ ALL = '<Use all>'
 SelectToAdd = '> select-to-add <'
 
 
-class PickAndAssignModule(NmrResidueTableModule):
+class PickAndAssignModuleO(NmrResidueTableModule):
     """
     Do a restricted peak pick along the 'y-axis' of (a set of) spectra.
     Use settings to define the spectral displays, the active spectra and the tolerances for peak picking
@@ -414,3 +429,181 @@ class PickAndAssignModule(NmrResidueTableModule):
                                                        widths=strip._getCurrentZoomRatio(strip.viewRange()),
                                                        markPositions=(n == 2))
                 self.current.nmrResidue = nmrResidue
+
+
+class StackedWidget(QStackedWidget, Base):
+    def __init__(self, parent=None, **kwds):
+        super().__init__(parent)
+        Base._init(self, **kwds)
+
+
+class StackedTableFrameWidget(Frame):
+    """A frame that contains multiple stacked tables and a pulldown to control them."""
+
+    def __init__(self, parent=None, mainWindow=None, moduleParent=None, **kwds):
+        super().__init__(parent, setLayout=True, **kwds)
+
+        self.mainWindow = mainWindow
+        if mainWindow:
+            self.application = mainWindow.application
+            self.project = mainWindow.application.project
+            self.current = mainWindow.application.current
+        else:
+            self.application = self.project = self.current = None
+
+        self.moduleParent = moduleParent
+
+        self.tableNameDict = dict()
+
+        self._initFormatFrames()
+
+    @property
+    def currentTable(self):
+        return self.tablesWidget.currentWidget()
+
+    @currentTable.setter
+    def currentTable(self, table):
+        if isinstance(table, str):
+            try:
+                table = self.tableNameDict.get(table)
+            except KeyError:
+                getLogger().error(f'{self.__class__} _switchTableCallback KeyError, table not found in nameDict')
+                return
+
+        self.tablesWidget.setCurrentWidget(table)
+
+    def addTablesToFrame(self, tableFrames: list() = None):
+        if tableFrames is None:
+            getLogger().warning('No table frames given to initialise')
+            return
+
+        for tableFrame in tableFrames:
+            self.tablesWidget.addWidget(tableFrame)
+            self.addToControlPulldown(tableFrame)
+
+        if self.tablesWidget.currentWidget() is None:
+            self.tablesWidget.setCurrentIndex(0)
+
+    def _initFormatFrames(self):
+        self.tablesWidget = StackedWidget(parent=self, grid=(0, 0), gridSpan=(2, 1),)
+        self.currentTablePulldown = PulldownList(parent=self,
+                                                 grid=(0, 0), hAlign='right', vAlign='t',
+                                                 callback=self._switchTableCallback,
+                                                 sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
+                                                 minimumWidths=(0, 100))
+
+    def addToControlPulldown(self, table):
+        tableName = table.guiTable.attributeName
+        self.tableNameDict.update({tableName: table})
+        self.currentTablePulldown.addItem(tableName)
+
+    def removeFromControlPulldown(self, table):
+        tableName = table.guiTable.attributeName
+        self.tableNameDict.pop({tableName: table})
+        self.currentTablePulldown.removeItem(tableName)
+
+    def _switchTableCallback(self, value: None = None):
+        self.currentTable = self.currentTablePulldown.getText()
+
+
+class PickAndAssignModule(CcpnModule):
+    className = 'PickAndAssignModule'
+
+    includeSettingsWidget = True
+    maxSettingsState = 2
+    settingsPosition = 'left'
+    settingsMinimumSizes = (500, 200)
+
+    includePeakLists = False
+    includeNmrChains = False
+    includeSpectrumTable = True
+
+    includeDisplaySettings = True
+    pickAndAssignSettings = True
+
+    def __init__(self, mainWindow, name='Pick and Assign'):
+        super().__init__(mainWindow=mainWindow, name=name)
+
+        # Derive application, project, and current from mainWindow
+        self.mainWindow = mainWindow
+        self.application = mainWindow.application
+        self.project = mainWindow.application.project
+        self.current = mainWindow.application.current
+
+        self._settings = PickAndAssignSettings(parent=self.settingsWidget)
+        self.stackedTableWidget = StackedTableFrameWidget(parent=self.mainWidget,
+                                                          grid=(0, 0), moduleParent=self)
+
+        self.tables = []
+        self._setupTables()
+        self._setupWidgets()
+
+    def _setupWidgets(self):
+        for table in self.tables:
+            # TODO Re-add button functionality
+            # Main widget
+            self.restrictedPickButton = Button(text='Restricted\nPick', callback=None)
+            table.addWidgetToPos(self.restrictedPickButton, row=0, col=2)
+
+            self.assignSelectedButton = Button(text='Assign\nSelected', callback=None)
+            table.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
+
+            self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=None)
+            table.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
+
+            self.restrictedPickButton.setEnabled(True)
+            self.assignSelectedButton.setEnabled(True)
+            self.restrictedPickAndAssignButton.setEnabled(True)
+
+    def _setupTables(self):
+        self.nmrChainTable = NmrResidueTableFrame(parent=self.stackedTableWidget, mainWindow=self.mainWindow,
+                                                  moduleParent=self, grid=(0, 0))
+        self.peakTable = _PeakTableFrame(parent=self.stackedTableWidget, mainWindow=self.mainWindow,
+                                         moduleParent=self, grid=(0, 0))
+
+        self.nmrChainTable.nmrResidueTableSettings = self._settings.nmrResidueTableSettings
+        self.peakTable._settings = self._settings.peakTableSettings
+
+        self.tables = [self.nmrChainTable, self.peakTable]
+        self.stackedTableWidget.addTablesToFrame(self.tables)
+
+    def restrictedPickAndAssign(self, assign=True):
+        """
+        Takes the selected NmrResidues from current NmrResidues feeds them into restricted pick lib functions
+        and picks peaks for all spectrum displays specified in the settings tab. Pick uses X and Z axes for each
+        spectrumView as centre points with tolerances and the y as the long axis to pick the whole region.
+        """
+
+        if invalidMsg := self._getMsgIfSetupInvalid():
+            showWarning(self._getActionMsg(assign), invalidMsg)
+        else:
+            nmrResidues = self._getNmrResidues()
+            self._doPickAndAssignOnSelectedNmrResidues(nmrResidues, assign)
+
+    def goToPositionInModules(self, nmrResidue=None, row=None, col=None):
+        """Go to the positions defined my NmrAtoms of nmrResidue in the active displays"""
+
+        nmrResidue = self.project.getByPid(nmrResidue) if isinstance(nmrResidue, str) else nmrResidue
+
+        activeDisplays = self.spectrumSelectionWidget.getActiveDisplays()
+
+        with undoBlockWithoutSideBar():
+
+            if nmrResidue is not None:
+                mainWindow = self.application.ui.mainWindow
+                mainWindow.clearMarks()
+                for display in activeDisplays:
+                    strip = display.strips[0]
+                    n = len(strip.axisCodes)
+                    if n == 2:
+                        widths = ['default', 'default']
+                    else:
+                        widths = ['default', 'full'] + (n - 2) * ['']
+
+                    StripLib.navigateToNmrAtomsInStrip(strip=strip,
+                                                       nmrAtoms=nmrResidue.nmrAtoms,
+                                                       widths=strip._getCurrentZoomRatio(strip.viewRange()),
+                                                       markPositions=(n == 2))
+                self.current.nmrResidue = nmrResidue
+
+
