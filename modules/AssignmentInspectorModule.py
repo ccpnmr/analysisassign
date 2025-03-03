@@ -18,9 +18,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-03-03 13:52:02 +0000 (Mon, March 03, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -277,12 +277,12 @@ class AssignmentInspectorModule(CcpnModule):
         self.peaksLabel = Label(_bottomWidget, 'Peaks assigned to NmrAtom(s):', bold=True,
                                 grid=(0, 1), gridSpan=(1, 6))
 
-        self.assignedPeaksTable = _NewPeakTableWidget(parent=_bottomWidget,
-                                                      mainWindow=self.mainWindow,
-                                                      moduleParent=self,
-                                                      grid=(1, 1), gridSpan=(1, 6),
-                                                      actionCallback=self._peakActionCallback,
-                                                      )
+        self.assignedPeaksTable = _AssignmentInspectorPeakTable(parent=_bottomWidget,
+                                                                mainWindow=self.mainWindow,
+                                                                moduleParent=self,
+                                                                grid=(1, 1), gridSpan=(1, 6),
+                                                                actionCallback=self._peakActionCallback,
+                                                                )
 
     def _selectTable(self, chemicalShiftList=None):
         """Manually select a ChemicalShiftList from the pullDown
@@ -747,3 +747,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
         # highlight all the chemicalShifts linked to the nmrResidues
         self._highLightObjs(allShifts, scrollToSelection=False)
+
+
+class _AssignmentInspectorPeakTable(_NewPeakTableWidget):
+    defaultHidden = ['Pid', 'PeakList', 'Id', 'HeightError', 'VolumeError']
