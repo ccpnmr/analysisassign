@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-03 13:52:02 +0000 (Mon, March 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-04 15:55:06 +0000 (Tue, March 04, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -750,4 +750,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
 
 class _AssignmentInspectorPeakTable(_NewPeakTableWidget):
+    className = '_AssignmentInspectorPeakTable'
+    attributeName = 'peakLists'
+
     defaultHidden = ['Pid', 'PeakList', 'Id', 'HeightError', 'VolumeError']
