@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-04 15:39:01 +0000 (Tue, March 04, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-05 15:51:43 +0000 (Wed, March 05, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -64,7 +64,7 @@ from PyQt5 import QtWidgets, QtCore
 
 from ccpn.core.Peak import Peak
 from ccpn.core.NmrResidue import NmrResidue
-from ccpn.core.lib.AssignmentLib import copyAssignmentsFromReference
+from ccpn.core.lib.AssignmentLib import copyAssignmentsFromReference, propagateAssignments, copyAssignments
 from ccpn.ui.gui.lib import PeakListLib
 from ccpn.ui.gui.lib import StripLib
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
@@ -242,12 +242,9 @@ class PickAndAssignModule(CcpnModule):
         self.peakTable.posUnitPulldownLabel.setVisible(False)
         self.peakTable.posUnitPulldown.setEnabled(False)
         self.peakTable.posUnitPulldown.setVisible(False)
-        # clear 'current' notifiers
-        self.peakTable.guiTable.clearCurrentCallback()
 
         self.tables = [self.nmrChainTable, self.peakTable]
         self.stackedTableWidget.addTablesToFrame(self.tables)
-        print('extra line for debug')
 
     def _registerNotifiers(self):
         """
@@ -372,12 +369,8 @@ class PickAndAssignModule(CcpnModule):
                 nmrResidues = self._getSelected()
                 self._assignSelectedResidues(peaks, nmrResidues)
 
-    def _assignSelectedPeaks(self, peaks, curPeaks=None):
-        if curPeaks is None:
-            curPeaks = self.current.peaks
-
-        for peak in peaks:
-            copyAssignmentsFromReference(curPeaks, peak)
+    def _assignSelectedPeaks(self, peaks):
+        copyAssignments(peaks)
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
@@ -499,7 +492,7 @@ class PickAndAssignModule(CcpnModule):
                     if peaks and assign:
                         # assign based on object type
                         if isinstance(obj, Peak):
-                            self._assignSelectedPeaks(curPeaks, obj)
+                            self._assignSelectedPeaks(obj)
                         if isinstance(obj, NmrResidue):
                             self._assignSelectedResidues(peaks, [obj, ])
                     curPeaks |= OrderedSet(peaks)
@@ -566,16 +559,16 @@ class PickAndAssignModule(CcpnModule):
                     pks = peaks = []
                     try:
                         for (spectrum, peakListView), axisCodes in zip(validPeakListViews.values(), specAxisCodes):
-                            if isinstance(iterObjs[0], Peak):
+                            if isinstance(iterObj, Peak):
                                 peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
                                                                            axisCodes=axisCodes, peak=iterObj)
-                            elif isinstance(iterObjs[0], NmrResidue):
+                            elif isinstance(iterObj, NmrResidue):
                                 peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
                                                                            axisCodes=axisCodes, nmrResidue=iterObj)
                             if pks:
                                 peaks += list(pks)
-                    except Exception:
-                        continue
+                    except Exception as e:
+                        getLogger().warning(f'{e.__traceback__}')
                     yield i, iterObj, None, list(peaks)
 
 
