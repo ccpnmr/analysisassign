@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-06 14:30:42 +0000 (Thu, March 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-06 15:30:06 +0000 (Thu, March 06, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -81,6 +81,7 @@ from ccpn.ui.gui.widgets.PulldownList import PulldownList
 from ccpn.ui.gui.widgets.PulldownListsForObjects import PeakPulldown, NmrChainPulldown
 from ccpn.ui.gui.widgets.SettingsWidgets import PickAndAssignSettings
 from ccpn.ui.gui.widgets.Spacer import Spacer
+from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
@@ -163,7 +164,9 @@ SelectToAdd = '> select-to-add <'
 #
 #         # fix the second column to stop extra widgets flickering
 #         alignWidgets(self.nmrResidueTableSettings, columnScale=1.2)
-
+#
+# TABMARGINS = (1, 10, 10, 1)  # l, t, r, b
+ZEROMARGINS = (0, 0, 0, 0) # l, t, r, b
 
 class PickAndAssignModule(CcpnModule):
     className = 'PickAndAssignModule'
@@ -190,8 +193,10 @@ class PickAndAssignModule(CcpnModule):
         self.current = mainWindow.application.current
 
         self._settings = PickAndAssignSettings(parent=self.settingsWidget, mainWindow=mainWindow)
-        self.stackedTableWidget = StackedTableFrameWidget(parent=self.mainWidget,
-                                                          grid=(0, 0), moduleParent=self)
+        # self.stackedTableWidget = StackedTableFrameWidget(parent=self.mainWidget,
+        #                                                   grid=(0, 0), moduleParent=self)
+        self.tabWidget = Tabs(parent=self.mainWidget, grid=(0, 0), gridSpan=(1, 3))
+        self.tabWidget.setContentsMargins(*ZEROMARGINS)
 
         self.tables = []
         self._setupTables()
@@ -199,15 +204,25 @@ class PickAndAssignModule(CcpnModule):
 
         # need to feedback to current.nmrResidueTable
         self._registerNotifiers()
+        self.tabWidget.setTabClickCallback(self.tabCallback)
 
     @property
     def currentTable(self):
-        return self.stackedTableWidget.currentTable
+        # return self.stackedTableWidget.currentTable
+        return self.tabWidget.currentWidget()
+
+    def tabCallback(self, data):
+        # this seems inverted because the callback is before the tab change.
+        if self.currentTable is self.peakTable:
+            self._settings.nmrResidueTableSettings.sequentialStripsWidget.setEnabled(True)
+            self._settings.nmrResidueTableSettings.linkToPulldownClass.setEnabled(True)
+        else:
+            self._settings.nmrResidueTableSettings.sequentialStripsWidget.setEnabled(False)
+            self._settings.nmrResidueTableSettings.linkToPulldownClass.setEnabled(False)
+
 
     def _setupWidgets(self):
         for table in self.tables:
-            # TODO Re-add button functionality
-            # Main widget
             restrictedPickAndAssignWithAssignFalse = partial(self.restrictedPickAndAssign, assign=False)
             restrictedPickAndAssignWithAssignTrue = partial(self.restrictedPickAndAssign, assign=True)
 
@@ -228,10 +243,13 @@ class PickAndAssignModule(CcpnModule):
             self.restrictedPickAndAssignButton.setEnabled(True)
 
     def _setupTables(self):
-        self.nmrChainTable = NmrResidueTableFrame(parent=self.stackedTableWidget, mainWindow=self.mainWindow,
+        self.nmrChainTable = NmrResidueTableFrame(parent=self.mainWidget, mainWindow=self.mainWindow,
                                                   moduleParent=self, grid=(0, 0))
-        self.peakTable = _PeakTableFrame(parent=self.stackedTableWidget, mainWindow=self.mainWindow,
+        self.peakTable = _PeakTableFrame(parent=self.mainWidget, mainWindow=self.mainWindow,
                                          moduleParent=self, grid=(0, 0))
+
+        self.tabWidget.addTab(self.nmrChainTable, 'NmrChain Table')
+        self.tabWidget.addTab(self.peakTable, 'Peak Table')
 
         self.nmrChainTable.nmrResidueTableSettings = self._settings.nmrResidueTableSettings
         self.nmrResidueTableSettings = self.nmrChainTable.nmrResidueTableSettings
@@ -244,7 +262,7 @@ class PickAndAssignModule(CcpnModule):
         self.peakTable.posUnitPulldown.setVisible(False)
 
         self.tables = [self.nmrChainTable, self.peakTable]
-        self.stackedTableWidget.addTablesToFrame(self.tables)
+        # self.stackedTableWidget.addTablesToFrame(self.tables)
 
     def _registerNotifiers(self):
         """
