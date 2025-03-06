@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-05 15:51:43 +0000 (Wed, March 05, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-06 14:30:42 +0000 (Thu, March 06, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -492,7 +492,7 @@ class PickAndAssignModule(CcpnModule):
                     if peaks and assign:
                         # assign based on object type
                         if isinstance(obj, Peak):
-                            self._assignSelectedPeaks(obj)
+                            self._assignSelectedPeaks([obj])
                         if isinstance(obj, NmrResidue):
                             self._assignSelectedResidues(peaks, [obj, ])
                     curPeaks |= OrderedSet(peaks)
