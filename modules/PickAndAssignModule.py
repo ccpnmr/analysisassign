@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-06 15:30:06 +0000 (Thu, March 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-06 16:35:02 +0000 (Thu, March 06, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -164,9 +164,9 @@ SelectToAdd = '> select-to-add <'
 #
 #         # fix the second column to stop extra widgets flickering
 #         alignWidgets(self.nmrResidueTableSettings, columnScale=1.2)
-#
-# TABMARGINS = (1, 10, 10, 1)  # l, t, r, b
+
 ZEROMARGINS = (0, 0, 0, 0) # l, t, r, b
+
 
 class PickAndAssignModule(CcpnModule):
     className = 'PickAndAssignModule'
@@ -219,7 +219,6 @@ class PickAndAssignModule(CcpnModule):
         else:
             self._settings.nmrResidueTableSettings.sequentialStripsWidget.setEnabled(False)
             self._settings.nmrResidueTableSettings.linkToPulldownClass.setEnabled(False)
-
 
     def _setupWidgets(self):
         for table in self.tables:
@@ -320,7 +319,7 @@ class PickAndAssignModule(CcpnModule):
         if self.currentTable is self.nmrChainTable:
             return list(self.current.nmrResidues)
         elif self.currentTable is self.peakTable:
-            return list(self.currentTable.current.peaks)
+            return list(self.current.peaks)
 
     # def _getNmrResidues(self) -> list[NmrResidue] | list[Peak]:
     #     """ get the current selected NmrResidues
@@ -388,7 +387,10 @@ class PickAndAssignModule(CcpnModule):
                 self._assignSelectedResidues(peaks, nmrResidues)
 
     def _assignSelectedPeaks(self, peaks):
-        copyAssignments(peaks)
+        peakSet = set(self.current.peaks)
+        if peaks:
+            peakSet.update(peaks)
+        copyAssignments(list(peakSet))
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
@@ -456,36 +458,36 @@ class PickAndAssignModule(CcpnModule):
             nmrResidues = self._getSelected()
             self._doPickAndAssignOnSelectedObjs(nmrResidues, assign)
 
-    def _doPickAndAssignOnSelectedNmrResidues(self, nmrResidues, assign):
-        from ccpn.core.lib.ContextManagers import progressHandler
-
-        undoStack = self.application._getUndo()
-        originalUndoState = undoStack.undoList
-        # ic('orig', originalUndoState)
-
-        with undoBlockWithoutSideBar():
-            msg = "Picking and Assigning Peaks..." if assign else "Picking peaks..."
-            stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
-
-            numResidues = len(nmrResidues)
-            curPeaks = set()
-            self.current.peaks = []  # option to do this?
-            with progressHandler(text=msg, cancelButtonText=stopButtonText,
-                                 maximum=numResidues) as progress:
-                for i, nmrResidue, errorMsg, peaks in self._restrictedPeakPickIterator(nmrResidues):
-                    progress.checkCancel()
-                    if errorMsg:
-                        showWarning(self._getActionMsg(assign), errorMsg)
-                        progress.cancel()
-                    progress.setValue(i)
-                    if peaks and assign:
-                        self._assignSelectedResidues(peaks, [nmrResidue, ])
-                    curPeaks |= OrderedSet(peaks)
-
-            self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
-            if progress.cancelled:
-                while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
-                    undoStack.undo()
+    # def _doPickAndAssignOnSelectedNmrResidues(self, nmrResidues, assign):
+    #     from ccpn.core.lib.ContextManagers import progressHandler
+    #
+    #     undoStack = self.application._getUndo()
+    #     originalUndoState = undoStack.undoList
+    #     # ic('orig', originalUndoState)
+    #
+    #     with undoBlockWithoutSideBar():
+    #         msg = "Picking and Assigning Peaks..." if assign else "Picking peaks..."
+    #         stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
+    #
+    #         numResidues = len(nmrResidues)
+    #         curPeaks = set()
+    #         self.current.peaks = []  # option to do this?
+    #         with progressHandler(text=msg, cancelButtonText=stopButtonText,
+    #                              maximum=numResidues) as progress:
+    #             for i, nmrResidue, errorMsg, peaks in self._restrictedPeakPickIterator(nmrResidues):
+    #                 progress.checkCancel()
+    #                 if errorMsg:
+    #                     showWarning(self._getActionMsg(assign), errorMsg)
+    #                     progress.cancel()
+    #                 progress.setValue(i)
+    #                 if peaks and assign:
+    #                     self._assignSelectedResidues(peaks, [nmrResidue, ])
+    #                 curPeaks |= OrderedSet(peaks)
+    #
+    #         self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
+    #         if progress.cancelled:
+    #             while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
+    #                 undoStack.undo()
 
     def _doPickAndAssignOnSelectedObjs(self, objs, assign):
         from ccpn.core.lib.ContextManagers import progressHandler
@@ -498,7 +500,8 @@ class PickAndAssignModule(CcpnModule):
             stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
 
             curPeaks = set()
-            self.current.peaks = []  # option to do this?
+            if self.currentTable is self.nmrChainTable:
+                self.current.peaks = []  # option to do this?
             with progressHandler(text=msg, cancelButtonText=stopButtonText,
                                  maximum=len(objs)) as progress:
                 for i, obj, errorMsg, peaks in self._restrictedPeakPickIterator(objs):
@@ -510,7 +513,7 @@ class PickAndAssignModule(CcpnModule):
                     if peaks and assign:
                         # assign based on object type
                         if isinstance(obj, Peak):
-                            self._assignSelectedPeaks([obj])
+                            self._assignSelectedPeaks(peaks)
                         if isinstance(obj, NmrResidue):
                             self._assignSelectedResidues(peaks, [obj, ])
                     curPeaks |= OrderedSet(peaks)
