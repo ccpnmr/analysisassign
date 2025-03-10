@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 14:27:21 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 16:10:49 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -206,8 +206,6 @@ class PickAndAssignModule(CcpnModule):
         self.current = mainWindow.application.current
 
         self._settings = PickAndAssignSettings(parent=self.settingsWidget, mainWindow=mainWindow)
-        # self.stackedTableWidget = StackedTableFrameWidget(parent=self.mainWidget,
-        #                                                   grid=(0, 0), moduleParent=self)
         self.tabWidget = Tabs(parent=self.mainWidget, grid=(0, 0), gridSpan=(1, 3))
         self.tabWidget.setContentsMargins(*ZEROMARGINS)
 
@@ -221,10 +219,14 @@ class PickAndAssignModule(CcpnModule):
 
     @property
     def currentTable(self):
-        # return self.stackedTableWidget.currentTable
+        """Returns the current table widget."""
         return self.tabWidget.currentWidget()
 
     def tabCallback(self, data):
+        """Callback for changing tabs
+
+        Enables/disables different widgets based on the selected table.
+        """
         # this seems inverted because the callback is before the tab change.
         if self.currentTable is self.peakTable:
             self._settings.nmrResidueTableSettings.sequentialStripsWidget.setEnabled(True)
@@ -234,6 +236,10 @@ class PickAndAssignModule(CcpnModule):
             self._settings.nmrResidueTableSettings.linkToPulldownClass.setEnabled(False)
 
     def _setupWidgets(self):
+        """Sets up the table widgets
+
+        Handles the additions of buttons and callbacks to the tables
+        """
         for table in self.tables:
             restrictedPickAndAssignWithAssignFalse = partial(self.restrictedPickAndAssign, assign=False)
             restrictedPickAndAssignWithAssignTrue = partial(self.restrictedPickAndAssign, assign=True)
@@ -250,11 +256,16 @@ class PickAndAssignModule(CcpnModule):
                                                         callback=restrictedPickAndAssignWithAssignTrue)
             table.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
 
+            # ensure all buttons are enabled
             self.restrictedPickButton.setEnabled(True)
             self.assignSelectedButton.setEnabled(True)
             self.restrictedPickAndAssignButton.setEnabled(True)
 
     def _setupTables(self):
+        """Creates the table frames and adds them to the tabs widget
+
+        This also ensures the settings are set correctly for each table.
+        """
         self.nmrChainTable = NmrResidueTableFrame(parent=self.mainWidget, mainWindow=self.mainWindow,
                                                   moduleParent=self, grid=(0, 0))
         self.peakTable = _PeakTableFrame(parent=self.mainWidget, mainWindow=self.mainWindow,
@@ -274,7 +285,6 @@ class PickAndAssignModule(CcpnModule):
         self.peakTable.posUnitPulldown.setVisible(False)
 
         self.tables = [self.nmrChainTable, self.peakTable]
-        # self.stackedTableWidget.addTablesToFrame(self.tables)
 
     @property
     def automaticBbNmrAtomAssignment(self):
@@ -328,6 +338,7 @@ class PickAndAssignModule(CcpnModule):
             return gids
 
     def _getMsgIfSetupInvalid(self):
+        """Returns an error message based on table and project current"""
         msg = None
         if self.currentTable is self.nmrChainTable:
             if not self.current.nmrResidues:
@@ -343,23 +354,12 @@ class PickAndAssignModule(CcpnModule):
 
         return msg
 
-    def _getSelected(self):
+    def _getSelected(self) -> list:
+        """Returns current peaks/nmrResidues depending on the current tab"""
         if self.currentTable is self.nmrChainTable:
             return list(self.current.nmrResidues)
         elif self.currentTable is self.peakTable:
             return list(self.current.peaks)
-
-    # def _getNmrResidues(self) -> list[NmrResidue] | list[Peak]:
-    #     """ get the current selected NmrResidues
-    #     """
-    #
-    #     nmrResidues = list(self.current.nmrResidues)
-    #
-    #     # GST: not sure if this needed - can current.nmrResidue[s] be a string?
-    #     for i, nmrResidue in enumerate(nmrResidues):
-    #         nmrResidues[i] = (self.project.getByPid(nmrResidue)) if isinstance(nmrResidues, str) else nmrResidue
-    #
-    #     return nmrResidues
 
     @staticmethod
     def _getValidPeakListViews(displays):
@@ -384,22 +384,11 @@ class PickAndAssignModule(CcpnModule):
                                 pass
         return validPeakListViews
 
-    # def assignSelected(self):
-    #     """Assign current.peaks on the bases of nmrAtoms of current.nmrResidues
-    #     """
-    #     nmrResidues = self._getNmrResidues()
-    #
-    #     peaks = self.current.peaks
-    #     if len(peaks) == 0:
-    #         showWarning('Pick and Assign', 'No peaks currently selected')
-    #         return
-    #
-    #     with undoBlockWithoutSideBar():
-    #         self._assignPeaks(peaks, nmrResidues)
-
     def assignSelected(self):
-        """Assign current.peaks on the bases of nmrAtoms of current.nmrResidues
-        TODO: improve docstring
+        """Assign the currently selected peaks/nmrResidues
+
+        For NmrChainTable: current.peaks on the bases of nmrAtoms of current.nmrResidues
+        For PeakTable: copy assignments across peaks
         """
         peaks = self.current.peaks
 
@@ -418,12 +407,14 @@ class PickAndAssignModule(CcpnModule):
                 self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
     def _assignSelectedPeaks(self, peaks):
+        """Unifies assignments across all selected peaks
+
+        :param peaks: Peaks to unify assignments across
+        """
         peakSet = set(self.current.peaks)
         if peaks:
             peakSet.update(peaks)
         copyAssignments(list(peakSet))
-
-
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
@@ -469,17 +460,10 @@ class PickAndAssignModule(CcpnModule):
 
     def restrictedPickAndAssign(self, assign=True):
         """
-        Takes the selected NmrResidues from current NmrResidues feeds them into restricted pick lib functions
+        Takes the selected NmrResidues/Peaks from current NmrResidue/Peak feeds them into restricted pick lib functions
         and picks peaks for all spectrum displays specified in the settings tab. Pick uses X and Z axes for each
         spectrumView as centre points with tolerances and the y as the long axis to pick the whole region.
         """
-
-        # if invalidMsg := self._getMsgIfSetupInvalid():
-        #     showWarning(self._getActionMsg(assign), invalidMsg)
-        # else:
-        #     nmrResidues = self._getNmrResidues()
-        #     self._doPickAndAssignOnSelectedNmrResidues(nmrResidues, assign)
-
         if invalidMsg := self._getMsgIfSetupInvalid():
             showWarning(self._getActionMsg(assign), invalidMsg)
             return
@@ -491,38 +475,13 @@ class PickAndAssignModule(CcpnModule):
             nmrResidues = self._getSelected()
             self._doPickAndAssignOnSelectedObjs(nmrResidues, assign)
 
-    # def _doPickAndAssignOnSelectedNmrResidues(self, nmrResidues, assign):
-    #     from ccpn.core.lib.ContextManagers import progressHandler
-    #
-    #     undoStack = self.application._getUndo()
-    #     originalUndoState = undoStack.undoList
-    #     # ic('orig', originalUndoState)
-    #
-    #     with undoBlockWithoutSideBar():
-    #         msg = "Picking and Assigning Peaks..." if assign else "Picking peaks..."
-    #         stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
-    #
-    #         numResidues = len(nmrResidues)
-    #         curPeaks = set()
-    #         self.current.peaks = []  # option to do this?
-    #         with progressHandler(text=msg, cancelButtonText=stopButtonText,
-    #                              maximum=numResidues) as progress:
-    #             for i, nmrResidue, errorMsg, peaks in self._restrictedPeakPickIterator(nmrResidues):
-    #                 progress.checkCancel()
-    #                 if errorMsg:
-    #                     showWarning(self._getActionMsg(assign), errorMsg)
-    #                     progress.cancel()
-    #                 progress.setValue(i)
-    #                 if peaks and assign:
-    #                     self._assignSelectedResidues(peaks, [nmrResidue, ])
-    #                 curPeaks |= OrderedSet(peaks)
-    #
-    #         self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
-    #         if progress.cancelled:
-    #             while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
-    #                 undoStack.undo()
+    def _doPickAndAssignOnSelectedObjs(self, objs: list[NmrResidue,] | list[Peak], assign: bool):
+        """Picks and assigns based on given objects.
 
-    def _doPickAndAssignOnSelectedObjs(self, objs, assign):
+        :param objs:
+        :param assign: Whether to assign the picked peaks.
+        :return:
+        """
         from ccpn.core.lib.ContextManagers import progressHandler
 
         undoStack = self.application._getUndo()
@@ -560,45 +519,9 @@ class PickAndAssignModule(CcpnModule):
                 while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
                     undoStack.undo()
 
-    # def _restrictedPeakPickIteratorOld(self, nmrResidues: Iterable[NmrResidue]) \
-    #         -> Iterator[tuple[int | None, NmrResidue, str | None, list[Peak] | None]]:
-    #
-    #     displays = self._getDisplay()
-    #     for display in displays:
-    #         validPeakListViews = self._getValidPeakListViews([display])
-    #         currentAxisCodeIndexes = self.nmrResidueTableSettings.axisCodeOptionsDict.get(f'{display}')
-    #         for specInd in self.nmrResidueTableSettings.spectrumIndex:
-    #             try:
-    #
-    #                 specAxisCodes = [[spectrum.axisCodes[specInd[spectrum].index(ii)]
-    #                                   for ii in currentAxisCodeIndexes
-    #                                   if ii in specInd[spectrum]]
-    #                                  for spectrum, peakListView in validPeakListViews.values()
-    #                                  if spectrum in specInd]
-    #             except Exception:
-    #                 # TODO: this should be a DataClass or named tuple for clarity
-    #                 continue
-    #                 # return None, None, badAxisCodeMsg, None
-    #
-    #             for i, nmrResidue in enumerate(nmrResidues):
-    #
-    #                 peaks = []
-    #                 try:
-    #                     for (spectrum, peakListView), axisCodes in zip(validPeakListViews.values(), specAxisCodes):
-    #
-    #                         # axis-codes should be valid at this point
-    #                         peakList, pks = PeakListLib.restrictedPick(peakListView=peakListView,
-    #                                                                    axisCodes=axisCodes, nmrResidue=nmrResidue)
-    #                         if pks:
-    #                             peaks += list(pks)
-    #
-    #                 except Exception:
-    #                     continue
-    #                     # return None, nmrResidue, badAxisCodeMsg, None
-    #
-    #                 yield i, nmrResidue, None, list(peaks)
-
     def _restrictedPeakPickIterator(self, iterObjs: Iterable[NmrResidue] | Iterable[Peak]):
+        """For each display do restricted picks on iterObjs using PeakListLib.restrictedPick
+        """
         displays = self._getDisplay()
         for display in displays:
             validPeakListViews = self._getValidPeakListViews([display])
@@ -628,181 +551,6 @@ class PickAndAssignModule(CcpnModule):
                     except Exception as e:
                         getLogger().warning(f'{e.__traceback__}')
                     yield i, iterObj, None, list(peaks)
-
-
-class StackedWidget(QStackedWidget, Base):
-    def __init__(self, parent=None, **kwds):
-        super().__init__(parent)
-        Base._init(self, **kwds)
-
-
-class StackedTableFrameWidget(Frame):
-    """A frame that contains multiple stacked tables and a pulldown to control them."""
-
-    def __init__(self, parent=None, mainWindow=None, moduleParent=None, **kwds):
-        super().__init__(parent, setLayout=True, **kwds)
-
-        self.mainWindow = mainWindow
-        if mainWindow:
-            self.application = mainWindow.application
-            self.project = mainWindow.application.project
-            self.current = mainWindow.application.current
-        else:
-            self.application = self.project = self.current = None
-
-        self.moduleParent = moduleParent
-        self.tableNameDict = dict()
-
-        self.tablesWidget = StackedWidget(parent=self, grid=(0, 0), gridSpan=(2, 1), )
-        self.currentTablePulldown = PulldownList(parent=self,
-                                                 grid=(0, 0), hAlign='right', vAlign='t',
-                                                 callback=self._switchTableCallback,
-                                                 sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
-                                                 minimumWidths=(0, 100))
-
-    @property
-    def currentTable(self):
-        return self.tablesWidget.currentWidget()
-
-    @currentTable.setter
-    def currentTable(self, table):
-        if isinstance(table, str):
-            try:
-                table = self.tableNameDict.get(table)
-            except KeyError:
-                getLogger().error(f'{self.__class__} _switchTableCallback KeyError, table not found in nameDict')
-                return
-
-        self.tablesWidget.setCurrentWidget(table)
-
-    def addTablesToFrame(self, tableFrames: list() = None):
-        if tableFrames is None:
-            getLogger().warning('No table frames given to initialise')
-            return
-
-        for tableFrame in tableFrames:
-            self.tablesWidget.addWidget(tableFrame)
-            self.addToControlPulldown(tableFrame)
-
-        if self.tablesWidget.currentWidget() is None:
-            self.tablesWidget.setCurrentIndex(0)
-
-    def addToControlPulldown(self, table):
-        tableName = table.guiTable.attributeName
-        self.tableNameDict.update({tableName: table})
-        self.currentTablePulldown.addItem(tableName)
-
-    def removeFromControlPulldown(self, table):
-        tableName = table.guiTable.attributeName
-        self.tableNameDict.pop({tableName: table})
-        self.currentTablePulldown.removeItem(tableName)
-
-    def _switchTableCallback(self, value: None = None):
-        self.currentTable = self.currentTablePulldown.getText()
-
-
-# class PickAndAssignModuleNEW(CcpnModule):
-#     className = 'PickAndAssignModule'
-#
-#     includeSettingsWidget = True
-#     maxSettingsState = 2
-#     settingsPosition = 'left'
-#     settingsMinimumSizes = (500, 200)
-#
-#     includePeakLists = False
-#     includeNmrChains = False
-#     includeSpectrumTable = True
-#
-#     includeDisplaySettings = True
-#     pickAndAssignSettings = True
-#
-#     def __init__(self, mainWindow, name='Pick and Assign'):
-#         super().__init__(mainWindow=mainWindow, name=name)
-#
-#         # Derive application, project, and current from mainWindow
-#         self.mainWindow = mainWindow
-#         self.application = mainWindow.application
-#         self.project = mainWindow.application.project
-#         self.current = mainWindow.application.current
-#
-#         self._settings = PickAndAssignSettings(parent=self.settingsWidget)
-#         self.stackedTableWidget = StackedTableFrameWidget(parent=self.mainWidget,
-#                                                           grid=(0, 0), moduleParent=self)
-#
-#         self.tables = []
-#         self._setupTables()
-#         self._setupWidgets()
-#
-#     def _setupWidgets(self):
-#         for table in self.tables:
-#             # TODO Re-add button functionality
-#             # Main widget
-#             self.restrictedPickButton = Button(text='Restricted\nPick', callback=None)
-#             table.addWidgetToPos(self.restrictedPickButton, row=0, col=2)
-#
-#             self.assignSelectedButton = Button(text='Assign\nSelected', callback=None)
-#             table.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
-#
-#             self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign', callback=None)
-#             table.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
-#
-#             self.restrictedPickButton.setEnabled(True)
-#             self.assignSelectedButton.setEnabled(True)
-#             self.restrictedPickAndAssignButton.setEnabled(True)
-#
-#     def _setupTables(self):
-#         self.nmrChainTable = NmrResidueTableFrame(parent=self.stackedTableWidget, mainWindow=self.mainWindow,
-#                                                   moduleParent=self, grid=(0, 0))
-#         self.peakTable = _PeakTableFrame(parent=self.stackedTableWidget, mainWindow=self.mainWindow,
-#                                          moduleParent=self, grid=(0, 0))
-#
-#         self.nmrChainTable.nmrResidueTableSettings = self._settings.nmrResidueTableSettings
-#         self.peakTable._settings = self._settings.peakTableSettings
-#
-#         self.tables = [self.nmrChainTable, self.peakTable]
-#         self.stackedTableWidget.addTablesToFrame(self.tables)
-#
-#
-#     def restrictedPickAndAssign(self, assign=True):
-#         """
-#         Takes the selected NmrResidues from current NmrResidues feeds them into restricted pick lib functions
-#         and picks peaks for all spectrum displays specified in the settings tab. Pick uses X and Z axes for each
-#         spectrumView as centre points with tolerances and the y as the long axis to pick the whole region.
-#         """
-#
-#         if invalidMsg := self._getMsgIfSetupInvalid():
-#             showWarning(self._getActionMsg(assign), invalidMsg)
-#         else:
-#             nmrResidues = self._getNmrResidues()
-#             self._doPickAndAssignOnSelectedNmrResidues(nmrResidues, assign)
-#
-#     def goToPositionInModules(self, nmrResidue=None, row=None, col=None):
-#         """Go to the positions defined my NmrAtoms of nmrResidue in the active displays"""
-#
-#         nmrResidue = self.project.getByPid(nmrResidue) if isinstance(nmrResidue, str) else nmrResidue
-#
-#         activeDisplays = self.spectrumSelectionWidget.getActiveDisplays()
-#
-#         with undoBlockWithoutSideBar():
-#
-#             if nmrResidue is not None:
-#                 mainWindow = self.application.ui.mainWindow
-#                 mainWindow.clearMarks()
-#                 for display in activeDisplays:
-#                     strip = display.strips[0]
-#                     n = len(strip.axisCodes)
-#                     if n == 2:
-#                         widths = ['default', 'default']
-#                     else:
-#                         widths = ['default', 'full'] + (n - 2) * ['']
-#
-#                     StripLib.navigateToNmrAtomsInStrip(strip=strip,
-#                                                        nmrAtoms=nmrResidue.nmrAtoms,
-#                                                        widths=strip._getCurrentZoomRatio(strip.viewRange()),
-#                                                        markPositions=(n == 2))
-#                 self.current.nmrResidue = nmrResidue
-
-
 
     def bbAssignCarbonNmrAtoms(self, currentPeaks: list[Peak] | None = None):
         if len(currentPeaks) == 0:
@@ -937,6 +685,77 @@ class StackedTableFrameWidget(Frame):
                 checkForGly(glyCheckDict, self.glyHasCaSign)
             if GSTCheck:
                 checkForGST(gstCheckDict)
+
+
+class StackedWidget(QStackedWidget, Base):
+    def __init__(self, parent=None, **kwds):
+        super().__init__(parent)
+        Base._init(self, **kwds)
+
+
+class StackedTableFrameWidget(Frame):
+    """A frame that contains multiple stacked tables and a pulldown to control them."""
+
+    def __init__(self, parent=None, mainWindow=None, moduleParent=None, **kwds):
+        super().__init__(parent, setLayout=True, **kwds)
+
+        self.mainWindow = mainWindow
+        if mainWindow:
+            self.application = mainWindow.application
+            self.project = mainWindow.application.project
+            self.current = mainWindow.application.current
+        else:
+            self.application = self.project = self.current = None
+
+        self.moduleParent = moduleParent
+        self.tableNameDict = dict()
+
+        self.tablesWidget = StackedWidget(parent=self, grid=(0, 0), gridSpan=(2, 1), )
+        self.currentTablePulldown = PulldownList(parent=self,
+                                                 grid=(0, 0), hAlign='right', vAlign='t',
+                                                 callback=self._switchTableCallback,
+                                                 sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
+                                                 minimumWidths=(0, 100))
+
+    @property
+    def currentTable(self):
+        return self.tablesWidget.currentWidget()
+
+    @currentTable.setter
+    def currentTable(self, table):
+        if isinstance(table, str):
+            try:
+                table = self.tableNameDict.get(table)
+            except KeyError:
+                getLogger().error(f'{self.__class__} _switchTableCallback KeyError, table not found in nameDict')
+                return
+
+        self.tablesWidget.setCurrentWidget(table)
+
+    def addTablesToFrame(self, tableFrames: list() = None):
+        if tableFrames is None:
+            getLogger().warning('No table frames given to initialise')
+            return
+
+        for tableFrame in tableFrames:
+            self.tablesWidget.addWidget(tableFrame)
+            self.addToControlPulldown(tableFrame)
+
+        if self.tablesWidget.currentWidget() is None:
+            self.tablesWidget.setCurrentIndex(0)
+
+    def addToControlPulldown(self, table):
+        tableName = table.guiTable.attributeName
+        self.tableNameDict.update({tableName: table})
+        self.currentTablePulldown.addItem(tableName)
+
+    def removeFromControlPulldown(self, table):
+        tableName = table.guiTable.attributeName
+        self.tableNameDict.pop({tableName: table})
+        self.currentTablePulldown.removeItem(tableName)
+
+    def _switchTableCallback(self, value: None = None):
+        self.currentTable = self.currentTablePulldown.getText()
 
 
 def getAssignDim(peak):
