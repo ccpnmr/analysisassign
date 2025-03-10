@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 10:45:23 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-10 14:27:21 +0000 (Mon, March 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -973,37 +973,40 @@ def checkForGly(glyDict, hasCaSign):
     cas0 = glyDict['CA0']['shifts']
     cbs0 = glyDict['CB0']['shifts']
     if hasCaSign:
-        if len(cbs_1) == 0 and 48.5 > mean(cas0) > 40.0:
-            # this is an i Glycine
-            for pk in glyDict['CB0']['peaks']:
-                assignDim = getAssignDim(pk)
-                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.getOffsetNmrResidue(-1)
-                na = nr.fetchNmrAtom(name='CB', isotopeCode=assignIsotope)
-                assignAxCde = getAssignAxisCode(pk)
-                pk.assignDimension(axisCode=assignAxCde, value=na)
+        if len(cbs_1) == 0 and len(cas0) >= 1:
+            if 48.5 > mean(cas0) > 40.0:
+                # this is an i Glycine
+                for pk in glyDict['CB0']['peaks']:
+                    assignDim = getAssignDim(pk)
+                    nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.getOffsetNmrResidue(-1)
+                    na = nr.fetchNmrAtom(name='CB', isotopeCode=assignIsotope)
+                    assignAxCde = getAssignAxisCode(pk)
+                    pk.assignDimension(axisCode=assignAxCde, value=na)
     else:
-        if len(cas_1) == 0 and 48.5 > mean(cbs_1) > 40.0:
-            # this is an i-1 Glycine
-            for pk in glyDict['CB-1']['peaks']:
-                assignDim = getAssignDim(pk)
-                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.mainNmrResidue
-                na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
-                assignAxCde = getAssignAxisCode(pk)
-                pk.assignDimension(axisCode=assignAxCde, value=na)
-        elif len(cas_1) == 0 and 48.5 > mean(cbs0) > 40.0:
-            # this is an i Glycine
-            for pk in glyDict['CB0']['peaks']:
-                assignDim = getAssignDim(pk)
-                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue
-                na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
-                assignAxCde = getAssignAxisCode(pk)
-                pk.assignDimension(axisCode=assignAxCde, value=na)
-            for pk in glyDict['CA0']['peaks']:
-                assignDim = getAssignDim(pk)
-                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.getOffsetNmrResidue(-1)
-                na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
-                assignAxCde = getAssignAxisCode(pk)
-                pk.assignDimension(axisCode=assignAxCde, value=na)
+        if len(cas_1) == 0 and len(cas0) >= 1:
+            if 48.5 > mean(cbs_1) > 40.0:
+                # this is an i-1 Glycine
+                for pk in glyDict['CB-1']['peaks']:
+                    assignDim = getAssignDim(pk)
+                    nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.mainNmrResidue
+                    na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
+                    assignAxCde = getAssignAxisCode(pk)
+                    pk.assignDimension(axisCode=assignAxCde, value=na)
+        elif len(cas_1) == 0 and len(cas0) >= 1:
+            if 48.5 > mean(cbs0) > 40.0:
+                # this is an i Glycine
+                for pk in glyDict['CB0']['peaks']:
+                    assignDim = getAssignDim(pk)
+                    nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue
+                    na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
+                    assignAxCde = getAssignAxisCode(pk)
+                    pk.assignDimension(axisCode=assignAxCde, value=na)
+                for pk in glyDict['CA0']['peaks']:
+                    assignDim = getAssignDim(pk)
+                    nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue.getOffsetNmrResidue(-1)
+                    na = nr.fetchNmrAtom(name='CA', isotopeCode=assignIsotope)
+                    assignAxCde = getAssignAxisCode(pk)
+                    pk.assignDimension(axisCode=assignAxCde, value=na)
 
 
 def storeDataForGSTCheck(peakShift, peak, atomType, checkDict):
