@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-10 16:10:49 +0000 (Mon, March 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-13 16:09:06 +0000 (Thu, March 13, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -406,15 +406,17 @@ class PickAndAssignModule(CcpnModule):
             if self.automaticBbNmrAtomAssignment:
                 self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
-    def _assignSelectedPeaks(self, peaks):
+    def _assignSelectedPeaks(self, peaks=None):
         """Unifies assignments across all selected peaks
 
         :param peaks: Peaks to unify assignments across
         """
-        peakSet = set(self.current.peaks)
-        if peaks:
-            peakSet.update(peaks)
-        copyAssignments(list(peakSet))
+        if peaks is None:
+            getLogger().warning('No peaks given to assign')
+            return
+
+        for peak in self.current.peaks:
+            copyAssignmentsFromReference(peaks, peak)
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
