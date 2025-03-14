@@ -7,7 +7,7 @@ modified by Geerten 1-9/12/2016:
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2024"
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2025"
 __credits__ = ("Ed Brooksbank, Morgan Hayward, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
                "Timothy J Ragan, Brian O Smith, Daniel Thompson",
                "Gary S Thompson & Geerten W Vuister")
@@ -19,8 +19,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2024-12-11 19:13:07 +0000 (Wed, December 11, 2024) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-03-14 17:55:11 +0000 (Fri, March 14, 2025) $"
+__version__ = "$Revision: 3.2.12 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -56,6 +56,7 @@ from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, markNmrAtoms  #, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToNmrResidueInStrip
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
+from ccpn.ui.gui.lib.GuiStrip import GuiStrip
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.AttrDict import AttrDict
@@ -409,7 +410,7 @@ class AssignmentInspectorModule(CcpnModule):
 
             # navigate the displays
             for display in displays:
-                if isinstance(display, Strip):
+                if isinstance(display, GuiStrip):
                     strip = display
                     display = strip.spectrumDisplay
                     newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
@@ -680,9 +681,14 @@ class AssignmentInspectorModule(CcpnModule):
 
         dpObjs = self.displaysWidget.getDisplays()
         if dpObjs:
+
+            if len(self.mainWindow.marks):
+                if self.autoClearMarksWidget.checkBox.isChecked():
+                    self.mainWindow.clearMarks()
+            markPositions = self.markPositionsWidget.checkBox.isChecked()
             # check which spectrumDisplays to navigate to
             for dp in dpObjs:
-                if isinstance(dp, Strip):
+                if isinstance(dp, GuiStrip):
                     widths = None
                     if peak.peakList.spectrum.dimensionCount <= 2:
                         widths = _getCurrentZoomRatio(dp.viewRange())
@@ -690,7 +696,8 @@ class AssignmentInspectorModule(CcpnModule):
                     navigateToPositionInStrip(strip=dp,
                                               positions=peak.position,
                                               axisCodes=peak.axisCodes,
-                                              widths=widths
+                                              widths=widths,
+                                              markPositions=markPositions
                                               )
                 elif dp.strips:
                     widths = None
@@ -700,7 +707,8 @@ class AssignmentInspectorModule(CcpnModule):
                     navigateToPositionInStrip(strip=dp.strips[0],
                                               positions=peak.position,
                                               axisCodes=peak.axisCodes,
-                                              widths=widths
+                                              widths=widths,
+                                              markPositions=markPositions
                                               )
 
         else:
@@ -724,7 +732,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         if len(self.mainWindow.marks):
             if self.moduleParent.autoClearMarksWidget.checkBox.isChecked():
                 self.mainWindow.clearMarks()
-        if cShifts:
+        if cShifts and self.moduleParent.markPositionsWidget.checkBox.isChecked():
             nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
             markNmrAtoms(self.mainWindow, nmrAtoms)
 
@@ -751,8 +759,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             nmrAtoms = tuple(set(nmrAtom for nmrRes in nmrResidues for nmrAtom in nmrRes.nmrAtoms))
             self.current.nmrAtoms = nmrAtoms
             self.current.nmrResidues = nmrResidues
-
         else:
+            nmrAtoms = []
             self.current.nmrAtoms = []
             self.current.nmrResidues = []
 
