@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-13 16:19:08 +0000 (Thu, March 13, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-14 12:34:36 +0000 (Fri, March 14, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -66,9 +66,11 @@ from collections import defaultdict
 
 from ccpn.core.Peak import Peak
 from ccpn.core.NmrResidue import NmrResidue
+from ccpn.core.PeakList import PeakList
 from ccpn.core.lib.AssignmentLib import copyAssignmentsFromReference, propagateAssignments, copyAssignments
 from ccpn.ui.gui.lib import PeakListLib
 from ccpn.ui.gui.lib import StripLib
+from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, _NewNmrResidueTableWidget, NmrResidueTableFrame
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget, _PeakTableFrame
@@ -206,6 +208,7 @@ class PickAndAssignModule(CcpnModule):
         self.current = mainWindow.application.current
 
         self._settings = PickAndAssignSettings(parent=self.settingsWidget, mainWindow=mainWindow)
+        self.nmrResidueTableSettings = self._settings.nmrResidueTableSettings
         self.tabWidget = Tabs(parent=self.mainWidget, grid=(0, 0), gridSpan=(1, 3))
         self.tabWidget.setContentsMargins(*ZEROMARGINS)
 
@@ -274,9 +277,9 @@ class PickAndAssignModule(CcpnModule):
         self.tabWidget.addTab(self.nmrChainTable, 'NmrResidue Table')
         self.tabWidget.addTab(self.peakTable, 'Peak Table')
 
-        self.nmrChainTable.nmrResidueTableSettings = self._settings.nmrResidueTableSettings
-        self.nmrResidueTableSettings = self.nmrChainTable.nmrResidueTableSettings
+        self.nmrChainTable.nmrResidueTableSettings = self.nmrResidueTableSettings
         self.peakTable._settings = self._settings.peakTableSettings
+        self.peakTable._tableWidget.setActionCallback(self.peakTableActionCallback)
 
         # set existing widgets to false.
         self.peakTable.posUnitPulldownLabel.setEnabled(False)
@@ -285,6 +288,55 @@ class PickAndAssignModule(CcpnModule):
         self.peakTable.posUnitPulldown.setVisible(False)
 
         self.tables = [self.nmrChainTable, self.peakTable]
+
+    def peakTableActionCallback(self, selection, lastItem):
+        """Use nmrResidueTableSettings to navigate to nmrAtoms in all displays based off peak.
+        """
+        from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
+
+        try:
+            if not (objs := list(lastItem[self.peakTable._tableWidget._OBJECT])):
+                return
+        except Exception as es:
+            getLogger().debug2(f'{self.__class__.__name__}.actionCallback: No selection\n{es}')
+            return
+
+        peak = objs[0] if isinstance(objs, (tuple, list)) else objs
+
+        markPositionsBool = self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
+
+        if self.nmrResidueTableSettings.displaysWidget:
+            displays = self.nmrResidueTableSettings.displaysWidget.getDisplays()
+        elif self.current.strip:
+            displays = [self.current.strip.spectrumDisplay]
+
+        if not displays and self.nmrResidueTableSettings.displaysWidget:
+            logger.warning('Undefined display module(s); select in settings first')
+            showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
+            return
+
+        with undoBlockWithoutSideBar():
+            if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
+                self.application.ui.mainWindow.clearMarks()
+
+            for display in displays:
+                for strip in display.strips:
+                    if ((optDict := self.nmrResidueTableSettings.axisCodeOptionsDict) and
+                            (options := optDict.get(f'{display}')) and
+                            display.axes):
+                        axisMask = [True if num in options else None for num, axis in enumerate(display.axes)]
+                    else:
+                        axisMask = None
+
+                    flattenedAssignedNmrAtoms = [atom for axis in peak.assignedNmrAtoms
+                                                 for atom in axis if atom is not None]
+
+                    navigateToNmrAtomsInStrip(strip,
+                                              flattenedAssignedNmrAtoms,
+                                              widths=[],
+                                              markPositions=markPositionsBool,
+                                              axisMask=axisMask
+                                              )
 
     @property
     def automaticBbNmrAtomAssignment(self):
