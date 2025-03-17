@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-17 14:25:14 +0000 (Mon, March 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-17 17:06:51 +0000 (Mon, March 17, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -57,36 +57,25 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 from functools import partial
 from typing import Iterator, Iterable
 
-from OpenGL.logs import getLog
-from PyQt5.QtWidgets import QStackedWidget
-from PyQt5 import QtWidgets, QtCore
 from statistics import mean, StatisticsError
 from collections import defaultdict
 # from icecream import ic
 
 from ccpn.core.Peak import Peak
 from ccpn.core.NmrResidue import NmrResidue
-from ccpn.core.PeakList import PeakList
-from ccpn.core.lib.AssignmentLib import copyAssignmentsFromReference, propagateAssignments, copyAssignments
+from ccpn.core.lib.AssignmentLib import copyAssignmentsFromReference
 from ccpn.ui.gui.lib import PeakListLib
-from ccpn.ui.gui.lib import StripLib
+
 from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
-from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, _NewNmrResidueTableWidget, NmrResidueTableFrame
-from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget, _PeakTableFrame
-from ccpn.ui.gui.widgets.Base import Base
+from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableFrame
+from ccpn.ui.gui.modules.PeakTable import _PeakTableFrame
 from ccpn.ui.gui.widgets.Button import Button
-from ccpn.ui.gui.widgets.Font import getFontHeight
-from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
-from ccpn.ui.gui.widgets.PulldownList import PulldownList
-from ccpn.ui.gui.widgets.PulldownListsForObjects import PeakPulldown, NmrChainPulldown
 from ccpn.ui.gui.widgets.SettingsWidgets import PickAndAssignSettings
-from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Tabs import Tabs
-from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpnmodel.ccpncore.lib.Io.PyMMLibPDB import KEYWDS
@@ -612,6 +601,8 @@ class PickAndAssignModule(CcpnModule):
                                              'assigned root (NH) resonances.')
             return
 
+        validExptFromDisplay = []
+
         with undoBlockWithoutSideBar():
             pkDict = defaultdict(list)
             GlyCheck = False
@@ -741,77 +732,6 @@ class PickAndAssignModule(CcpnModule):
                 checkForGST(gstCheckDict)
 
 
-class StackedWidget(QStackedWidget, Base):
-    def __init__(self, parent=None, **kwds):
-        super().__init__(parent)
-        Base._init(self, **kwds)
-
-
-class StackedTableFrameWidget(Frame):
-    """A frame that contains multiple stacked tables and a pulldown to control them."""
-
-    def __init__(self, parent=None, mainWindow=None, moduleParent=None, **kwds):
-        super().__init__(parent, setLayout=True, **kwds)
-
-        self.mainWindow = mainWindow
-        if mainWindow:
-            self.application = mainWindow.application
-            self.project = mainWindow.application.project
-            self.current = mainWindow.application.current
-        else:
-            self.application = self.project = self.current = None
-
-        self.moduleParent = moduleParent
-        self.tableNameDict = dict()
-
-        self.tablesWidget = StackedWidget(parent=self, grid=(0, 0), gridSpan=(2, 1), )
-        self.currentTablePulldown = PulldownList(parent=self,
-                                                 grid=(0, 0), hAlign='right', vAlign='t',
-                                                 callback=self._switchTableCallback,
-                                                 sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
-                                                 minimumWidths=(0, 100))
-
-    @property
-    def currentTable(self):
-        return self.tablesWidget.currentWidget()
-
-    @currentTable.setter
-    def currentTable(self, table):
-        if isinstance(table, str):
-            try:
-                table = self.tableNameDict.get(table)
-            except KeyError:
-                getLogger().error(f'{self.__class__} _switchTableCallback KeyError, table not found in nameDict')
-                return
-
-        self.tablesWidget.setCurrentWidget(table)
-
-    def addTablesToFrame(self, tableFrames: list() = None):
-        if tableFrames is None:
-            getLogger().warning('No table frames given to initialise')
-            return
-
-        for tableFrame in tableFrames:
-            self.tablesWidget.addWidget(tableFrame)
-            self.addToControlPulldown(tableFrame)
-
-        if self.tablesWidget.currentWidget() is None:
-            self.tablesWidget.setCurrentIndex(0)
-
-    def addToControlPulldown(self, table):
-        tableName = table.guiTable.attributeName
-        self.tableNameDict.update({tableName: table})
-        self.currentTablePulldown.addItem(tableName)
-
-    def removeFromControlPulldown(self, table):
-        tableName = table.guiTable.attributeName
-        self.tableNameDict.pop({tableName: table})
-        self.currentTablePulldown.removeItem(tableName)
-
-    def _switchTableCallback(self, value: None = None):
-        self.currentTable = self.currentTablePulldown.getText()
-
-
 def getAssignDim(peak):
     return [ind for ind, value in enumerate(peak.peakList.spectrum.isotopeCodes) if value == assignIsotope][0]
 
@@ -857,7 +777,7 @@ def checkForGly(glyDict, hasCaSign):
                         assignAxCde = getAssignAxisCode(pk)
                         pk.assignDimension(axisCode=assignAxCde, value=na)
         else:
-            if len(cas_1) == 0 and len(cas0) >= 1:
+            if len(cas_1) == 0 and len(cbs_1) >= 1:
                 if 48.5 > mean(cbs_1) > 40.0:
                     # this is an i-1 Glycine
                     for pk in glyDict['CB-1']['peaks']:
