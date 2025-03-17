@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-14 12:34:36 +0000 (Fri, March 14, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-17 10:53:52 +0000 (Mon, March 17, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -60,7 +60,7 @@ from typing import Iterator, Iterable
 from OpenGL.logs import getLog
 from PyQt5.QtWidgets import QStackedWidget
 from PyQt5 import QtWidgets, QtCore
-from statistics import mean
+from statistics import mean, StatisticsError
 from collections import defaultdict
 # from icecream import ic
 
@@ -907,8 +907,11 @@ def checkForGST(gstDict):
         # this is a Serine or Threonine
         for pk in peaks:
             assignDim = getAssignDim(pk)
-            if pk.ppmPositions[assignDim] > mean(cas):
-                nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue
-                na = nr.fetchNmrAtom(name='CB', isotopeCode=assignIsotope)
-                assignAxCde = getAssignAxisCode(pk)
-                pk.assignDimension(axisCode=assignAxCde, value=na)
+            try:
+                if pk.ppmPositions[assignDim] > mean(cas):
+                    nr = pk.assignmentsByDimensions[assignDim][0].nmrResidue
+                    na = nr.fetchNmrAtom(name='CB', isotopeCode=assignIsotope)
+                    assignAxCde = getAssignAxisCode(pk)
+                    pk.assignDimension(axisCode=assignAxCde, value=na)
+            except StatisticsError as e:
+                getLogger().warning(e)
