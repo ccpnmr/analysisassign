@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-17 17:06:51 +0000 (Mon, March 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-18 16:53:25 +0000 (Tue, March 18, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -445,7 +445,8 @@ class PickAndAssignModule(CcpnModule):
                 self._assignSelectedResidues(peaks, nmrResidues)
 
             if self.automaticBbNmrAtomAssignment:
-                self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
+                if self.checkDisplayForExptType():
+                    self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
     def _assignSelectedPeaks(self, peaks=None):
         """Unifies assignments across all selected peaks
@@ -530,6 +531,9 @@ class PickAndAssignModule(CcpnModule):
         undoStack = self.application._getUndo()
         originalUndoState = undoStack.undoList
 
+        if self.automaticBbNmrAtomAssignment:
+            exptTypeValid = self.checkDisplayForExptType()
+
         with undoBlockWithoutSideBar():
             msg = "Picking and Assigning Peaks..." if assign else "Picking peaks..."
             stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
@@ -552,7 +556,7 @@ class PickAndAssignModule(CcpnModule):
                         if isinstance(obj, NmrResidue):
                             self._assignSelectedResidues(peaks, [obj, ])
 
-                        if self.automaticBbNmrAtomAssignment:
+                        if self.automaticBbNmrAtomAssignment and exptTypeValid:
                             self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
                     curPeaks |= OrderedSet(peaks)
@@ -600,8 +604,6 @@ class PickAndAssignModule(CcpnModule):
             showWarning('No Peaks selected', 'Please make sure you have selected some peaks with '
                                              'assigned root (NH) resonances.')
             return
-
-        validExptFromDisplay = []
 
         with undoBlockWithoutSideBar():
             pkDict = defaultdict(list)
@@ -730,6 +732,20 @@ class PickAndAssignModule(CcpnModule):
                 checkForGly(glyCheckDict, self.glyHasCaSign)
             if GSTCheck:
                 checkForGST(gstCheckDict)
+
+    def checkDisplayForExptType(self, enableWarning : bool = True) -> bool:
+        displays = self.nmrResidueTableSettings.displaysWidget.getDisplays()
+
+        validExptFromDisplay = [specView.spectrum.experimentType for display in displays
+                                for specView in display.spectrumViews
+                                if specView.spectrum.experimentType in exptTypeFilter]
+
+        if enableWarning and not validExptFromDisplay:
+            showWarning('Automatic BBAssign',
+                        'Spectrum Experiment Type not valid for automatic C/CA/CB NmrAtom.\n'
+                        'Skipping automatic C/CA/CB assignment... ')
+
+        return bool(validExptFromDisplay)
 
 
 def getAssignDim(peak):
