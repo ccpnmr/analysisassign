@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-19 10:36:03 +0000 (Wed, March 19, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-19 10:42:36 +0000 (Wed, March 19, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -528,8 +528,8 @@ class PickAndAssignModule(CcpnModule):
         """
         from ccpn.core.lib.ContextManagers import progressHandler
 
-        undoStack = self.application._getUndo()
-        originalUndoState = undoStack.undoList
+        # undoStack = self.application._getUndo()
+        # originalUndoState = undoStack.undoList
 
         if self.automaticBbNmrAtomAssignment:
             exptTypeValid = self.checkDisplayForExptType()
@@ -563,8 +563,9 @@ class PickAndAssignModule(CcpnModule):
 
             self.current.peaks = list(OrderedSet(self.current.peaks) | curPeaks)
             if progress.cancelled:
-                while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
-                    undoStack.undo()
+                # while undoStack.undoList != originalUndoState and undoStack.nextIndex > 0:
+                # undoStack.undo()
+                self.application.undo()
 
     def _restrictedPeakPickIterator(self, iterObjs: Iterable[NmrResidue] | Iterable[Peak]):
         """For each display do restricted picks on iterObjs using PeakListLib.restrictedPick
