@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-18 16:53:25 +0000 (Tue, March 18, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-19 10:36:03 +0000 (Wed, March 19, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -625,9 +625,10 @@ class PickAndAssignModule(CcpnModule):
                     peakNmrRes = peak.assignmentsByDimensions[rootDim][0].nmrResidue
                     peakNmrChain = peak.assignmentsByDimensions[rootDim][0].nmrResidue.nmrChain
                 else:
-                    showWarning('Missing Root Assignment', 'Please make sure all your peaks have '
-                                                           'their root NH NmrAtoms assigned')
-                    return
+                    if self.currentTable is self.nmrChainTable:
+                        showWarning('Missing Root Assignment', 'Please make sure all your peaks have '
+                                                               'their root NH NmrAtoms assigned')
+                        return
                 # Put peaks into pkDict
                 peakExptType = peak.peakList.spectrum.experimentType
 
