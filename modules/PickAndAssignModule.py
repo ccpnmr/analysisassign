@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-19 10:42:36 +0000 (Wed, March 19, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-19 14:53:48 +0000 (Wed, March 19, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -743,9 +743,9 @@ class PickAndAssignModule(CcpnModule):
                                 if specView.spectrum.experimentType in exptTypeFilter]
 
         if enableWarning and not validExptFromDisplay:
-            showWarning('Automatic BBAssign',
-                        'Spectrum Experiment Type not valid for automatic C/CA/CB NmrAtom.\n'
-                        'Skipping automatic C/CA/CB assignment... ')
+            showWarning('Automatic C/CA/CB NmrAtom Assigment',
+                        'Spectrum Experiment Types not valid for automatic C/CA/CB NmrAtom assignment..\n'
+                        'Skipping automatic C/CA/CB assignment...')
 
         return bool(validExptFromDisplay)
 
