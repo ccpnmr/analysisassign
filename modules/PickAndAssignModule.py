@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-19 14:53:48 +0000 (Wed, March 19, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-19 15:01:39 +0000 (Wed, March 19, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -259,9 +259,9 @@ class PickAndAssignModule(CcpnModule):
         This also ensures the settings are set correctly for each table.
         """
         self.nmrChainTable = NmrResidueTableFrame(parent=self.mainWidget, mainWindow=self.mainWindow,
-                                                  moduleParent=self, grid=(0, 0))
+                                                  moduleParent=self, grid=(0, 0), selectFirstItem=True)
         self.peakTable = _PeakTableFrame(parent=self.mainWidget, mainWindow=self.mainWindow,
-                                         moduleParent=self, grid=(0, 0))
+                                         moduleParent=self, grid=(0, 0), selectFirstItem=True)
 
         self.tabWidget.addTab(self.nmrChainTable, 'NmrResidue Table')
         self.tabWidget.addTab(self.peakTable, 'Peak Table')
