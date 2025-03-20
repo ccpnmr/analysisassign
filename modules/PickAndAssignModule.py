@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-20 11:19:15 +0000 (Thu, March 20, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-20 14:45:04 +0000 (Thu, March 20, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -451,8 +451,11 @@ class PickAndAssignModule(CcpnModule):
             getLogger().warning('No peaks given to assign')
             return
 
-        for peak in self.current.peaks:
-            copyAssignmentsFromReference(peaks, peak)
+        assignees = [peak for peak in peaks if peak not in self.peakTable.table.peaks]
+        references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
+
+        for reference in references:
+            copyAssignmentsFromReference(assignees, reference)
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
