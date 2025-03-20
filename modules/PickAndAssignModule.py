@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-19 15:01:39 +0000 (Wed, March 19, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-20 11:19:15 +0000 (Thu, March 20, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -66,7 +66,7 @@ from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.lib.AssignmentLib import copyAssignmentsFromReference
 from ccpn.ui.gui.lib import PeakListLib
 
-from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip
+from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip, navigateToPositionInStrip
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableFrame
 from ccpn.ui.gui.modules.PeakTable import _PeakTableFrame
@@ -78,6 +78,7 @@ from ccpn.ui.gui.widgets.SettingsWidgets import PickAndAssignSettings
 from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
+from ccpn.util.decorators import logCommand
 from ccpnmodel.ccpncore.lib.Io.PyMMLibPDB import KEYWDS
 
 
@@ -279,9 +280,21 @@ class PickAndAssignModule(CcpnModule):
         self.tables = [self.nmrChainTable, self.peakTable]
 
     def peakTableActionCallback(self, selection, lastItem):
-        """Use nmrResidueTableSettings to navigate to nmrAtoms in all displays based off peak.
+        """Navigate to and mark peaks based on the settings widget.
         """
-        from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
+        @logCommand()
+        def peakTableCallback(peak, markPositions):
+            """A function to allow logCommand decorator"""
+            with undoBlockWithoutSideBar():
+                if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
+                    self.application.ui.mainWindow.clearMarks()
+
+                for display in displays:
+                    for strip in display.strips:
+                        navigateToPositionInStrip(strip=strip,
+                                                  positions=peak.position,
+                                                  axisCodes=peak.axisCodes,
+                                                  markPositions=markPositions)
 
         try:
             if not (objs := list(lastItem[self.peakTable._tableWidget._OBJECT])):
@@ -304,28 +317,9 @@ class PickAndAssignModule(CcpnModule):
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
             return
 
-        with undoBlockWithoutSideBar():
-            if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
-                self.application.ui.mainWindow.clearMarks()
+        peakTableCallback(peak, markPositionsBool)
 
-            for display in displays:
-                for strip in display.strips:
-                    if ((optDict := self.nmrResidueTableSettings.axisCodeOptionsDict) and
-                            (options := optDict.get(f'{display}')) and
-                            display.axes):
-                        axisMask = [True if num in options else None for num, axis in enumerate(display.axes)]
-                    else:
-                        axisMask = None
 
-                    flattenedAssignedNmrAtoms = [atom for axis in peak.assignedNmrAtoms
-                                                 for atom in axis if atom is not None]
-
-                    navigateToNmrAtomsInStrip(strip,
-                                              flattenedAssignedNmrAtoms,
-                                              widths=[],
-                                              markPositions=markPositionsBool,
-                                              axisMask=axisMask
-                                              )
 
     @property
     def automaticBbNmrAtomAssignment(self):
