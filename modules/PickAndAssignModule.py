@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-21 15:37:53 +0000 (Fri, March 21, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-24 15:50:10 +0000 (Mon, March 24, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -63,10 +63,10 @@ from collections import defaultdict
 
 from ccpn.core.Peak import Peak
 from ccpn.core.NmrResidue import NmrResidue
-from ccpn.core.lib.AssignmentLib import copyAssignmentsFromReference
+from ccpn.core.lib.AssignmentLib import propagateAssignmentsFromReference
 from ccpn.ui.gui.lib import PeakListLib
 
-from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip, navigateToPositionInStrip
+from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableFrame
 from ccpn.ui.gui.modules.PeakTable import _PeakTableFrame
@@ -79,7 +79,6 @@ from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.decorators import logCommand
-from ccpnmodel.ccpncore.lib.Io.PyMMLibPDB import KEYWDS
 
 
 logger = getLogger()
@@ -319,8 +318,6 @@ class PickAndAssignModule(CcpnModule):
 
         peakTableCallback(peak, markPositionsBool)
 
-
-
     @property
     def automaticBbNmrAtomAssignment(self):
         return self.nmrResidueTableSettings.automaticBbNmrAtomAssignment.isChecked()
@@ -350,6 +347,7 @@ class PickAndAssignModule(CcpnModule):
         """
         enable/disable the pick buttons
         """
+        # TODO: fix this to work for both tables.
         selected = data[Notifier.OBJECT].nmrResidue
 
         if selected:
@@ -433,7 +431,15 @@ class PickAndAssignModule(CcpnModule):
 
         with undoBlockWithoutSideBar():
             if self.currentTable is self.peakTable:
-                self._assignSelectedPeaks(peaks)
+                # split out based on assigning table
+                assignees = [peak for peak in peaks if peak not in self.peakTable.table.peaks]
+                references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
+                if assignees:
+                    for reference in references:
+                        self._assignSelectedPeaks(assignees, reference)
+                else:
+                    # if all peaks are from the same table.
+                    self._assignSelectedPeaks(peaks[:-1], peaks[-1])
             elif self.currentTable is self.nmrChainTable:
                 nmrResidues = self._getSelected()
                 self._assignSelectedResidues(peaks, nmrResidues)
@@ -442,20 +448,23 @@ class PickAndAssignModule(CcpnModule):
                 if self.checkDisplayForExptType():
                     self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
-    def _assignSelectedPeaks(self, peaks=None):
-        """Unifies assignments across all selected peaks
+    @staticmethod
+    def _assignSelectedPeaks(peaks: list[Peak] = None, refPeak: Peak = None):
+        """Assign peaks based on
 
-        :param peaks: Peaks to unify assignments across
+        :param peaks: peaks gain assignments
+        :param refPeak: reference peak for the assignment
         """
+        if refPeak is None:
+            getLogger().warning('No reference peak given')
+            return
+
         if peaks is None:
             getLogger().warning('No peaks given to assign')
             return
 
-        assignees = [peak for peak in peaks if peak not in self.peakTable.table.peaks]
-        references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
-
-        for reference in references:
-            copyAssignmentsFromReference(assignees, reference)
+        propagateAssignmentsFromReference(peaks=peaks, referencePeak=refPeak,
+                                          tolerancesByAxisCode={})
 
     # convert to be an iterator...
     def _assignSelectedResidues(self, peaks, nmrResidues):
@@ -549,7 +558,7 @@ class PickAndAssignModule(CcpnModule):
                     if peaks and assign:
                         # assign based on object type
                         if isinstance(obj, Peak):
-                            self._assignSelectedPeaks(peaks)
+                            self._assignSelectedPeaks(peaks, obj)
                         if isinstance(obj, NmrResidue):
                             self._assignSelectedResidues(peaks, [obj, ])
 
