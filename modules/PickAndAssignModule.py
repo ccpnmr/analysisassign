@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-24 15:50:10 +0000 (Mon, March 24, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-25 14:03:35 +0000 (Tue, March 25, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -202,6 +202,7 @@ class PickAndAssignModule(CcpnModule):
         self.tabWidget.setContentsMargins(*ZEROMARGINS)
 
         self.tables = []
+        self._tableButtons = {}
         self._setupTables()
         self._setupWidgets()
 
@@ -232,26 +233,27 @@ class PickAndAssignModule(CcpnModule):
 
         Handles the additions of buttons and callbacks to the tables
         """
+        restrictedPickAndAssignWithAssignFalse = partial(self.restrictedPickAndAssign, assign=False)
+        restrictedPickAndAssignWithAssignTrue = partial(self.restrictedPickAndAssign, assign=True)
         for table in self.tables:
-            restrictedPickAndAssignWithAssignFalse = partial(self.restrictedPickAndAssign, assign=False)
-            restrictedPickAndAssignWithAssignTrue = partial(self.restrictedPickAndAssign, assign=True)
 
-            self.restrictedPickButton = Button(text='Restricted\nPick',
-                                               callback=restrictedPickAndAssignWithAssignFalse)
-            table.addWidgetToPos(self.restrictedPickButton, row=0, col=2)
-
-            self.assignSelectedButton = Button(text='Assign\nSelected',
-                                               callback=self.assignSelected)
-            table.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
-
-            self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign',
+            restrictedPickButton = Button(text='Restricted\nPick',
+                                          callback=restrictedPickAndAssignWithAssignFalse)
+            assignSelectedButton = Button(text='Assign\nSelected',
+                                          callback=self.assignSelected)
+            restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign',
                                                         callback=restrictedPickAndAssignWithAssignTrue)
-            table.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
+
+            self._tableButtons[table] = [restrictedPickButton, assignSelectedButton, restrictedPickAndAssignButton]
+
+            table.addWidgetToPos(restrictedPickButton, row=0, col=2)
+            table.addWidgetToPos(assignSelectedButton, row=0, col=3)
+            table.addWidgetToPos(restrictedPickAndAssignButton, row=0, col=4)
 
             # ensure all buttons are enabled
-            self.restrictedPickButton.setEnabled(True)
-            self.assignSelectedButton.setEnabled(True)
-            self.restrictedPickAndAssignButton.setEnabled(True)
+            restrictedPickButton.setEnabled(True)
+            assignSelectedButton.setEnabled(True)
+            restrictedPickAndAssignButton.setEnabled(True)
 
     def _setupTables(self):
         """Creates the table frames and adds them to the tabs widget
@@ -343,21 +345,29 @@ class PickAndAssignModule(CcpnModule):
                          targetName=NmrResidue._pluralLinkName,
                          callback=self._selectionCallback)
 
+        self.setNotifier(self.current,
+                         [Notifier.CURRENT],
+                         targetName=Peak._pluralLinkName,
+                         callback=self._selectionCallback)
+
     def _selectionCallback(self, data):
+        """enable/disable the pick buttons
         """
-        enable/disable the pick buttons
-        """
-        # TODO: fix this to work for both tables.
-        selected = data[Notifier.OBJECT].nmrResidue
+        if self.currentTable is (table := self.peakTable):
+            selected = data[Notifier.OBJECT].peak
+        elif self.currentTable is (table := self.nmrChainTable):
+            selected = data[Notifier.OBJECT].nmrResidue
+        else:
+            return
 
         if selected:
-            self.restrictedPickButton.setEnabled(True)
-            self.assignSelectedButton.setEnabled(True)
-            self.restrictedPickAndAssignButton.setEnabled(True)
+            self._tableButtons[table][0].setEnabled(True)
+            self._tableButtons[table][1].setEnabled(True)
+            self._tableButtons[table][2].setEnabled(True)
         else:
-            self.restrictedPickButton.setEnabled(False)
-            self.assignSelectedButton.setEnabled(False)
-            self.restrictedPickAndAssignButton.setEnabled(False)
+            self._tableButtons[table][0].setEnabled(False)
+            self._tableButtons[table][1].setEnabled(False)
+            self._tableButtons[table][2].setEnabled(False)
 
     def _getDisplay(self):
         """Get the current selected spectrum-display from the pulldown
