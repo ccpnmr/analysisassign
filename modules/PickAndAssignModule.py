@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-25 14:03:35 +0000 (Tue, March 25, 2025) $"
+__dateModified__ = "$dateModified: 2025-03-25 15:41:16 +0000 (Tue, March 25, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -55,11 +55,10 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 from functools import partial
-from typing import Iterator, Iterable
+from typing import Iterable
 
 from statistics import mean, StatisticsError
 from collections import defaultdict
-# from icecream import ic
 
 from ccpn.core.Peak import Peak
 from ccpn.core.NmrResidue import NmrResidue
@@ -73,12 +72,11 @@ from ccpn.ui.gui.modules.PeakTable import _PeakTableFrame
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, logCommandManager
 from ccpn.ui.gui.widgets.SettingsWidgets import PickAndAssignSettings
 from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
-from ccpn.util.decorators import logCommand
 
 
 logger = getLogger()
@@ -97,77 +95,6 @@ exptTypeFilter = ['H[N[CA]]', 'H[N[co[CA]]]', 'H[N[ca[CO]]]', 'H[N[CO]]',
                   'H[N[{CA|ca[Cali]}]]', 'h{CA|Cca}coNH', 'H[N[co[{CA|ca[C]}]]]']
 
 # ------------------------------------------------------------------------------------------- #
-
-# class PickAndAssignModuleO(NmrResidueTableModule):
-#     """
-#     Do a restricted peak pick along the 'y-axis' of (a set of) spectra.
-#     Use settings to define the spectral displays, the active spectra and the tolerances for peak picking
-#
-#     # GST is this true any more?
-#     This module closely works with the Atom Selector module
-#     """
-#     className = 'PickAndAssignModule'
-#
-#     includeSettingsWidget = True
-#     maxSettingsState = 2
-#     settingsPosition = 'left'
-#     settingsMinimumSizes = (500, 200)
-#
-#     includePeakLists = False
-#     includeNmrChains = False
-#     includeSpectrumTable = True
-#
-#     includeDisplaySettings = True
-#
-#     def __init__(self, mainWindow, name='Pick and Assign'):
-#
-#         super().__init__(mainWindow=mainWindow, name=name, selectFirstItem=True)  # ejb ='Pick And Assign')
-#
-#         # Derive application, project, and current from mainWindow
-#         self.mainWindow = mainWindow
-#         self.application = mainWindow.application
-#         self.project = mainWindow.application.project
-#         self.current = mainWindow.application.current
-#
-#         # Main widget
-#         restrictedPickAndAssignWithAssignFalse = partial(self.restrictedPickAndAssign, assign=False)
-#         self.restrictedPickButton = Button(text='Restricted\nPick', callback=restrictedPickAndAssignWithAssignFalse)
-#         self.tableFrame.addWidgetToPos(self.restrictedPickButton, row=0, col=2)
-#
-#         self.assignSelectedButton = Button(text='Assign\nSelected', callback=self.assignSelected)
-#         self.tableFrame.addWidgetToPos(self.assignSelectedButton, row=0, col=3)
-#
-#         restrictedPickAndAssignWithAssignTrue = partial(self.restrictedPickAndAssign, assign=True)
-#         self.restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign',
-#                                                     callback=restrictedPickAndAssignWithAssignTrue)
-#         self.tableFrame.addWidgetToPos(self.restrictedPickAndAssignButton, row=0, col=4)
-#
-#         self.restrictedPickButton.setEnabled(True)
-#         self.assignSelectedButton.setEnabled(True)
-#         self.restrictedPickAndAssignButton.setEnabled(True)
-#
-#         # change default-settings inherited from NmrResidueTableModule
-#         self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(False)
-#
-#         if self.nmrResidueTableSettings.displaysWidget:
-#             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)  # select the <all> option
-#
-#         self.nmrResidueTableSettings.setLabelText('Navigate to\nDisplay(s)')
-#
-#         # need to feedback to current.nmrResidueTable
-#         self._registerNotifiers()
-#
-#         # # these need to change whenever different spectrumDisplays are selected
-#         if self.nmrResidueTableSettings.axisCodeOptions:
-#             self.nmrResidueTableSettings.axisCodeOptions.selectAll()
-#
-#             # just clear the 'C' axes - this is the usual configuration
-#             for ii, box in enumerate(self.nmrResidueTableSettings.axisCodeOptions.checkBoxes):
-#                 if box.text().upper().startswith('C'):
-#                     self.nmrResidueTableSettings.axisCodeOptions.clearIndex(ii)
-#
-#         # fix the second column to stop extra widgets flickering
-#         alignWidgets(self.nmrResidueTableSettings, columnScale=1.2)
 
 ZEROMARGINS = (0, 0, 0, 0) # l, t, r, b
 
@@ -188,6 +115,8 @@ class PickAndAssignModule(CcpnModule):
     pickAndAssignSettings = True
 
     def __init__(self, mainWindow, name='Pick and Assign'):
+        """Initialise both tables and settings to default states.
+        """
         super().__init__(mainWindow=mainWindow, name=name)
 
         # Derive application, project, and current from mainWindow
@@ -214,6 +143,22 @@ class PickAndAssignModule(CcpnModule):
     def currentTable(self):
         """Returns the current table widget."""
         return self.tabWidget.currentWidget()
+
+    @property
+    def automaticBbNmrAtomAssignment(self):
+        return self.nmrResidueTableSettings.automaticBbNmrAtomAssignment.isChecked()
+
+    @property
+    def glyHasCaSign(self):
+        return self.nmrResidueTableSettings.glyHasCaSign.isChecked()
+
+    @property
+    def casPosCbsNeg(self):
+        radInd = self.nmrResidueTableSettings.casPosCbsNeg.getIndex()
+        if radInd == 0:
+            return True
+        elif radInd == 1:
+            return False
 
     def tabCallback(self, data):
         """Callback for changing tabs
@@ -283,19 +228,6 @@ class PickAndAssignModule(CcpnModule):
     def peakTableActionCallback(self, selection, lastItem):
         """Navigate to and mark peaks based on the settings widget.
         """
-        @logCommand()
-        def peakTableCallback(peak, markPositions):
-            """A function to allow logCommand decorator"""
-            with undoBlockWithoutSideBar():
-                if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
-                    self.application.ui.mainWindow.clearMarks()
-
-                for display in displays:
-                    for strip in display.strips:
-                        navigateToPositionInStrip(strip=strip,
-                                                  positions=peak.position,
-                                                  axisCodes=peak.axisCodes,
-                                                  markPositions=markPositions)
 
         try:
             if not (objs := list(lastItem[self.peakTable._tableWidget._OBJECT])):
@@ -307,6 +239,7 @@ class PickAndAssignModule(CcpnModule):
         peak = objs[0] if isinstance(objs, (tuple, list)) else objs
 
         markPositionsBool = self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
+        clearMarksBool = self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked()
 
         if self.nmrResidueTableSettings.displaysWidget:
             displays = self.nmrResidueTableSettings.displaysWidget.getDisplays()
@@ -318,23 +251,16 @@ class PickAndAssignModule(CcpnModule):
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
             return
 
-        peakTableCallback(peak, markPositionsBool)
+        with undoBlockWithoutSideBar():
+            if clearMarksBool:
+                self.application.ui.mainWindow.clearMarks()
 
-    @property
-    def automaticBbNmrAtomAssignment(self):
-        return self.nmrResidueTableSettings.automaticBbNmrAtomAssignment.isChecked()
-
-    @property
-    def glyHasCaSign(self):
-        return self.nmrResidueTableSettings.glyHasCaSign.isChecked()
-
-    @property
-    def casPosCbsNeg(self):
-        radInd = self.nmrResidueTableSettings.casPosCbsNeg.getIndex()
-        if radInd == 0:
-            return True
-        elif radInd == 1:
-            return False
+            for display in displays:
+                for strip in display.strips:
+                    navigateToPositionInStrip(strip=strip,
+                                              positions=peak.position,
+                                              axisCodes=peak.axisCodes,
+                                              markPositions=markPositionsBool)
 
     def _registerNotifiers(self):
         """
@@ -438,25 +364,25 @@ class PickAndAssignModule(CcpnModule):
         if len(peaks) == 0:
             showWarning('Pick and Assign', 'No peaks currently selected')
             return
+        with logCommandManager(f'{self.__class__.__name__}', funcName='assignSelected'):
+            with undoBlockWithoutSideBar():
+                if self.currentTable is self.peakTable:
+                    # split out based on assigning table
+                    assignees = [peak for peak in peaks if peak not in self.peakTable.table.peaks]
+                    references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
+                    if assignees:
+                        for reference in references:
+                            self._assignSelectedPeaks(assignees, reference)
+                    else:
+                        # if all peaks are from the same table.
+                        self._assignSelectedPeaks(peaks[:-1], peaks[-1])
+                elif self.currentTable is self.nmrChainTable:
+                    nmrResidues = self._getSelected()
+                    self._assignSelectedResidues(peaks, nmrResidues)
 
-        with undoBlockWithoutSideBar():
-            if self.currentTable is self.peakTable:
-                # split out based on assigning table
-                assignees = [peak for peak in peaks if peak not in self.peakTable.table.peaks]
-                references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
-                if assignees:
-                    for reference in references:
-                        self._assignSelectedPeaks(assignees, reference)
-                else:
-                    # if all peaks are from the same table.
-                    self._assignSelectedPeaks(peaks[:-1], peaks[-1])
-            elif self.currentTable is self.nmrChainTable:
-                nmrResidues = self._getSelected()
-                self._assignSelectedResidues(peaks, nmrResidues)
-
-            if self.automaticBbNmrAtomAssignment:
-                if self.checkDisplayForExptType():
-                    self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
+                if self.automaticBbNmrAtomAssignment:
+                    if self.checkDisplayForExptType():
+                        self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
     @staticmethod
     def _assignSelectedPeaks(peaks: list[Peak] = None, refPeak: Peak = None):
@@ -527,13 +453,13 @@ class PickAndAssignModule(CcpnModule):
         if invalidMsg := self._getMsgIfSetupInvalid():
             showWarning(self._getActionMsg(assign), invalidMsg)
             return
-
-        if self.currentTable is self.peakTable:
-            peaks = self._getSelected()
-            self._doPickAndAssignOnSelectedObjs(peaks, assign)
-        elif self.currentTable is self.nmrChainTable:
-            nmrResidues = self._getSelected()
-            self._doPickAndAssignOnSelectedObjs(nmrResidues, assign)
+        with logCommandManager(f'{self.__class__.__name__}', funcName='restrictedPickAndAssign', assign=assign):
+            if self.currentTable is self.peakTable:
+                peaks = self._getSelected()
+                self._doPickAndAssignOnSelectedObjs(peaks, assign)
+            elif self.currentTable is self.nmrChainTable:
+                nmrResidues = self._getSelected()
+                self._doPickAndAssignOnSelectedObjs(nmrResidues, assign)
 
     def _doPickAndAssignOnSelectedObjs(self, objs: list[NmrResidue,] | list[Peak], assign: bool):
         """Picks and assigns based on given objects.
