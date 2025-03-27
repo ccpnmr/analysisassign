@@ -16,9 +16,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-09 16:45:42 +0000 (Thu, January 09, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__modifiedBy__ = "$modifiedBy: Vicky Higman $"
+__dateModified__ = "$dateModified: 2025-03-27 14:51:39 +0000 (Thu, March 27, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -3114,7 +3114,7 @@ class SequenceGraphModule(CcpnModule):
         Predicts sequence position for Nmr residues displayed in the Assigner and highlights appropriate
         positions in the Sequence Module if it is displayed.
         """
-        if len(nmrResidueList) < 3 or not showPredictions:
+        if len(nmrResidueList) < 2 or not showPredictions:
             self.thisSequenceWidget._initialiseChainLabels()
             return
 
@@ -3122,6 +3122,9 @@ class SequenceGraphModule(CcpnModule):
             if self._chemicalShiftList:
 
                 nmrResidues = nmrResidueList  # [item[0] for item in nmrResidueList]
+                for nr in nmrResidues[0].offsetNmrResidues:
+                    if nr.relativeOffset == -1:
+                        nmrResidues.insert(0, nr)
 
                 checkDict = getAllSpinSystems(self.project, nmrResidues, self._chains, [self._chemicalShiftList])
 
