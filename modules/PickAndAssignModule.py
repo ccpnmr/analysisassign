@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-03-25 15:41:16 +0000 (Tue, March 25, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-03 16:12:04 +0100 (Thu, April 03, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -60,8 +60,11 @@ from typing import Iterable
 from statistics import mean, StatisticsError
 from collections import defaultdict
 
+from OpenGL.logs import getLog
+
 from ccpn.core.Peak import Peak
 from ccpn.core.NmrResidue import NmrResidue
+from ccpn.core.PeakList import PeakList
 from ccpn.core.lib.AssignmentLib import propagateAssignmentsFromReference
 from ccpn.ui.gui.lib import PeakListLib
 
@@ -72,7 +75,8 @@ from ccpn.ui.gui.modules.PeakTable import _PeakTableFrame
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.core.lib.Notifiers import Notifier
-from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, logCommandManager
+from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, logCommandManager, progressHandler, \
+    notificationEchoBlocking
 from ccpn.ui.gui.widgets.SettingsWidgets import PickAndAssignSettings
 from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.util.OrderedSet import OrderedSet
@@ -366,7 +370,14 @@ class PickAndAssignModule(CcpnModule):
             return
         with logCommandManager(f'{self.__class__.__name__}', funcName='assignSelected'):
             with undoBlockWithoutSideBar():
-                if self.currentTable is self.peakTable:
+                if self.nmrResidueTableSettings.nmrChainPeakListRadioButton.getIndex() == 1:
+                    peakLists = self._settings.peakListPulldownTexts
+                    assignees = [peak for peakList in peakLists for peak in peakList.peaks]
+                    references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
+                    if assignees:
+                        for reference in references:
+                            self._assignSelectedPeaks(assignees, reference)
+                elif self.currentTable is self.peakTable:
                     # split out based on assigning table
                     assignees = [peak for peak in peaks if peak not in self.peakTable.table.peaks]
                     references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
@@ -454,7 +465,10 @@ class PickAndAssignModule(CcpnModule):
             showWarning(self._getActionMsg(assign), invalidMsg)
             return
         with logCommandManager(f'{self.__class__.__name__}', funcName='restrictedPickAndAssign', assign=assign):
-            if self.currentTable is self.peakTable:
+            if self.nmrResidueTableSettings.nmrChainPeakListRadioButton.getIndex() == 1:
+                peakLists = self._settings.peakListPulldownTexts
+                self.pickFromRootAssignOnPeaks(peakLists=peakLists, assign=assign)
+            elif self.currentTable is self.peakTable:
                 peaks = self._getSelected()
                 self._doPickAndAssignOnSelectedObjs(peaks, assign)
             elif self.currentTable is self.nmrChainTable:
@@ -542,6 +556,33 @@ class PickAndAssignModule(CcpnModule):
                     except Exception as e:
                         getLogger().warning(f'{e.__traceback__}')
                     yield i, iterObj, None, list(peaks)
+
+    def pickFromRootAssignOnPeaks(self, peakLists: list[PeakList] = None, assign: bool = False):
+
+        msg = "Picking and Assigning Peaks..." if assign else "Picking peaks..."
+        stopButtonText = 'Stop Pick and Assign' if assign else "Stop Picking"
+
+        undoStack = self.application._getUndo()
+        with notificationEchoBlocking():
+            with progressHandler(text=msg, cancelButtonText=stopButtonText,
+                                 maximum=len(peakLists)) as progress:
+
+                with undoBlockWithoutSideBar():
+                    for i, peakList in enumerate(peakLists):
+                        progress.checkCancel()
+                        progress.setValue(i)
+
+                        for peak in self.current.peaks:
+                            _positionCodeDict = dict(zip(peak.axisCodes, peak.position))
+                            peaks = peakList.restrictedPick(positionCodeDict=_positionCodeDict, doPos=True, doNeg=False)
+
+                            if assign and peaks:
+                                self._assignSelectedPeaks(peaks, peak)
+
+            if progress.cancelled:
+                undoStack.undo()
+                undoStack.clearRedoItems()
+
 
     def bbAssignCarbonNmrAtoms(self, currentPeaks: list[Peak] | None = None):
         if len(currentPeaks) == 0:
