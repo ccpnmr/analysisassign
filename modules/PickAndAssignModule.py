@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-07 10:43:25 +0100 (Mon, April 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-07 10:59:22 +0100 (Mon, April 07, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -153,10 +153,10 @@ class PickAndAssignModule(CcpnModule):
     def pickFromRootMode(self) -> bool:
         """Returns bool for picking mode
 
-         False for NmrChain
+         False for Display
          True for PeakList
         """
-        return bool(self.nmrResidueTableSettings.nmrChainPeakListRadioButton.getIndex())
+        return bool(self.nmrResidueTableSettings.displayPeakListRadioButton.getIndex())
 
     @property
     def automaticBbNmrAtomAssignment(self):
@@ -385,12 +385,14 @@ class PickAndAssignModule(CcpnModule):
                 if self.pickFromRootMode:
                     if self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked():
                         self.current.peaks = list(OrderedSet(self.current.peaks) | self.peakTable.table.peaks)
+
                     peakLists = self._settings.peakListPulldownTexts
-                    assignees = [peak for peakList in peakLists for peak in peakList.peaks]
+                    assignees = [peak for peakList in peakLists for peak in peakList.peaks if peak not in self.peakTable.table.peaks]
                     references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
                     if assignees:
                         for reference in references:
                             self._assignSelectedPeaks(assignees, reference)
+
                 elif self.currentTable is self.peakTable:
                     # split out based on assigning table
                     assignees = [peak for peak in peaks if peak not in self.peakTable.table.peaks]
@@ -401,6 +403,7 @@ class PickAndAssignModule(CcpnModule):
                     else:
                         # if all peaks are from the same table.
                         self._assignSelectedPeaks(peaks[:-1], peaks[-1])
+
                 elif self.currentTable is self.nmrChainTable:
                     nmrResidues = self._getSelected()
                     self._assignSelectedResidues(peaks, nmrResidues)
