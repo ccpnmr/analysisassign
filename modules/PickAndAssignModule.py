@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-07 10:59:22 +0100 (Mon, April 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-07 16:40:00 +0100 (Mon, April 07, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -231,6 +231,10 @@ class PickAndAssignModule(CcpnModule):
         self.peakTable._settings = self._settings.peakTableSettings
         self.peakTable._tableWidget.setActionCallback(self.peakTableActionCallback)
 
+        self.nmrResidueTableSettings.setCurrentPeaksCheckBox.stateChanged.connect(self._setCurrentPeaksCheckboxCallback)
+        dplButtons = self.nmrResidueTableSettings.displayPeakListRadioButton
+        dplButtons.getRadioButton('PeakList').toggled.connect(self._dplRadioButtonCallback)
+
         # set existing widgets to false.
         self.peakTable.posUnitPulldownLabel.setEnabled(False)
         self.peakTable.posUnitPulldownLabel.setVisible(False)
@@ -310,6 +314,23 @@ class PickAndAssignModule(CcpnModule):
             self._tableButtons[table][0].setEnabled(False)
             self._tableButtons[table][1].setEnabled(False)
             self._tableButtons[table][2].setEnabled(False)
+
+    def _setCurrentPeaksCheckboxCallback(self):
+        if not (buttons := self._tableButtons.get(self.peakTable)):
+            return
+        for button in buttons:
+            button.setEnabled(True)
+
+    def _dplRadioButtonCallback(self):
+        if self.pickFromRootMode:
+            self.tabWidget.setCurrentWidget(self.peakTable)
+            self.tabWidget.setTabEnabled(0, False)
+            self.tabWidget.setTabVisible(0, False)
+        else:
+            self.tabWidget.setTabEnabled(0, True)
+            self.tabWidget.setTabVisible(0, True)
+
+
 
     def _getDisplay(self):
         """Get the current selected spectrum-display from the pulldown
