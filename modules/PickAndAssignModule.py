@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-03 16:12:04 +0100 (Thu, April 03, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-07 10:43:25 +0100 (Mon, April 07, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -79,6 +79,7 @@ from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar, logCommandMan
     notificationEchoBlocking
 from ccpn.ui.gui.widgets.SettingsWidgets import PickAndAssignSettings
 from ccpn.ui.gui.widgets.Tabs import Tabs
+from ccpn.ui.gui.widgets.Widget import Widget
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 
@@ -144,9 +145,18 @@ class PickAndAssignModule(CcpnModule):
         self.tabWidget.setTabClickCallback(self.tabCallback)
 
     @property
-    def currentTable(self):
+    def currentTable(self) -> Widget:
         """Returns the current table widget."""
         return self.tabWidget.currentWidget()
+
+    @property
+    def pickFromRootMode(self) -> bool:
+        """Returns bool for picking mode
+
+         False for NmrChain
+         True for PeakList
+        """
+        return bool(self.nmrResidueTableSettings.nmrChainPeakListRadioButton.getIndex())
 
     @property
     def automaticBbNmrAtomAssignment(self):
@@ -290,7 +300,9 @@ class PickAndAssignModule(CcpnModule):
         else:
             return
 
-        if selected:
+        selectAllChecked = self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked()
+
+        if selected or selectAllChecked:
             self._tableButtons[table][0].setEnabled(True)
             self._tableButtons[table][1].setEnabled(True)
             self._tableButtons[table][2].setEnabled(True)
@@ -321,7 +333,7 @@ class PickAndAssignModule(CcpnModule):
             if not self.current.peaks:
                 msg = 'no Peaks selected, please pick one or more Peaks'
 
-        if not msg and not self._getDisplay():
+        if not msg and not self._getDisplay() and not self.pickFromRootMode:
             # check the selected display
             msg = 'Undefined display;\nselect display in gearbox settings before proceeding'
 
@@ -370,7 +382,9 @@ class PickAndAssignModule(CcpnModule):
             return
         with logCommandManager(f'{self.__class__.__name__}', funcName='assignSelected'):
             with undoBlockWithoutSideBar():
-                if self.nmrResidueTableSettings.nmrChainPeakListRadioButton.getIndex() == 1:
+                if self.pickFromRootMode:
+                    if self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked():
+                        self.current.peaks = list(OrderedSet(self.current.peaks) | self.peakTable.table.peaks)
                     peakLists = self._settings.peakListPulldownTexts
                     assignees = [peak for peakList in peakLists for peak in peakList.peaks]
                     references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
@@ -461,18 +475,26 @@ class PickAndAssignModule(CcpnModule):
         and picks peaks for all spectrum displays specified in the settings tab. Pick uses X and Z axes for each
         spectrumView as centre points with tolerances and the y as the long axis to pick the whole region.
         """
-        if invalidMsg := self._getMsgIfSetupInvalid():
-            showWarning(self._getActionMsg(assign), invalidMsg)
-            return
+
+        def validWarning():
+            if invalidMsg := self._getMsgIfSetupInvalid():
+                showWarning(self._getActionMsg(assign), invalidMsg)
+                return
+
         with logCommandManager(f'{self.__class__.__name__}', funcName='restrictedPickAndAssign', assign=assign):
-            if self.nmrResidueTableSettings.nmrChainPeakListRadioButton.getIndex() == 1:
+            if self.pickFromRootMode:
+                if self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked():
+                    self.current.peaks = list(OrderedSet(self.current.peaks) | self.peakTable.table.peaks)
                 peakLists = self._settings.peakListPulldownTexts
+                validWarning()
                 self.pickFromRootAssignOnPeaks(peakLists=peakLists, assign=assign)
             elif self.currentTable is self.peakTable:
                 peaks = self._getSelected()
+                validWarning()
                 self._doPickAndAssignOnSelectedObjs(peaks, assign)
             elif self.currentTable is self.nmrChainTable:
                 nmrResidues = self._getSelected()
+                validWarning()
                 self._doPickAndAssignOnSelectedObjs(nmrResidues, assign)
 
     def _doPickAndAssignOnSelectedObjs(self, objs: list[NmrResidue,] | list[Peak], assign: bool):
