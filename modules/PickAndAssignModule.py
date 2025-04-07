@@ -43,13 +43,14 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-07 16:40:00 +0100 (Mon, April 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-07 16:40:35 +0100 (Mon, April 07, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Geerten Vuister $"
 __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -101,7 +102,7 @@ exptTypeFilter = ['H[N[CA]]', 'H[N[co[CA]]]', 'H[N[ca[CO]]]', 'H[N[CO]]',
 
 # ------------------------------------------------------------------------------------------- #
 
-ZEROMARGINS = (0, 0, 0, 0) # l, t, r, b
+ZEROMARGINS = (0, 0, 0, 0)  # l, t, r, b
 
 
 class PickAndAssignModule(CcpnModule):
@@ -195,13 +196,12 @@ class PickAndAssignModule(CcpnModule):
         restrictedPickAndAssignWithAssignFalse = partial(self.restrictedPickAndAssign, assign=False)
         restrictedPickAndAssignWithAssignTrue = partial(self.restrictedPickAndAssign, assign=True)
         for table in self.tables:
-
             restrictedPickButton = Button(text='Restricted\nPick',
                                           callback=restrictedPickAndAssignWithAssignFalse)
             assignSelectedButton = Button(text='Assign\nSelected',
                                           callback=self.assignSelected)
             restrictedPickAndAssignButton = Button(text='Restricted\nPick and Assign',
-                                                        callback=restrictedPickAndAssignWithAssignTrue)
+                                                   callback=restrictedPickAndAssignWithAssignTrue)
 
             self._tableButtons[table] = [restrictedPickButton, assignSelectedButton, restrictedPickAndAssignButton]
 
@@ -330,8 +330,6 @@ class PickAndAssignModule(CcpnModule):
             self.tabWidget.setTabEnabled(0, True)
             self.tabWidget.setTabVisible(0, True)
 
-
-
     def _getDisplay(self):
         """Get the current selected spectrum-display from the pulldown
         """
@@ -408,7 +406,8 @@ class PickAndAssignModule(CcpnModule):
                         self.current.peaks = list(OrderedSet(self.current.peaks) | self.peakTable.table.peaks)
 
                     peakLists = self._settings.peakListPulldownTexts
-                    assignees = [peak for peakList in peakLists for peak in peakList.peaks if peak not in self.peakTable.table.peaks]
+                    assignees = [peak for peakList in peakLists for peak in peakList.peaks if
+                                 peak not in self.peakTable.table.peaks]
                     references = [peak for peak in self.current.peaks if peak in self.peakTable.table.peaks]
                     if assignees:
                         for reference in references:
@@ -629,7 +628,6 @@ class PickAndAssignModule(CcpnModule):
                 undoStack.undo()
                 undoStack.clearRedoItems()
 
-
     def bbAssignCarbonNmrAtoms(self, currentPeaks: list[Peak] | None = None):
         if len(currentPeaks) == 0:
             showWarning('No Peaks selected', 'Please make sure you have selected some peaks with '
@@ -765,7 +763,7 @@ class PickAndAssignModule(CcpnModule):
             if GSTCheck:
                 checkForGST(gstCheckDict)
 
-    def checkDisplayForExptType(self, enableWarning : bool = True) -> bool:
+    def checkDisplayForExptType(self, enableWarning: bool = True) -> bool:
         displays = self.nmrResidueTableSettings.displaysWidget.getDisplays()
 
         validExptFromDisplay = [specView.spectrum.experimentType for display in displays
