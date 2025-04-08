@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-07 16:40:35 +0100 (Mon, April 07, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-08 11:56:00 +0100 (Tue, April 08, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -231,7 +231,8 @@ class PickAndAssignModule(CcpnModule):
         self.peakTable._settings = self._settings.peakTableSettings
         self.peakTable._tableWidget.setActionCallback(self.peakTableActionCallback)
 
-        self.nmrResidueTableSettings.setCurrentPeaksCheckBox.stateChanged.connect(self._setCurrentPeaksCheckboxCallback)
+        checkBox = self.nmrResidueTableSettings.setCurrentPeaksCheckBox
+        checkBox.checkBox.stateChanged.connect(self._setCurrentPeaksCheckboxCallback)
         dplButtons = self.nmrResidueTableSettings.displayPeakListRadioButton
         dplButtons.getRadioButton('PeakList').toggled.connect(self._dplRadioButtonCallback)
 
