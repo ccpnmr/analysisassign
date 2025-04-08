@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-08 11:56:00 +0100 (Tue, April 08, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-08 17:19:15 +0100 (Tue, April 08, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -307,7 +307,7 @@ class PickAndAssignModule(CcpnModule):
 
         selectAllChecked = self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked()
 
-        if selected or selectAllChecked:
+        if selected or (selectAllChecked and self.pickFromRootMode):
             self._tableButtons[table][0].setEnabled(True)
             self._tableButtons[table][1].setEnabled(True)
             self._tableButtons[table][2].setEnabled(True)
@@ -317,10 +317,13 @@ class PickAndAssignModule(CcpnModule):
             self._tableButtons[table][2].setEnabled(False)
 
     def _setCurrentPeaksCheckboxCallback(self):
-        if not (buttons := self._tableButtons.get(self.peakTable)):
+        if not self._tableButtons.get(self.peakTable):
             return
-        for button in buttons:
-            button.setEnabled(True)
+
+        if self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked():
+            self.current.peaks = list(OrderedSet(self.current.peaks) | self.peakTable.table.peaks)
+        else:
+            self.current.peaks = []
 
     def _dplRadioButtonCallback(self):
         if self.pickFromRootMode:
@@ -403,9 +406,6 @@ class PickAndAssignModule(CcpnModule):
         with logCommandManager(f'{self.__class__.__name__}', funcName='assignSelected'):
             with undoBlockWithoutSideBar():
                 if self.pickFromRootMode:
-                    if self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked():
-                        self.current.peaks = list(OrderedSet(self.current.peaks) | self.peakTable.table.peaks)
-
                     peakLists = self._settings.peakListPulldownTexts
                     assignees = [peak for peakList in peakLists for peak in peakList.peaks if
                                  peak not in self.peakTable.table.peaks]
@@ -507,8 +507,6 @@ class PickAndAssignModule(CcpnModule):
 
         with logCommandManager(f'{self.__class__.__name__}', funcName='restrictedPickAndAssign', assign=assign):
             if self.pickFromRootMode:
-                if self.nmrResidueTableSettings.setCurrentPeaksCheckBox.isChecked():
-                    self.current.peaks = list(OrderedSet(self.current.peaks) | self.peakTable.table.peaks)
                 peakLists = self._settings.peakListPulldownTexts
                 validWarning()
                 self.pickFromRootAssignOnPeaks(peakLists=peakLists, assign=assign)
