@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-10 11:39:42 +0100 (Thu, April 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-10 11:56:48 +0100 (Thu, April 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -549,12 +549,13 @@ class PickAndAssignModule(CcpnModule):
                 self.current.peaks = []  # option to do this?
             with progressHandler(text=msg, cancelButtonText=stopButtonText,
                                  maximum=len(objs)) as progress:
+                progress.setValue(0)
                 for i, obj, errorMsg, peaks in self._restrictedPeakPickIterator(objs):
                     progress.checkCancel()
                     if errorMsg:
                         showWarning(self._getActionMsg(assign), errorMsg)
                         progress.cancel()
-                    progress.setValue(i)
+
                     if peaks and assign:
                         # assign based on object type
                         if isinstance(obj, Peak):
@@ -564,6 +565,9 @@ class PickAndAssignModule(CcpnModule):
 
                         if self.automaticBbNmrAtomAssignment and exptTypeValid:
                             self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
+
+                        progress.checkCancel()
+                        progress.setValue(i)
 
                     curPeaks |= OrderedSet(peaks)
 
@@ -621,9 +625,9 @@ class PickAndAssignModule(CcpnModule):
                                  maximum=len(peakLists)) as progress:
 
                 with undoBlockWithoutSideBar():
+                    progress.setValue(0)
                     for i, peakList in enumerate(peakLists):
                         progress.checkCancel()
-                        progress.setValue(i)
 
                         for peak in self.current.peaks:
                             _positionCodeDict = dict(zip(peak.axisCodes, peak.position))
@@ -636,6 +640,7 @@ class PickAndAssignModule(CcpnModule):
                                     self.bbAssignCarbonNmrAtoms(currentPeaks=peaks)
 
                         progress.checkCancel()
+                        progress.setValue(i)
 
             if progress.cancelled:
                 undoStack.undo()
