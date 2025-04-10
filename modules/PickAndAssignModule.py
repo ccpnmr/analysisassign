@@ -43,7 +43,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-04-09 13:49:37 +0100 (Wed, April 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-04-10 10:44:25 +0100 (Thu, April 10, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -627,7 +627,7 @@ class PickAndAssignModule(CcpnModule):
 
                         for peak in self.current.peaks:
                             _positionCodeDict = dict(zip(peak.axisCodes, peak.position))
-                            peaks = peakList.restrictedPick(positionCodeDict=_positionCodeDict, doPos=True, doNeg=False)
+                            peaks = peakList.restrictedPick(positionCodeDict=_positionCodeDict, doPos=True, doNeg=True)
 
                             if assign and peaks:
                                 self._assignSelectedPeaks(peaks, peak)
