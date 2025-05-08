@@ -18,9 +18,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-14 17:55:11 +0000 (Fri, March 14, 2025) $"
-__version__ = "$Revision: 3.2.12 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-05-08 14:13:29 +0100 (Thu, May 08, 2025) $"
+__version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -45,7 +45,8 @@ from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
-from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget, IncludeCurrent
+from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget, IncludeCurrent, \
+    AssignmentInspectorSettings
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
@@ -117,73 +118,75 @@ class AssignmentInspectorModule(CcpnModule):
         self.splitter.setChildrenCollapsible(False)
         self._assignmentFrame.setMinimumHeight(100)
 
+        self._settings = AssignmentInspectorSettings(parent=self.settingsWidget, mainWindow=mainWindow)
+
         # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
         # underpinning the addNotifier call do not allow for it either
-        colwidth = 140
+        # colwidth = 140
 
         self.settingsWidget.layout().setColumnStretch(2, self.LARGE_STRETCH)
+        #
+        # self._settingsScrollArea.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
+        # self._settingsScrollArea.setStyleSheet(".ScrollArea {padding: %ipx}" % self.SETTING_PADDING)
+        # self._settingsScrollArea.setScrollBarPolicies(('asNeeded', 'never'))
+        #
+        # self._splitWidget = Frame(self.settingsWidget, grid=(0, 0), setLayout=True, vPolicy='minimumExpanding')
+        # self._tickLisWidget = Frame(self._splitWidget, grid=(1, 0), setLayout=True, vPolicy='minimum')
 
-        self._settingsScrollArea.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
-        self._settingsScrollArea.setStyleSheet(".ScrollArea {padding: %ipx}" % self.SETTING_PADDING)
-        self._settingsScrollArea.setScrollBarPolicies(('asNeeded', 'never'))
+        # self.displaysWidget = SpectrumDisplaySelectionWidget(self._splitWidget, mainWindow=self.mainWindow,
+        #                                                      grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+        #                                                      vPolicy='maximum',
+        #                                                      orientation='left',
+        #                                                      labelText='Display(s)',
+        #                                                      tipText='SpectrumDisplay modules to respond to double-click',
+        #                                                      # texts=[ALL, UseCurrent] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
+        #                                                      defaults=[ALL],
+        #                                                      standardListItems=[ALL, IncludeCurrent]
+        #                                                      )
+        #
+        # self.sequentialStripsWidget = CheckBoxCompoundWidget(
+        #         self._tickLisWidget,
+        #         grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+        #         #minimumWidths=(colwidth, 0),
+        #         fixedWidths=(colwidth, 30),
+        #         orientation='left',
+        #         labelText='Show sequential strips',
+        #         checked=False
+        #         )
+        #
+        # self.markPositionsWidget = CheckBoxCompoundWidget(
+        #         self._tickLisWidget,
+        #         grid=(1, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+        #         #minimumWidths=(colwidth, 0),
+        #         fixedWidths=(colwidth, 30),
+        #         orientation='left',
+        #         labelText='Mark positions',
+        #         checked=True
+        #         )
+        # self.autoClearMarksWidget = CheckBoxCompoundWidget(
+        #         self._tickLisWidget,
+        #         grid=(2, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+        #         #minimumWidths=(colwidth, 0),
+        #         fixedWidths=(colwidth, 30),
+        #         orientation='left',
+        #         labelText='Auto clear marks',
+        #         checked=True
+        #         )
+        # self.showNmrAtomListWidget = CheckBoxCompoundWidget(
+        #         self._tickLisWidget,
+        #         grid=(3, 0), vAlign='top', stretch=(0, 0), hAlign='left',
+        #         #minimumWidths=(colwidth, 0),
+        #         fixedWidths=(colwidth, 30),
+        #         orientation='left',
+        #         labelText='Show nmrAtom list',
+        #         checked=True,
+        #         callback=self._setNmrAtomListVisible,
+        #         )
 
-        self._splitWidget = Frame(self.settingsWidget, grid=(0, 0), setLayout=True, vPolicy='minimumExpanding')
-        self._tickLisWidget = Frame(self._splitWidget, grid=(1, 0), setLayout=True, vPolicy='minimum')
+        # self._tickLisWidget.layout().setRowStretch(4, self.LARGE_STRETCH)
 
-        self.displaysWidget = SpectrumDisplaySelectionWidget(self._splitWidget, mainWindow=self.mainWindow,
-                                                             grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                                                             vPolicy='maximum',
-                                                             orientation='left',
-                                                             labelText='Display(s)',
-                                                             tipText='SpectrumDisplay modules to respond to double-click',
-                                                             # texts=[ALL, UseCurrent] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
-                                                             defaults=[ALL],
-                                                             standardListItems=[ALL, IncludeCurrent]
-                                                             )
-
-        self.sequentialStripsWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Show sequential strips',
-                checked=False
-                )
-
-        self.markPositionsWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(1, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Mark positions',
-                checked=True
-                )
-        self.autoClearMarksWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(2, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Auto clear marks',
-                checked=True
-                )
-        self.showNmrAtomListWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(3, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Show nmrAtom list',
-                checked=True,
-                callback=self._setNmrAtomListVisible,
-                )
-
-        self._tickLisWidget.layout().setRowStretch(4, self.LARGE_STRETCH)
-
-        minHeight = self._calculateMinHeight()
-        self._settingsScrollArea.setMinimumSizes((self._settingsScrollArea.minimumWidth(), minHeight))
+        # minHeight = self._calculateMinHeight()
+        # self._settingsScrollArea.setMinimumSizes((self._settingsScrollArea.minimumWidth(), minHeight))
         self.nmrAtomBlocking = True
         self._nmrResidues = []
 
@@ -192,7 +195,7 @@ class AssignmentInspectorModule(CcpnModule):
         # the former to be present
         self._setWidgets()
 
-        alignWidgets(self.settingsWidget)
+        # alignWidgets(self.settingsWidget)
 
         # disable current callback - not required for assignmentInspector
         # responds to changes in current nmrAtoms and nmrResidues?
@@ -206,7 +209,7 @@ class AssignmentInspectorModule(CcpnModule):
         elif selectFirstItem:
             self._modulePulldown.selectFirstItem()
 
-        self._setNmrAtomListVisible(True)
+        # self._setNmrAtomListVisible(True)
         self._registerNotifiers()
 
     @QtCore.pyqtSlot(list)
