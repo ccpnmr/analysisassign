@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-05-21 13:48:16 +0100 (Wed, May 21, 2025) $"
+__dateModified__ = "$dateModified: 2025-05-21 16:02:30 +0100 (Wed, May 21, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -57,7 +57,7 @@ from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, markNmrAtoms, \
-    navigateToNmrAtomsInStrip, navigateToPositionInStrip  #, _getCurrentZoomRatio
+    navigateToNmrAtomsInStrip, navigateToPositionInStrip, matchAxesAndNmrAtoms  #, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToNmrResidueInStrip, makeStripPlotFromSingles, makeStripPlot
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.lib.GuiStrip import GuiStrip
@@ -407,25 +407,25 @@ class AssignmentInspectorModule(CcpnModule):
             if self.autoClearMarksWidget.checkBox.isChecked():
                 self.mainWindow.clearMarks()
 
-            # navigate the displays
-            for display in displays:
-                if isinstance(display, GuiStrip):
-                    strip = display
-                    display = strip.spectrumDisplay
-                    newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
-                    navigateToNmrResidueInStrip(display, strip=strip,
-                                                nmrResidue=nmrResidue,
-                                                widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
-                                                markPositions=self.markPositionsWidget.checkBox.isChecked()
-                                                )
-                elif len(display.strips) > 0:
-                    newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
-                    navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
-                                                  widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
-                                                  showSequentialResidues=(len(display.axisCodes) > 2) and
-                                                                         self.sequentialStripsWidget.checkBox.isChecked(),
-                                                  markPositions=self.markPositionsWidget.checkBox.isChecked()
-                                                  )
+            # # navigate the displays
+            # for display in displays:
+            #     if isinstance(display, GuiStrip):
+            #         strip = display
+            #         display = strip.spectrumDisplay
+            #         newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
+            #         navigateToNmrResidueInStrip(display, strip=strip,
+            #                                     nmrResidue=nmrResidue,
+            #                                     widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
+            #                                     markPositions=self.markPositionsWidget.checkBox.isChecked()
+            #                                     )
+            #     elif len(display.strips) > 0:
+            #         newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
+            #         navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
+            #                                       widths=newWidths,  #['full'] * len(display.strips[0].axisCodes),
+            #                                       showSequentialResidues=(len(display.axisCodes) > 2) and
+            #                                                              self.sequentialStripsWidget.checkBox.isChecked(),
+            #                                       markPositions=self.markPositionsWidget.checkBox.isChecked()
+            #                                       )
 
     def _selectionCallback(self, data):
         """
@@ -731,15 +731,15 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             if self.moduleParent.autoClearMarksWidget.checkBox.isChecked():
                 self.mainWindow.clearMarks()
 
-        if cShifts and self.moduleParent.markPositionsWidget.checkBox.isChecked():
-
-            self._navigateNhGroups(cShifts[0])
+        if cShifts:
+            self._navigateNhGroups(cShifts)
             self._navigateChGroups(cShifts)
-            # markNmrAtoms(self.mainWindow, nmrAtoms)
 
-    def _navigateNhGroups(self, chemicalShift):
+    def _navigateNhGroups(self, cShifts):
         settings = self.moduleParent._settings
-        nmrResidue = chemicalShift.nmrAtom.nmrResidue
+
+        nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
+        nmrResidue = cShifts[0].nmrAtom.nmrResidue
         residueList = nmrResidue.nmrChain.nmrResidues
         residueIndex = residueList.index(nmrResidue)
 
@@ -758,7 +758,22 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             markPositions = self.moduleParent.markPositionsWidget.checkBox.isChecked()
 
             for display in dis.getDisplays():
-                display.makeStripPlot(nmrResidues=residues, markPositions=markPositions, widths=[])
+                display.makeStripPlot(nmrResidues=residues, widths=[], markPositions=False)
+
+                if markPositions:
+                    # shiftDict = matchAxesAndNmrAtoms(display.strips, nmrAtoms)
+                    # axisCodes = list(shiftDict.keys())
+                    # chemicalShifts = list(shiftDict.keys())
+
+                    colour = hex(random.randrange(0, 2**24))
+
+                    for strip in display.strips:
+                        atom = self.project.getByPid(f'NA{nmrResidue.pid[2:]}.H')
+
+                        shiftDict = matchAxesAndNmrAtoms(strip, [atom])
+                        positions = [chemShift.value for shiftL in list(shiftDict.values()) for chemShift in shiftL if chemShift]
+                        if positions:
+                            strip.newMark(colour=f'#{colour[2:]}', positions=positions, axisCodes=['H'], labels=[atom.pid])
 
     def _navigateChGroups(self, cShifts):
         nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
@@ -778,13 +793,14 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                 attachedAtoms = [bAtom for bAtom in nmrCAtoms[atomInd].boundNmrAtoms
                                  if 'H' in bAtom.name]
 
-                navigateToNmrAtomsInStrip(strip=strip, nmrAtoms=attachedAtoms, widths=[])
+                navigateToNmrAtomsInStrip(strip=strip, nmrAtoms=attachedAtoms, widths=[], markPositions=False)
 
                 colour = hex(random.randrange(0, 2**24))
                 if self.moduleParent.markPositionsWidget.checkBox.isChecked():
                     for atom in attachedAtoms:
-                        strip.newMark(colour=f'#{colour[2:]}', positions=[atom.chemicalShifts[0].value], axisCodes=['H'],
-                                      style='simple', units=(), labels=atom.pid)
+                        pass
+                        # strip.newMark(colour=f'#{colour[2:]}', positions=[atom.chemicalShifts[0].value], axisCodes=['H'],
+                        #               style='simple', units=(), labels=atom.pid)
 
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
