@@ -19,8 +19,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-05-21 11:10:58 +0100 (Wed, May 21, 2025) $"
-__version__ = "$Revision: 3.3.1 $"
+__dateModified__ = "$dateModified: 2025-05-21 13:48:16 +0100 (Wed, May 21, 2025) $"
+__version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -766,7 +766,6 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
         for display in self.moduleParent._settings.chDisplay.getDisplays():
             stripNum = len(display.strips) - len(nmrCAtoms)
-            print(len(display.strips), len(nmrCAtoms), stripNum)
 
             if stripNum > 0:
                 for i in range(abs(stripNum)):
