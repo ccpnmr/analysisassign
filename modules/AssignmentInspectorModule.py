@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-05-08 14:13:29 +0100 (Thu, May 08, 2025) $"
+__dateModified__ = "$dateModified: 2025-05-21 11:10:58 +0100 (Wed, May 21, 2025) $"
 __version__ = "$Revision: 3.3.1 $"
 #=========================================================================================
 # Created
@@ -35,6 +35,8 @@ from PyQt5.QtWidgets import QAbstractScrollArea
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional
+import random
+from functools import partial
 
 from ccpn.core.NmrAtom import NmrAtom, NmrResidue
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
@@ -54,8 +56,9 @@ from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldow
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
-from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, markNmrAtoms  #, _getCurrentZoomRatio
-from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToNmrResidueInStrip
+from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, markNmrAtoms, \
+    navigateToNmrAtomsInStrip, navigateToPositionInStrip  #, _getCurrentZoomRatio
+from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToNmrResidueInStrip, makeStripPlotFromSingles, makeStripPlot
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.lib.GuiStrip import GuiStrip
 from ccpn.util.OrderedSet import OrderedSet
@@ -120,11 +123,18 @@ class AssignmentInspectorModule(CcpnModule):
 
         self._settings = AssignmentInspectorSettings(parent=self.settingsWidget, mainWindow=mainWindow)
 
+        self.markPositionsWidget = self._settings.markPositionsWidget
+        self.sequentialStripsWidget = self._settings.sequentialStripsWidget
+        self.autoClearMarksWidget = self._settings.autoClearMarksWidget
+        self.showNmrAtomListWidget = self._settings.showNmrAtomListWidget
+
+        self.showNmrAtomListWidget.checkBox.stateChanged.connect(partial(self._setNmrAtomListVisible, None))
+
         # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
         # underpinning the addNotifier call do not allow for it either
         # colwidth = 140
 
-        self.settingsWidget.layout().setColumnStretch(2, self.LARGE_STRETCH)
+        # self.settingsWidget.layout().setColumnStretch(2, self.LARGE_STRETCH)
         #
         # self._settingsScrollArea.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         # self._settingsScrollArea.setStyleSheet(".ScrollArea {padding: %ipx}" % self.SETTING_PADDING)
@@ -195,7 +205,7 @@ class AssignmentInspectorModule(CcpnModule):
         # the former to be present
         self._setWidgets()
 
-        # alignWidgets(self.settingsWidget)
+        alignWidgets(self.settingsWidget)
 
         # disable current callback - not required for assignmentInspector
         # responds to changes in current nmrAtoms and nmrResidues?
@@ -716,14 +726,67 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
     def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
         """
-
         cShifts = self.getSelectedObjects()
         if len(self.mainWindow.marks):
             if self.moduleParent.autoClearMarksWidget.checkBox.isChecked():
                 self.mainWindow.clearMarks()
+
         if cShifts and self.moduleParent.markPositionsWidget.checkBox.isChecked():
-            nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
-            markNmrAtoms(self.mainWindow, nmrAtoms)
+
+            self._navigateNhGroups(cShifts[0])
+            self._navigateChGroups(cShifts)
+            # markNmrAtoms(self.mainWindow, nmrAtoms)
+
+    def _navigateNhGroups(self, chemicalShift):
+        settings = self.moduleParent._settings
+        nmrResidue = chemicalShift.nmrAtom.nmrResidue
+        residueList = nmrResidue.nmrChain.nmrResidues
+        residueIndex = residueList.index(nmrResidue)
+
+        for widgetList in settings.nhGroups:
+            pos = widgetList.get('posSpin')
+            neg = widgetList.get('negSpin')
+            dis = widgetList.get('display')
+
+            startIndex = residueIndex - neg.getValue()
+            startIndex = startIndex if startIndex > 0 else 0
+
+            endIndex = residueIndex + pos.getValue()
+            endIndex = endIndex if endIndex < len(residueList) else len(residueList)
+
+            residues = residueList[startIndex:endIndex + 1]
+            markPositions = self.moduleParent.markPositionsWidget.checkBox.isChecked()
+
+            for display in dis.getDisplays():
+                display.makeStripPlot(nmrResidues=residues, markPositions=markPositions, widths=[])
+
+    def _navigateChGroups(self, cShifts):
+        nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
+        nmrCAtoms = [nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode]
+
+        for display in self.moduleParent._settings.chDisplay.getDisplays():
+            stripNum = len(display.strips) - len(nmrCAtoms)
+            print(len(display.strips), len(nmrCAtoms), stripNum)
+
+            if stripNum > 0:
+                for i in range(abs(stripNum)):
+                    display.deleteStrip(strip=display.strips[0])
+            if stripNum < 0:
+                for i in range(abs(stripNum)):
+                    display.addStrip()
+
+            for atomInd, strip in enumerate(display.strips):
+                attachedAtoms = [bAtom for bAtom in nmrCAtoms[atomInd].boundNmrAtoms
+                                 if 'H' in bAtom.name]
+
+                navigateToNmrAtomsInStrip(strip=strip, nmrAtoms=attachedAtoms, widths=[])
+
+                colour = hex(random.randrange(0, 2**24))
+                if self.moduleParent.markPositionsWidget.checkBox.isChecked():
+                    for atom in attachedAtoms:
+                        strip.newMark(colour=f'#{colour[2:]}', positions=[atom.chemicalShifts[0].value], axisCodes=['H'],
+                                      style='simple', units=(), labels=atom.pid)
+
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
