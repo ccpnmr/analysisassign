@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-05-21 16:57:25 +0100 (Wed, May 21, 2025) $"
+__dateModified__ = "$dateModified: 2025-05-22 15:45:18 +0100 (Thu, May 22, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -757,23 +757,24 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             residues = residueList[startIndex:endIndex + 1]
             markPositions = self.moduleParent.markPositionsWidget.checkBox.isChecked()
 
-            for display in dis.getDisplays():
+            for display in (displays := dis.getDisplays()):
                 display.makeStripPlot(nmrResidues=residues, widths=[], markPositions=False, autoClearMarks=False)
 
-                if markPositions:
-                    # shiftDict = matchAxesAndNmrAtoms(display.strips, nmrAtoms)
-                    # axisCodes = list(shiftDict.keys())
-                    # chemicalShifts = list(shiftDict.keys())
+            if markPositions:
+                # for atom in nmrAtoms:
+                shiftDict = matchAxesAndNmrAtoms(displays[0].strips[0], nmrAtoms)
+                chemShifts = list(shiftDict.values())
+                axisCodes = list(shiftDict.keys())
 
-                    colour = self.hexColour()
+                for ii, axisCode in enumerate(axisCodes):
+                    for chemicalShift in chemShifts[ii]:
+                        atomId = chemicalShift.nmrAtom.id
+                        colour = self.hexColour()
 
-                    for strip in display.strips:
-                        atom = self.project.getByPid(f'NA{nmrResidue.pid[2:]}.H')
-
-                        shiftDict = matchAxesAndNmrAtoms(strip, [atom])
-                        positions = [chemShift.value for shiftL in list(shiftDict.values()) for chemShift in shiftL if chemShift]
-                        if positions:
-                            strip.newMark(colour=colour, positions=positions, axisCodes=['H'], labels=[atom.pid])
+                        self.mainWindow.newMark(colour=colour,
+                                                positions=[chemicalShift.value],
+                                                axisCodes=[axisCode],
+                                                labels=[atomId])
 
     def _navigateChGroups(self, cShifts):
         nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
