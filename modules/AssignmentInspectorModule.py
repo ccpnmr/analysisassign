@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-05-22 15:45:18 +0100 (Thu, May 22, 2025) $"
+__dateModified__ = "$dateModified: 2025-05-30 14:21:54 +0100 (Fri, May 30, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -760,6 +760,9 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             for display in (displays := dis.getDisplays()):
                 display.makeStripPlot(nmrResidues=residues, widths=[], markPositions=False, autoClearMarks=False)
 
+            if not displays:
+                continue
+
             if markPositions:
                 # for atom in nmrAtoms:
                 shiftDict = matchAxesAndNmrAtoms(displays[0].strips[0], nmrAtoms)
@@ -777,7 +780,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                                                 labels=[atomId])
 
     def _navigateChGroups(self, cShifts):
-        nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
+        nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
         nmrCAtoms = [nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode]
 
         for display in self.moduleParent._settings.chDisplay.getDisplays():
