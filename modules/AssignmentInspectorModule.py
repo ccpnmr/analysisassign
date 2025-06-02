@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-05-30 14:21:54 +0100 (Fri, May 30, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-02 13:34:08 +0100 (Mon, June 02, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -802,9 +802,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                 colour = self.hexColour()
                 if self.moduleParent.markPositionsWidget.checkBox.isChecked():
                     for atom in attachedAtoms:
-                        pass
-                        strip.newMark(colour=colour, positions=[atom.chemicalShifts[0].value], axisCodes=['H'],
-                                      style='simple', units=(), labels=atom.pid)
+                        strip.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value], axisCodes=['H'],
+                                      style='simple', units=(), labels=[atom.pid])
 
     @staticmethod
     def hexColour() -> hex:
