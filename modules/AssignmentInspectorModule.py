@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-04 16:39:53 +0100 (Wed, June 04, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-05 15:55:27 +0100 (Thu, June 05, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -738,8 +738,9 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
     def _navigateNhGroups(self, cShifts):
         settings = self.moduleParent._settings
 
-        nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
+
         nmrResidue = cShifts[0].nmrAtom.nmrResidue
+        nmrNAtoms = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if nmrAtom if 'H' in nmrAtom.isotopeCode]
         residueList = nmrResidue.nmrChain.nmrResidues
         residueIndex = residueList.index(nmrResidue)
 
@@ -760,24 +761,38 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             for display in (displays := dis.getDisplays()):
                 display.makeStripPlot(nmrResidues=residues, widths=[], markPositions=False, autoClearMarks=False)
 
-            if not displays:
-                continue
+                sharedAxis, nonSharedAxis = self.axisCategorise(display)
+                for strip in display.strips:
+                    for atom in nmrNAtoms:
+                        strip.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
+                                      axisCodes=sharedAxis, style='simple', units=(), labels=[atom.pid])
 
-            if markPositions:
-                # for atom in nmrAtoms:
-                shiftDict = matchAxesAndNmrAtoms(displays[0].strips[0], nmrAtoms)
-                chemShifts = list(shiftDict.values())
-                axisCodes = list(shiftDict.keys())
 
-                for ii, axisCode in enumerate(axisCodes):
-                    for chemicalShift in chemShifts[ii]:
-                        atomId = chemicalShift.nmrAtom.id
-                        colour = self.hexColour()
 
-                        self.mainWindow.newMark(colour=colour,
-                                                positions=[chemicalShift.value],
-                                                axisCodes=[axisCode],
-                                                labels=[atomId])
+
+
+            # if not displays:
+            #     continue
+
+            # if markPositions:
+            #     # for atom in nmrAtoms:
+            #
+            #     shiftDict = matchAxesAndNmrAtoms(displays[0].strips[0], nmrAtoms)
+            #     chemShifts = list(shiftDict.values())
+            #     axisCodes = list(shiftDict.keys())
+            #
+            #     for ii, axisCode in enumerate(axisCodes):
+            #         for chemicalShift in chemShifts[ii]:
+            #             atomId = chemicalShift.nmrAtom.id
+            #             colour = self.hexColour()
+            #
+            #             strip.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
+            #                           axisCodes=nonSharedAxis, style='simple', units=(), labels=[atomId])
+            #
+            #             # self.mainWindow.newMark(colour=colour,
+            #             #                         positions=[chemicalShift.value],
+            #             #                         axisCodes=[axisCode],
+            #             #                         labels=[atomId])
 
     def _navigateChGroups(self, cShifts):
         nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
@@ -828,14 +843,14 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
     @staticmethod
     def axisCategorise(display, axisCode=True):
-        if axis := display.stripArrangement == 'X':
+        if (axis := display.stripArrangement) == 'X':
             sharedAxis = [display.axisOrder[0]] if axisCode else 0
             nonSharedAxis = [display.axisOrder[1]] if axisCode else 1
         elif axis == 'Y':
             sharedAxis = [display.axisOrder[1]] if axisCode else 0
             nonSharedAxis = [display.axisOrder[0]] if axisCode else 1
         else:
-            sharedAxis = nonSharedAxis = 0
+            sharedAxis = nonSharedAxis = False
         return sharedAxis, nonSharedAxis
 
     @staticmethod
@@ -843,7 +858,6 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         return (f'#{hex(random.randrange(55, (2**8) - 55))[2:]}'
                 f'{hex(random.randrange(55, (2**8) - 55))[2:]}'
                 f'{hex(random.randrange(55, (2**8) - 55))[2:]}')
-
 
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
