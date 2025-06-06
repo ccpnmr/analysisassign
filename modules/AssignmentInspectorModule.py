@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-05 15:55:27 +0100 (Thu, June 05, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-06 15:27:17 +0100 (Fri, June 06, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -34,7 +34,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QAbstractScrollArea
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple, List, Any
 import random
 from functools import partial
 
@@ -43,6 +43,7 @@ from ccpn.core.ChemicalShiftList import ChemicalShiftList
 from ccpn.ui._implementation.Strip import Strip
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
+from ccpn.ui.gui.lib.GuiSpectrumDisplay import GuiSpectrumDisplay
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
@@ -127,6 +128,7 @@ class AssignmentInspectorModule(CcpnModule):
         self.sequentialStripsWidget = self._settings.sequentialStripsWidget
         self.autoClearMarksWidget = self._settings.autoClearMarksWidget
         self.showNmrAtomListWidget = self._settings.showNmrAtomListWidget
+        self.ignoreAxisCodePref = self._settings.ignoreAxisCodePref
 
         self.showNmrAtomListWidget.checkBox.stateChanged.connect(partial(self._setNmrAtomListVisible, None))
 
@@ -736,8 +738,15 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             self._navigateChGroups(cShifts)
 
     def _navigateNhGroups(self, cShifts):
-        settings = self.moduleParent._settings
+        """Navigation for NH widget groups.
 
+        Loops through each display in the settings under 'CH Groups'.
+        Based on the negative and positive spin boxes create a strip
+        plot with that number of residues.
+
+        Marking positions closely follows StripLib's markNmrAtoms.
+        """
+        settings = self.moduleParent._settings
 
         nmrResidue = cShifts[0].nmrAtom.nmrResidue
         nmrNAtoms = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if nmrAtom if 'H' in nmrAtom.isotopeCode]
@@ -761,46 +770,43 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             for display in (displays := dis.getDisplays()):
                 display.makeStripPlot(nmrResidues=residues, widths=[], markPositions=False, autoClearMarks=False)
 
-                sharedAxis, nonSharedAxis = self.axisCategorise(display)
-                for strip in display.strips:
-                    for atom in nmrNAtoms:
-                        strip.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
-                                      axisCodes=sharedAxis, style='simple', units=(), labels=[atom.pid])
-
-
-
-
-
-            # if not displays:
-            #     continue
-
-            # if markPositions:
-            #     # for atom in nmrAtoms:
-            #
-            #     shiftDict = matchAxesAndNmrAtoms(displays[0].strips[0], nmrAtoms)
-            #     chemShifts = list(shiftDict.values())
-            #     axisCodes = list(shiftDict.keys())
-            #
-            #     for ii, axisCode in enumerate(axisCodes):
-            #         for chemicalShift in chemShifts[ii]:
-            #             atomId = chemicalShift.nmrAtom.id
-            #             colour = self.hexColour()
-            #
-            #             strip.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
-            #                           axisCodes=nonSharedAxis, style='simple', units=(), labels=[atomId])
-            #
-            #             # self.mainWindow.newMark(colour=colour,
-            #             #                         positions=[chemicalShift.value],
-            #             #                         axisCodes=[axisCode],
-            #             #                         labels=[atomId])
+                if markPositions:
+                    for strip in display.strips:
+                        shiftDict = matchAxesAndNmrAtoms(displays[0].strips[0], nmrNAtoms)
+                        chemShifts = list(shiftDict.values())
+                        axisCodes = list(shiftDict.keys())
+                        for ii, axisCode in enumerate(axisCodes):
+                            for chemicalShift in chemShifts[ii]:
+                                atomId = chemicalShift.nmrAtom.id
+                                strip.newMark(colour='#ff00ff', positions=[chemicalShift.value],
+                                              axisCodes=[axisCode], style='simple', units=(), labels=[atomId])
 
     def _navigateChGroups(self, cShifts):
+        """Navigation for CH widget groups.
+
+        Loops through each display in the settings under 'CH Groups'.
+        For each C Atom it creates a strip and navigates to the bound
+        atoms.
+
+        If ignoreAxisPref is true:
+        Marks are created for the non-shared Axis with each
+        bound nmrAtoms and c atoms positions.
+
+        The shared axis is marked with just the bound atoms positions
+
+        Else it just will mark following conventional marking rules.
+        """
+        settings = self.moduleParent._settings
+
         nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
         nmrCAtoms = [nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode]
 
-        axisCodePref = self.application.preferences.general.matchAxisCode
-        self.application.preferences.general.matchAxisCode = 1
+        axisCodePref = None
+        if settings.ignoreAxisCodePref:  # overrides mark preferences
+            axisCodePref = self.application.preferences.general.matchAxisCode
+            self.application.preferences.general.matchAxisCode = 1
 
+        # ensure correct number of strips
         for display in self.moduleParent._settings.chDisplay.getDisplays():
             sharedAxis, nonSharedAxis = self.axisCategorise(display)
             stripNum = len(display.strips) - len(nmrCAtoms)
@@ -815,6 +821,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             atomsForShared = []
 
             for atomInd, strip in enumerate(display.strips):
+                # navigation and nonShared axis marking
                 attachedAtoms = [bAtom for bAtom in nmrCAtoms[atomInd].boundNmrAtoms
                                  if 'H' in bAtom.name]
                 atomsForShared += attachedAtoms
@@ -826,23 +833,31 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                     for atom in attachedAtoms:
                         strip.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
                                       axisCodes=nonSharedAxis, style='simple', units=(), labels=[atom.pid])
+
             if atomsForShared:
                 axis, _ = self.axisCategorise(display, axisCode=False)
                 allShifts = list(filter(None, set(cs.value for nmrAt in atomsForShared for cs in nmrAt.chemicalShifts)))
-                low = min(allShifts)
-                high = max(allShifts)
-                boarder = (high - low) * 0.1
-                for strip in display.strips:
-                    strip.setAxisRegion(axisIndex=axis, region=[low - boarder, high + boarder], update=True)
+                low, high = min(allShifts) , max(allShifts)
+                border = (high - low) * 0.1
 
+                # Adjust axis to correct size
+                for strip in display.strips:
+                    strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
+                # Mark Atoms on the shared axis
                 for atom in atomsForShared:
                     display.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
                                     axisCodes=sharedAxis, style='simple', units=(), labels=[atom.pid])
-
-        self.application.preferences.general.matchAxisCode = axisCodePref
+        if settings.ignoreAxisCodePref:  # puts preferences back as they were
+            self.application.preferences.general.matchAxisCode = axisCodePref
 
     @staticmethod
-    def axisCategorise(display, axisCode=True):
+    def axisCategorise(display: GuiSpectrumDisplay,
+                       axisCode: bool = True) -> tuple[list[Any] | int | bool, list[Any] | int | bool]:
+        """Returns the 'shared axis' based on strip arrangement.
+        :param display: Display where the strips are arranged
+        :param axisCode: If false return as axisCode index
+        :return: Axis Code or Axis Index or false if strip arrangmeent is not 'x' or y'
+        """
         if (axis := display.stripArrangement) == 'X':
             sharedAxis = [display.axisOrder[0]] if axisCode else 0
             nonSharedAxis = [display.axisOrder[1]] if axisCode else 1
@@ -855,10 +870,10 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
     @staticmethod
     def hexColour() -> hex:
+        """Return a random hex colour restricted to a certain range."""
         return (f'#{hex(random.randrange(55, (2**8) - 55))[2:]}'
                 f'{hex(random.randrange(55, (2**8) - 55))[2:]}'
                 f'{hex(random.randrange(55, (2**8) - 55))[2:]}')
-
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
