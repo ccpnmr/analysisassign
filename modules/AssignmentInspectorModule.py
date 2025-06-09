@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-09 12:32:46 +0100 (Mon, June 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-09 12:38:12 +0100 (Mon, June 09, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -858,13 +858,15 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         if settings.ignoreAxisCodePref:  # puts preferences back as they were
             self.application.preferences.general.matchAxisCode = axisCodePref
 
-    def resizeSharedAxis(self, display, positions):
-        print(positions)
+    def resizeSharedAxis(self, display: GuiSpectrumDisplay, positions: list[float]):
+        """Sets a displays strips shared axis region to an appropriate size.
+
+        :param positions: list of positions along the axis
+        """
         low, high = min(positions), max(positions)
         border = (high - low) * 0.1
 
         axis, _ = self.axisCategorise(display, axisCode=False)
-        print(low - border, high + border)
         for strip in display.strips:
             strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
 
