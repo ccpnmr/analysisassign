@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-06 15:27:17 +0100 (Fri, June 06, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-09 11:03:26 +0100 (Mon, June 09, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -778,7 +778,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                         for ii, axisCode in enumerate(axisCodes):
                             for chemicalShift in chemShifts[ii]:
                                 atomId = chemicalShift.nmrAtom.id
-                                strip.newMark(colour='#ff00ff', positions=[chemicalShift.value],
+                                colour = self.hexColour(atomId)
+                                strip.newMark(colour=colour, positions=[chemicalShift.value],
                                               axisCodes=[axisCode], style='simple', units=(), labels=[atomId])
 
     def _navigateChGroups(self, cShifts):
@@ -831,7 +832,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
                 if self.moduleParent.markPositionsWidget.checkBox.isChecked():
                     for atom in attachedAtoms:
-                        strip.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
+                        colour = self.hexColour(atom.pid)
+                        strip.newMark(colour=colour, positions=[atom.chemicalShifts[0].value],
                                       axisCodes=nonSharedAxis, style='simple', units=(), labels=[atom.pid])
 
             if atomsForShared:
@@ -845,7 +847,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                     strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
                 # Mark Atoms on the shared axis
                 for atom in atomsForShared:
-                    display.newMark(colour='#ff00ff', positions=[atom.chemicalShifts[0].value],
+                    colour = self.hexColour(atom.pid)
+                    display.newMark(colour=colour, positions=[atom.chemicalShifts[0].value],
                                     axisCodes=sharedAxis, style='simple', units=(), labels=[atom.pid])
         if settings.ignoreAxisCodePref:  # puts preferences back as they were
             self.application.preferences.general.matchAxisCode = axisCodePref
@@ -869,8 +872,9 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         return sharedAxis, nonSharedAxis
 
     @staticmethod
-    def hexColour() -> hex:
+    def hexColour(seed: str | int = None) -> hex:
         """Return a random hex colour restricted to a certain range."""
+        random.seed(seed)
         return (f'#{hex(random.randrange(55, (2**8) - 55))[2:]}'
                 f'{hex(random.randrange(55, (2**8) - 55))[2:]}'
                 f'{hex(random.randrange(55, (2**8) - 55))[2:]}')
