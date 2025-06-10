@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-09 12:38:12 +0100 (Mon, June 09, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-10 12:59:29 +0100 (Tue, June 10, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -737,8 +737,13 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             self.mainWindow.clearMarks()
 
         if cShifts:
-            self._navigateNhGroups(cShifts)
-            self._navigateChGroups(cShifts)
+            checkNh = self._navigateNhGroups(cShifts)
+            checkCh = self._navigateChGroups(cShifts)
+
+            if not (checkNh or checkCh):
+                logger.warning('Undefined display module(s); select in settings first')
+                showWarning('Assignment Inspector',
+                            'Undefined display module(s);\nselect in settings first')
 
     def _navigateNhGroups(self, cShifts):
         """Navigation for NH widget groups.
@@ -750,6 +755,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         Marking positions closely follows StripLib's markNmrAtoms.
         """
         settings = self.moduleParent._settings
+        _doneAction = False
+
         markColourByAtom = settings.markColourByAtom.checkBox.isChecked()
         markPositions = settings.markPositionsWidget.checkBox.isChecked()
 
@@ -772,6 +779,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             residues = residueList[startIndex:endIndex + 1]
 
             for display in (displays := dis.getDisplays()):
+                _doneAction = True
                 display.makeStripPlot(nmrResidues=residues, widths=[], markPositions=False, autoClearMarks=False)
 
                 for strip in display.strips:
@@ -779,16 +787,18 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                     chemShifts = list(shiftDict.values())
                     axisCodes = list(shiftDict.keys())
 
-                    positions = list((s.value for s in list(chain.from_iterable(chemShifts)) if s is not None))
-                    self.resizeSharedAxis(display=display, positions=positions)
+                    axisShift = chemShifts[self._axisCategorise(display, axisCode=False)[0]]
+                    positions = list((s.value for s in list(axisShift) if s is not None))
+                    self._resizeSharedAxis(display=display, positions=positions)
 
                     if markPositions:
                         for ii, axisCode in enumerate(axisCodes):
                             for chemicalShift in chemShifts[ii]:
                                 atomId = chemicalShift.nmrAtom.id
-                                colour = self.hexColour(atomId) if markColourByAtom else '#ff00ff'
+                                colour = self._hexColour(atomId) if markColourByAtom else '#ff00ff'
                                 strip.newMark(colour=colour, positions=[chemicalShift.value],
                                               axisCodes=[axisCode], style='simple', units=(), labels=[atomId])
+        return _doneAction
 
     def _navigateChGroups(self, cShifts):
         """Navigation for CH widget groups.
@@ -806,6 +816,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         Else it just will mark following conventional marking rules.
         """
         settings = self.moduleParent._settings
+        _doneAction = False
 
         nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
         nmrCAtoms = [nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode]
@@ -819,7 +830,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
         # ensure correct number of strips
         for display in self.moduleParent._settings.chDisplay.getDisplays():
-            sharedAxis, nonSharedAxis = self.axisCategorise(display)
+            _doneAction = True
+            sharedAxis, nonSharedAxis = self._axisCategorise(display)
             stripNum = len(display.strips) - len(nmrCAtoms)
 
             if stripNum > 0:
@@ -842,41 +854,45 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
                 if markPositions:
                     for atom in attachedAtoms:
-                        colour = self.hexColour(atom.pid) if markColourByAtom else '#ff00ff'
+                        colour = self._hexColour(atom.id) if markColourByAtom else '#ff00ff'
                         strip.newMark(colour=colour, positions=[atom.chemicalShifts[0].value],
-                                      axisCodes=nonSharedAxis, style='simple', units=(), labels=[atom.pid])
+                                      axisCodes=nonSharedAxis, style='simple', units=(), labels=[atom.id])
 
             if atomsForShared:
                 allShifts = list(filter(None, set(cs.value for nmrAt in atomsForShared for cs in nmrAt.chemicalShifts)))
-                self.resizeSharedAxis(display=display, positions=allShifts)
+                self._resizeSharedAxis(display=display, positions=allShifts)
                 # Mark Atoms on the shared axis
                 if markPositions:
                     for atom in atomsForShared:
-                        colour = self.hexColour(atom.pid) if markColourByAtom else '#ff00ff'
+                        colour = self._hexColour(atom.id) if markColourByAtom else '#ff00ff'
                         display.newMark(colour=colour, positions=[atom.chemicalShifts[0].value],
-                                        axisCodes=sharedAxis, style='simple', units=(), labels=[atom.pid])
+                                        axisCodes=sharedAxis, style='simple', units=(), labels=[atom.id])
         if settings.ignoreAxisCodePref:  # puts preferences back as they were
             self.application.preferences.general.matchAxisCode = axisCodePref
+        return _doneAction
 
-    def resizeSharedAxis(self, display: GuiSpectrumDisplay, positions: list[float]):
+    def _resizeSharedAxis(self, display: GuiSpectrumDisplay, positions: list[float]):
         """Sets a displays strips shared axis region to an appropriate size.
 
         :param positions: list of positions along the axis
         """
+        if not positions:
+            return
+
         low, high = min(positions), max(positions)
         border = (high - low) * 0.1
 
-        axis, _ = self.axisCategorise(display, axisCode=False)
+        axis, _ = self._axisCategorise(display, axisCode=False)
         for strip in display.strips:
             strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
 
     @staticmethod
-    def axisCategorise(display: GuiSpectrumDisplay,
-                       axisCode: bool = True) -> tuple[list[Any] | int | bool, list[Any] | int | bool]:
+    def _axisCategorise(display: GuiSpectrumDisplay,
+                        axisCode: bool = True) -> tuple[list[Any] | int | bool, list[Any] | int | bool]:
         """Returns the 'shared axis' based on strip arrangement.
         :param display: Display where the strips are arranged
         :param axisCode: If false return as axisCode index
-        :return: Axis Code or Axis Index or false if strip arrangmeent is not 'x' or y'
+        :return: Axis Code or Axis Index or false if strip arrangement is not 'X' or Y'
         """
         if (axis := display.stripArrangement) == 'X':
             sharedAxis = [display.axisOrder[0]] if axisCode else 0
@@ -889,8 +905,9 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         return sharedAxis, nonSharedAxis
 
     @staticmethod
-    def hexColour(seed: str | int = None) -> hex:
-        """Return a seeded random hex colour restricted to a certain range."""
+    def _hexColour(seed: str | int = None) -> str:
+        """Return a seeded random hex colour (string) restricted to a certain range.
+        """
         random.seed(seed)
         zeroHex = randint(0, 2)
 
