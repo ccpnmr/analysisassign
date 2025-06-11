@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-10 12:59:29 +0100 (Tue, June 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-11 12:08:02 +0100 (Wed, June 11, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -30,28 +30,25 @@ __date__ = "$Date: 2016-07-09 14:17:30 +0100 (Sat, 09 Jul 2016) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QAbstractScrollArea
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional, Tuple, List, Any
+from typing import Optional, Any
 import random
 from functools import partial
 from random import randint
-from itertools import chain
+
+from PyQt5 import QtCore, QtWidgets
 
 from ccpn.core.NmrAtom import NmrAtom, NmrResidue
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
-from ccpn.ui._implementation.Strip import Strip
+from ccpn.core.lib.ContextManagers import notificationEchoBlocking
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui.lib.GuiSpectrumDisplay import GuiSpectrumDisplay
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
-from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
-from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget, IncludeCurrent, \
-    AssignmentInspectorSettings
+from ccpn.ui.gui.widgets.SettingsWidgets import AssignmentInspectorSettings
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
@@ -59,9 +56,7 @@ from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldow
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
-from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay, markNmrAtoms, \
-    navigateToNmrAtomsInStrip, navigateToPositionInStrip, matchAxesAndNmrAtoms  #, _getCurrentZoomRatio
-from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToNmrResidueInStrip, makeStripPlotFromSingles, makeStripPlot
+from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip, matchAxesAndNmrAtoms  #, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.lib.GuiStrip import GuiStrip
 from ccpn.util.OrderedSet import OrderedSet
@@ -405,7 +400,6 @@ class AssignmentInspectorModule(CcpnModule):
             return
 
         from ccpn.core.lib.ContextManagers import undoBlockWithoutSideBar
-        from ccpn.ui.gui.lib.StripLib import navigateToPositionInStrip, _getCurrentZoomRatio
 
         with undoBlockWithoutSideBar():
             # optionally clear the marks
@@ -731,19 +725,20 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
     def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
         """
-        cShifts = self.getSelectedObjects()
-        # if len(self.mainWindow.marks):
-        if self.moduleParent.autoClearMarksWidget.checkBox.isChecked():
-            self.mainWindow.clearMarks()
+        with notificationEchoBlocking():
+            cShifts = self.getSelectedObjects()
+            # if len(self.mainWindow.marks):
+            if self.moduleParent.autoClearMarksWidget.checkBox.isChecked():
+                self.mainWindow.clearMarks()
 
-        if cShifts:
-            checkNh = self._navigateNhGroups(cShifts)
-            checkCh = self._navigateChGroups(cShifts)
+            if cShifts:
+                checkNh = self._navigateNhGroups(cShifts)
+                checkCh = self._navigateChGroups(cShifts)
 
-            if not (checkNh or checkCh):
-                logger.warning('Undefined display module(s); select in settings first')
-                showWarning('Assignment Inspector',
-                            'Undefined display module(s);\nselect in settings first')
+                if not (checkNh or checkCh):
+                    logger.warning('Undefined display module(s); select in settings first')
+                    showWarning('Assignment Inspector',
+                                'Undefined display module(s);\nselect in settings first')
 
     def _navigateNhGroups(self, cShifts):
         """Navigation for NH widget groups.
@@ -759,6 +754,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
         markColourByAtom = settings.markColourByAtom.checkBox.isChecked()
         markPositions = settings.markPositionsWidget.checkBox.isChecked()
+        sequentialStrips = settings.sequentialStripsWidget.checkBox.isChecked()
 
         nmrResidue = cShifts[0].nmrAtom.nmrResidue
         nmrNAtoms = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if nmrAtom if 'H' in nmrAtom.isotopeCode]
@@ -780,7 +776,11 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
             for display in (displays := dis.getDisplays()):
                 _doneAction = True
-                display.makeStripPlot(nmrResidues=residues, widths=[], markPositions=False, autoClearMarks=False)
+                display.makeStripPlot(peaks=None, nmrResidues=residues,
+                                      autoClearMarks=False,
+                                      sequentialStrips=sequentialStrips,
+                                      markPositions=False
+                                      )
 
                 for strip in display.strips:
                     shiftDict = matchAxesAndNmrAtoms(displays[0].strips[0], nmrNAtoms)
