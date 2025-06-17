@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-17 14:13:24 +0100 (Tue, June 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-17 15:34:59 +0100 (Tue, June 17, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -847,6 +847,12 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
     @staticmethod
     def _makeStrips(display, stripNum):
+        """Makes the display have given number of strips.
+
+        :param display: Display to change the number of strips on.
+        :param stripNum: Number of strips to change to.
+        :return:
+        """
         while len(strips := display.strips) < stripNum:
             display.addStrip()
         for strip in strips[stripNum:]:
@@ -867,17 +873,32 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         for strip in display.strips:
             strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
 
-    def _processSharedAxis(self, display, nmrAtoms, sharedAxis,
-                           markPositions=True, markColourByAtom=True):
-        if nmrAtoms:
-            allShifts = list(filter(None, set(cs.value for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
-            self._resizeSharedAxis(display=display, positions=allShifts)
+    def _processSharedAxis(self, display: GuiSpectrumDisplay, nmrAtoms: list[NmrAtom], sharedAxis: str,
+                           markPositions: bool = True, markColourByAtom: bool = True):
+        """Marks and resizes to given atoms on the non-shared axis.
 
-            if markPositions:
-                self._markAxis(display, sharedAxis, nmrAtoms, markColourByAtom=markColourByAtom)
+        :param markPositions: True marks the nmrAtom positions.
+        :param markColourByAtom:  True overrides the default colours.
+        """
+        if not nmrAtoms:
+            return
+
+        allShifts = list(filter(None, set(cs.value for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
+        self._resizeSharedAxis(display=display, positions=allShifts)
+
+        if markPositions:
+            self._markAxis(display, sharedAxis, nmrAtoms, markColourByAtom=markColourByAtom)
 
     def _processNonSharedAxis(self, strip, nmrAtoms, nonSharedAxis, markAtoms=None,
                               markPositions=True, markColourByAtom=True):
+        """Marks and navigates to the atoms on the non-shared axis.
+
+        :param markPositions: True marks the nmrAtom positions.
+        :param markColourByAtom:  True overrides the 'default' colours.
+        """
+        if not nmrAtoms:
+            return
+
         if not markAtoms:
             markAtoms = nmrAtoms
 
@@ -885,7 +906,14 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         if markPositions:
             self._markAxis(strip, nonSharedAxis, markAtoms, markColourByAtom=markColourByAtom)
 
-    def _markAxis(self, guiTarget, axis, markAtoms, markColourByAtom=False,):
+    def _markAxis(self, guiTarget, axis, markAtoms, markColourByAtom=False):
+        """Adds marks on a given axis.
+
+        :param axis: Axis to mark on.
+        :param markAtoms: List of atoms to mark the positions of.
+        :param markColourByAtom: True overrides the 'default' colours.
+        :return:
+        """
         for atom in markAtoms:
             colour = self._hexColour(atom.id) if markColourByAtom else '#ff00ff'
             guiTarget.newMark(colour=colour, positions=[atom.chemicalShifts[0].value],
