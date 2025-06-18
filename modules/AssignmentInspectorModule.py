@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-17 15:34:59 +0100 (Tue, June 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-18 16:34:18 +0100 (Wed, June 18, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -783,7 +783,9 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             for display in dis.getDisplays():
                 _doneAction = True
                 sharedAxis, nonSharedAxis = self._axisCategorise(display)
-                atomsForShared = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if sharedAxis in nmrAtom.isotopeCode]
+                # indexing ensures only initial letter matters
+                atomsForShared = [nmrAtom for residue in nmrResidues for nmrAtom in residue.nmrAtoms
+                                  if sharedAxis[0] in nmrAtom.isotopeCode]
 
                 self._makeStrips(display, stripCount)
 
@@ -795,7 +797,6 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
                     self._processNonSharedAxis(strip, HAtoms+NAtoms, nonSharedAxis, markAtoms=HAtoms,
                                                markPositions=markPositions, markColourByAtom=markColourByAtom)
-
                 self._processSharedAxis(display, atomsForShared, sharedAxis,
                                         markPositions=markPositions, markColourByAtom=markColourByAtom)
         return _doneAction
