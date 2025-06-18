@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-18 16:34:18 +0100 (Wed, June 18, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-18 16:52:17 +0100 (Wed, June 18, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -821,7 +821,8 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         markPositions = settings.markPositionsWidget.checkBox.isChecked()
 
         nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
-        nmrCAtoms = [nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode]
+        nmrCAtoms = sorted([nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode],
+                           key=(lambda a : a.name))
 
         _doneAction = False
         # ensure correct number of strips
