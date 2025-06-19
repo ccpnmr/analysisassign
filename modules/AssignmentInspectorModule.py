@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-19 09:50:15 +0100 (Thu, June 19, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-19 10:43:33 +0100 (Thu, June 19, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -945,11 +945,11 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         random.seed(seed)
         zeroHex = randint(0, 2)
 
-        r = hex(random.randint(0, 255))[2:] if zeroHex != 0 else '00'
-        g = hex(random.randint(0, 255))[2:] if zeroHex != 1 else '00'
-        b = hex(random.randint(0, 255))[2:] if zeroHex != 2 else '00'
+        r = f'{random.randint(0, 255):02x}' if zeroHex != 0 else '00'
+        g = f'{random.randint(0, 255):02x}' if zeroHex != 1 else '00'
+        b = f'{random.randint(0, 255):02x}' if zeroHex != 2 else '00'
 
-        return f'#{r}{g}{b}'
+        return f'#{r+g+b}'
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
