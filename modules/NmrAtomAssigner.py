@@ -9,6 +9,8 @@ Original by SS
 First rework by GWV
 Reworked by EJB
 """
+from __future__ import annotations
+
 
 #TODO Needs cleanup
 """
@@ -34,8 +36,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-03 18:50:14 +0000 (Fri, January 03, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-06-19 17:15:33 +0100 (Thu, June 19, 2025) $"
+__version__ = "$Revision: 3.3.2.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -45,7 +47,7 @@ __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
 # Start of code
 #=========================================================================================
 
-import typing
+from typing import TYPE_CHECKING
 import copy
 from PyQt5 import QtCore, QtGui, QtWidgets
 from contextlib import contextmanager
@@ -101,6 +103,9 @@ GREEN_COLOURS = ('palegreen', 'mediumseagreen')
 ORANGE_COLOURS = ('gold', 'orange')
 RED_COLOURS = ('lightpink', 'tomato')
 
+if TYPE_CHECKING:
+    from ccpn.core.NmrChain import NmrChain
+
 
 class _RButton(RadioButton):
     _enterColour = 'white'
@@ -146,6 +151,10 @@ class NmrAtomAssignerModule(CcpnModule):
     maxSettingsState = 2  # states are defined as: 0: invisible, 1: both visible, 2: only settings visible
     defaultSettingsState = 0
     settingsPosition = 'top'
+
+    _thisPeaks: list[Peak]
+    _thisNmrChain: NmrChain | None
+    _thisNmrResidue: NmrResidue | None
 
     def __init__(self, mainWindow=None, name='NmrAtom Assigner', nmrAtom=None):
 
@@ -466,13 +475,12 @@ class NmrAtomAssignerModule(CcpnModule):
             self._updateWidget()
 
     def _setPeaksLabel(self):
-        """ update the peaks label from current-peaks
+        """ update the peak-label from current-peaks
         """
-        pks = self._thisPeaks
-        if pks and None not in pks:
+        if ids := list(map(lambda pp: pp.id, filter(lambda pp: isinstance(pp, Peak), self._thisPeaks))):
             splitter = ', '
-            pText = _truncateText(splitter.join([p.id for p in pks]), splitter=splitter)
-            self.currentPeaksLabel.setToolTip(splitter.join([p.id for p in pks]))
+            pText = _truncateText(splitter.join(ids), splitter=splitter)
+            self.currentPeaksLabel.setToolTip(splitter.join(ids))
             self.currentPeaksLabel.setText(pText)
         else:
             self.currentPeaksLabel.setText(MSG)
@@ -607,6 +615,14 @@ class NmrAtomAssignerModule(CcpnModule):
             self._nmrResiduePulldown.select(nmrRes.pid)
 
             pks = self._thisPeaks
+
+            # fill the shift-label
+            if pks and (peak := pks[0]):
+                if None not in pks:
+                    self._setPeakAxisCodes(pks)
+                self._updatePeakShiftLabel(peak)
+                self._updatePeakPulldown(peak)
+
             # if pks and None not in pks:
             #     self._setPeakAxisCodes(pks)
 
@@ -634,12 +650,12 @@ class NmrAtomAssignerModule(CcpnModule):
                     self._predictHighlight(pks)
                 self._assignWidgetShow()
 
-            # fill the shift-label
-            if pks and (peak := pks[0]):
-                if None not in pks:
-                    self._setPeakAxisCodes(pks)
-                self._updatePeakShiftLabel(peak)
-                self._updatePeakPulldown(peak)
+            # # fill the shift-label
+            # if pks and (peak := pks[0]):
+            #     if None not in pks:
+            #         self._setPeakAxisCodes(pks)
+            #     self._updatePeakShiftLabel(peak)
+            #     self._updatePeakPulldown(peak)
 
     def _updatePeakShiftLabel(self, peak):
         """Update the shift value in the shift-label
@@ -1185,8 +1201,8 @@ class NmrAtomAssignerModule(CcpnModule):
     #
     #   return foundAtoms
 
-    def _getNmrResidue(self, nmrChain, sequenceCode: typing.Union[int, str] = None,
-                       residueType: str = None) -> typing.Optional[NmrResidue]:
+    def _getNmrResidue(self, nmrChain, sequenceCode: int | str = None,
+                       residueType: str = None) -> NmrResidue | None:
         partialId = f'{nmrChain.id}.{str(sequenceCode).translate(Pid.remapSeparators)}.'
 
         if ll := self.project.getObjectsByPartialId(className='NmrResidue', idStartsWith=partialId):
@@ -1194,8 +1210,8 @@ class NmrAtomAssignerModule(CcpnModule):
         else:
             return nmrChain.getNmrResidue(sequenceCode)
 
-    def _fetchNmrResidue(self, nmrChain, sequenceCode: typing.Union[int, str] = None,
-                         residueType: str = None) -> typing.Optional[NmrResidue]:
+    def _fetchNmrResidue(self, nmrChain, sequenceCode: int | str = None,
+                         residueType: str = None) -> NmrResidue | None:
         partialId = f'{nmrChain.id}.{str(sequenceCode).translate(Pid.remapSeparators)}.'
 
         if ll := self.project.getObjectsByPartialId(className='NmrResidue', idStartsWith=partialId):
@@ -1314,7 +1330,7 @@ class NmrAtomAssignerModule(CcpnModule):
                 btn.setBackgroundColours(*DEFAULT_COLOURS)
 
     def _currentNmrResiduesCallback(self, data):
-        """Callback for the nmrResidues notifier
+        """Callback for the NmrResidue notifier
         """
         # set to the first current nmrResidue
         if (curRess := data[Notifier.VALUE]):
@@ -1325,14 +1341,14 @@ class NmrAtomAssignerModule(CcpnModule):
         self._updateWidget()
 
     def _currentPeaksCallback(self, data):
-        """Callback for the peaks notifier
+        """Callback for the Peak notifier
         """
         self._thisPeaks = data[Notifier.VALUE]
 
         self._nmrResiduePulldown.update()
         self._updateWidget()
 
-    # def _predictAssignments(self, peaks: typing.List[Peak]):
+    # def _predictAssignments(self, peaks: list[Peak]):
     #     """
     #     Predicts atom type for selected peaks and highlights the relevant buttons with confidence of
     #     that assignment prediction, green is very confident, orange is less confident.
@@ -1351,7 +1367,7 @@ class NmrAtomAssignerModule(CcpnModule):
             # update the shift
             self._updatePeakShiftLabel(peak)
 
-    def _predictHighlight(self, peaks: typing.List[Peak]):
+    def _predictHighlight(self, peaks: list[Peak]):
         """Highlight the predictions in the atomName table
         """
         self._returnButtonsToNormal()
