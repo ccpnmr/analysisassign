@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-18 16:52:17 +0100 (Wed, June 18, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-19 09:50:15 +0100 (Thu, June 19, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -784,8 +784,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                 _doneAction = True
                 sharedAxis, nonSharedAxis = self._axisCategorise(display)
                 # indexing ensures only initial letter matters
-                atomsForShared = [nmrAtom for residue in nmrResidues for nmrAtom in residue.nmrAtoms
-                                  if sharedAxis[0] in nmrAtom.isotopeCode]
+                atomsForShared = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if sharedAxis[0] in nmrAtom.isotopeCode]
 
                 self._makeStrips(display, stripCount)
 
