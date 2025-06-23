@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-19 10:43:33 +0100 (Thu, June 19, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-23 15:45:44 +0100 (Mon, June 23, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -44,6 +44,7 @@ from ccpn.core.ChemicalShiftList import ChemicalShiftList
 from ccpn.core.lib.ContextManagers import notificationEchoBlocking
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
+from ccpn.ui.gui import guiSettings
 from ccpn.ui.gui.lib.GuiSpectrumDisplay import GuiSpectrumDisplay
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
@@ -59,6 +60,7 @@ from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
 from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip, matchAxesAndNmrAtoms  #, _getCurrentZoomRatio
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.lib.GuiStrip import GuiStrip
+from ccpn.util.Common import greekKey
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.AttrDict import AttrDict
@@ -114,8 +116,8 @@ class AssignmentInspectorModule(CcpnModule):
         self._assignmentFrame = Frame(self.splitter, setLayout=True)
         self.mainWidget.getLayout().addWidget(self.splitter)
 
-        self.splitter.setStretchFactor(0, 3)
-        self.splitter.setStretchFactor(1, 2)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 0)
         self.splitter.setChildrenCollapsible(False)
         self._assignmentFrame.setMinimumHeight(100)
 
@@ -134,7 +136,7 @@ class AssignmentInspectorModule(CcpnModule):
         # underpinning the addNotifier call do not allow for it either
         # colwidth = 140
 
-        # self.settingsWidget.layout().setColumnStretch(2, self.LARGE_STRETCH)
+        self.settingsWidget.layout().setColumnStretch(2, self.LARGE_STRETCH)
         #
         # self._settingsScrollArea.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         # self._settingsScrollArea.setStyleSheet(".ScrollArea {padding: %ipx}" % self.SETTING_PADDING)
@@ -821,7 +823,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
         nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
         nmrCAtoms = sorted([nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode],
-                           key=(lambda a : a.name))
+                           key=(lambda a : greekKey(a.name[1:])))
 
         _doneAction = False
         # ensure correct number of strips
@@ -916,8 +918,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         :return:
         """
         for atom in markAtoms:
-            colour = self._hexColour(atom.id) if markColourByAtom else '#ff00ff'
-            guiTarget.newMark(colour=colour, positions=[atom.chemicalShifts[0].value],
+            guiTarget.newMark(colour=self._hexColour(atom.name, markColourByAtom), positions=[atom.chemicalShifts[0].value],
                               axisCodes=[axis], style='simple', units=(), labels=[atom.id])
 
     @staticmethod
@@ -939,17 +940,26 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         return sharedAxis, nonSharedAxis
 
     @staticmethod
-    def _hexColour(seed: str | int = None) -> str:
+    def _hexColour(seed: str | int, markColourByAtom: bool) -> str:
         """Return a seeded random hex colour (string) restricted to a certain range.
         """
-        random.seed(seed)
-        zeroHex = randint(0, 2)
 
-        r = f'{random.randint(0, 255):02x}' if zeroHex != 0 else '00'
-        g = f'{random.randint(0, 255):02x}' if zeroHex != 1 else '00'
-        b = f'{random.randint(0, 255):02x}' if zeroHex != 2 else '00'
+        if not markColourByAtom:
+            colourMarks = guiSettings.getColours().get(guiSettings.MARKS_COLOURS)
+            colour = colourMarks.get(seed[:min(2, len(seed))])
+            print(seed[:min(2, len(seed))], colour)
+            if not colour:
+                colour = colourMarks.get('default')
+        else:
+            random.seed(seed)
+            zeroHex = randint(0, 2)
 
-        return f'#{r+g+b}'
+            r = f'{random.randint(0, 255):02x}' if zeroHex != 0 else '00'
+            g = f'{random.randint(0, 255):02x}' if zeroHex != 1 else '00'
+            b = f'{random.randint(0, 255):02x}' if zeroHex != 2 else '00'
+            colour = f'#{r + g + b}'
+
+        return colour
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
