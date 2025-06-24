@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-23 15:45:44 +0100 (Mon, June 23, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-24 16:33:15 +0100 (Tue, June 24, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -947,7 +947,6 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         if not markColourByAtom:
             colourMarks = guiSettings.getColours().get(guiSettings.MARKS_COLOURS)
             colour = colourMarks.get(seed[:min(2, len(seed))])
-            print(seed[:min(2, len(seed))], colour)
             if not colour:
                 colour = colourMarks.get('default')
         else:
