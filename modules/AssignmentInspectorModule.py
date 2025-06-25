@@ -19,7 +19,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-06-24 16:33:15 +0100 (Tue, June 24, 2025) $"
+__dateModified__ = "$dateModified: 2025-06-25 12:01:52 +0100 (Wed, June 25, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -786,8 +786,9 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                 _doneAction = True
                 sharedAxis, nonSharedAxis = self._axisCategorise(display)
                 # indexing ensures only initial letter matters
-                atomsForShared = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if sharedAxis[0] in nmrAtom.isotopeCode]
 
+                atomsForShared = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if sharedAxis[0] in nmrAtom.isotopeCode]
+                # print(display, sharedAxis, atomsForShared)
                 self._makeStrips(display, stripCount)
 
                 for resInd, strip in enumerate(display.strips):
@@ -870,11 +871,11 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
             return
 
         low, high = min(positions), max(positions)
-        border = (high - low) * 0.1
+        boarder = (high - low) * 0.1 if len(positions) > 1 else 4
 
         axis, _ = self._axisCategorise(display, axisCode=False)
         for strip in display.strips:
-            strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
+            strip.setAxisRegion(axisIndex=axis, region=[low - boarder, high + boarder], update=True)
 
     def _processSharedAxis(self, display: GuiSpectrumDisplay, nmrAtoms: list[NmrAtom], sharedAxis: str,
                            markPositions: bool = True, markColourByAtom: bool = True):
@@ -943,7 +944,6 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
     def _hexColour(seed: str | int, markColourByAtom: bool) -> str:
         """Return a seeded random hex colour (string) restricted to a certain range.
         """
-
         if not markColourByAtom:
             colourMarks = guiSettings.getColours().get(guiSettings.MARKS_COLOURS)
             colour = colourMarks.get(seed[:min(2, len(seed))])
