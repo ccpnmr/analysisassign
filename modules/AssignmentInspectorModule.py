@@ -18,9 +18,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-03-14 17:55:11 +0000 (Fri, March 14, 2025) $"
-__version__ = "$Revision: 3.2.12 $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-07-29 11:03:03 +0100 (Tue, July 29, 2025) $"
+__version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -30,22 +30,26 @@ __date__ = "$Date: 2016-07-09 14:17:30 +0100 (Sat, 09 Jul 2016) $"
 # Start of code
 #=========================================================================================
 
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QAbstractScrollArea
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
+import random
+from functools import partial
+from random import randint
+
+from PyQt5 import QtCore, QtWidgets
 
 from ccpn.core.NmrAtom import NmrAtom, NmrResidue
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
-from ccpn.ui._implementation.Strip import Strip
+from ccpn.core.lib.ContextManagers import notificationEchoBlocking
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
+from ccpn.ui.gui import guiSettings
+from ccpn.ui.gui.lib.GuiSpectrumDisplay import GuiSpectrumDisplay
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
-from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
-from ccpn.ui.gui.widgets.SettingsWidgets import SpectrumDisplaySelectionWidget, IncludeCurrent
+from ccpn.ui.gui.widgets.SettingsWidgets import AssignmentInspectorSettings
 from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
@@ -55,9 +59,11 @@ from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _PeakTableWidget
 from ccpn.ui.gui.lib.SpectrumDisplayLib import navigateToNmrResidueInStrip
 from ccpn.ui.gui.lib.StripLib import (navigateToNmrResidueInDisplay, navigateToPositionInStrip,
+                                      navigateToNmrAtomsInStrip,
                                       getZoomRatio, markNmrAtoms)
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.lib.GuiStrip import GuiStrip
+from ccpn.util.Common import greekKey
 from ccpn.util.OrderedSet import OrderedSet
 from ccpn.util.Logging import getLogger
 from ccpn.util.AttrDict import AttrDict
@@ -113,78 +119,24 @@ class AssignmentInspectorModule(CcpnModule):
         self._assignmentFrame = Frame(self.splitter, setLayout=True)
         self.mainWidget.getLayout().addWidget(self.splitter)
 
-        self.splitter.setStretchFactor(0, 3)
-        self.splitter.setStretchFactor(1, 2)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 0)
         self.splitter.setChildrenCollapsible(False)
         self._assignmentFrame.setMinimumHeight(100)
 
-        # cannot set a notifier for displays, as these are not (yet?) implemented and the Notifier routines
-        # underpinning the addNotifier call do not allow for it either
-        colwidth = 140
+        self._settings = AssignmentInspectorSettings(parent=self.settingsWidget, mainWindow=mainWindow)
+
+        self.markPositionsWidget = self._settings.markPositionsWidget
+        self.sequentialStripsWidget = self._settings.sequentialStripsWidget
+        self.autoClearMarksWidget = self._settings.autoClearMarksWidget
+        self.showNmrAtomListWidget = self._settings.showNmrAtomListWidget
+        self.ignoreAxisCodePref = self._settings.ignoreAxisCodePref
+        self.markColourByAtom = self._settings.markColourByAtom
+
+        self.showNmrAtomListWidget.checkBox.stateChanged.connect(partial(self._setNmrAtomListVisible, None))
 
         self.settingsWidget.layout().setColumnStretch(2, self.LARGE_STRETCH)
 
-        self._settingsScrollArea.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
-        self._settingsScrollArea.setStyleSheet(".ScrollArea {padding: %ipx}" % self.SETTING_PADDING)
-        self._settingsScrollArea.setScrollBarPolicies(('asNeeded', 'never'))
-
-        self._splitWidget = Frame(self.settingsWidget, grid=(0, 0), setLayout=True, vPolicy='minimumExpanding')
-        self._tickLisWidget = Frame(self._splitWidget, grid=(1, 0), setLayout=True, vPolicy='minimum')
-
-        self.displaysWidget = SpectrumDisplaySelectionWidget(self._splitWidget, mainWindow=self.mainWindow,
-                                                             grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                                                             vPolicy='maximum',
-                                                             orientation='left',
-                                                             labelText='Display(s)',
-                                                             tipText='SpectrumDisplay modules to respond to double-click',
-                                                             # texts=[ALL, UseCurrent] + [display.pid for display in self.application.ui.mainWindow.spectrumDisplays],
-                                                             defaults=[ALL],
-                                                             standardListItems=[ALL, IncludeCurrent]
-                                                             )
-
-        self.sequentialStripsWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(0, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Show sequential strips',
-                checked=False
-                )
-
-        self.markPositionsWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(1, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Mark positions',
-                checked=True
-                )
-        self.autoClearMarksWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(2, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Auto clear marks',
-                checked=True
-                )
-        self.showNmrAtomListWidget = CheckBoxCompoundWidget(
-                self._tickLisWidget,
-                grid=(3, 0), vAlign='top', stretch=(0, 0), hAlign='left',
-                #minimumWidths=(colwidth, 0),
-                fixedWidths=(colwidth, 30),
-                orientation='left',
-                labelText='Show nmrAtom list',
-                checked=True,
-                callback=self._setNmrAtomListVisible,
-                )
-
-        self._tickLisWidget.layout().setRowStretch(4, self.LARGE_STRETCH)
-
-        minHeight = self._calculateMinHeight()
-        self._settingsScrollArea.setMinimumSizes((self._settingsScrollArea.minimumWidth(), minHeight))
         self.nmrAtomBlocking = True
         self._nmrResidues = []
 
@@ -199,15 +151,11 @@ class AssignmentInspectorModule(CcpnModule):
         # responds to changes in current nmrAtoms and nmrResidues?
         self.chemicalShiftTable.clearCurrentCallback()
 
-        # notifier to handle deleting items
-        # self.chemicalShiftTable._tableSelectionChanged.connect(self._tableSelectionCallback)
-
         if chemicalShiftList is not None:
             self._selectTable(chemicalShiftList)
         elif selectFirstItem:
             self._modulePulldown.selectFirstItem()
 
-        self._setNmrAtomListVisible(True)
         self._registerNotifiers()
 
     @QtCore.pyqtSlot(list)
@@ -393,25 +341,25 @@ class AssignmentInspectorModule(CcpnModule):
             if self.autoClearMarksWidget.checkBox.isChecked():
                 self.mainWindow.clearMarks()
 
-            # navigate the displays
-            for display in displays:
-                if isinstance(display, GuiStrip):
-                    strip = display
-                    display = strip.spectrumDisplay
-                    newWidths = []
-                    navigateToNmrResidueInStrip(display, strip=strip,
-                                                nmrResidue=nmrResidue,
-                                                widths=newWidths,
-                                                markPositions=self.markPositionsWidget.checkBox.isChecked()
-                                                )
-                elif len(display.strips) > 0:
-                    newWidths = []
-                    navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
-                                                  widths=newWidths,
-                                                  showSequentialResidues=(len(display.axisCodes) > 2) and
-                                                                         self.sequentialStripsWidget.checkBox.isChecked(),
-                                                  markPositions=self.markPositionsWidget.checkBox.isChecked()
-                                                  )
+            # # navigate the displays
+            # for display in displays:
+            #     if isinstance(display, GuiStrip):
+            #         strip = display
+            #         display = strip.spectrumDisplay
+            #         newWidths = []
+            #         navigateToNmrResidueInStrip(display, strip=strip,
+            #                                     nmrResidue=nmrResidue,
+            #                                     widths=newWidths,
+            #                                     markPositions=self.markPositionsWidget.checkBox.isChecked()
+            #                                     )
+            #     elif len(display.strips) > 0:
+            #         newWidths = []
+            #         navigateToNmrResidueInDisplay(nmrResidue, display, stripIndex=0,
+            #                                       widths=newWidths,
+            #                                       showSequentialResidues=(len(display.axisCodes) > 2) and
+            #                                                              self.sequentialStripsWidget.checkBox.isChecked(),
+            #                                       markPositions=self.markPositionsWidget.checkBox.isChecked()
+            #                                       )
 
     def _selectionCallback(self, data):
         """
@@ -709,14 +657,238 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
     def actionCallback(self, selection, lastItem):
         """Notifier DoubleClick action on item in table. Mark a chemicalShift based on all attached nmrAtoms
         """
+        with notificationEchoBlocking():
+            settings = self.moduleParent._settings
 
-        cShifts = self.getSelectedObjects()
-        if len(self.mainWindow.marks):
+            cShifts = self.getSelectedObjects()
+            # if len(self.mainWindow.marks):
             if self.moduleParent.autoClearMarksWidget.checkBox.isChecked():
                 self.mainWindow.clearMarks()
-        if cShifts and self.moduleParent.markPositionsWidget.checkBox.isChecked():
-            nmrAtoms = list(set(cs.nmrAtom for cs in cShifts if cs.nmrAtom))
-            markNmrAtoms(self.mainWindow, nmrAtoms)
+
+            if settings.ignoreAxisCodePref:  # overrides mark preferences
+                axisCodePref = self.application.preferences.general.matchAxisCode
+                self.application.preferences.general.matchAxisCode = 1
+
+
+            if cShifts:
+                checkNh = self._navigateNhGroups(cShifts)
+                checkCh = self._navigateChGroups(cShifts)
+
+                if not (checkNh or checkCh):
+                    logger.warning('Undefined display module(s); select in settings first')
+                    showWarning('Assignment Inspector',
+                                'Undefined display module(s);\nselect in settings first')
+
+            if settings.ignoreAxisCodePref:  # puts preferences back as they were
+                self.application.preferences.general.matchAxisCode = axisCodePref
+
+    def _navigateNhGroups(self, cShifts):
+        """Navigation for NH widget groups.
+
+        Loops through each display in the settings under 'CH Groups'.
+        Based on the negative and positive spin boxes create a strip
+        plot with that number of residues.
+
+        Marking positions closely follows StripLib's markNmrAtoms.
+        """
+        settings = self.moduleParent._settings
+        markColourByAtom = settings.markColourByAtom.checkBox.isChecked()
+        markPositions = settings.markPositionsWidget.checkBox.isChecked()
+
+        nmrResidue = cShifts[0].nmrAtom.nmrResidue
+        residueList = nmrResidue.nmrChain.nmrResidues
+        residueIndex = residueList.index(nmrResidue)
+
+        _doneAction = False
+        for widgetList in settings.nhGroups:
+            pos, neg, dis = widgetList.get('posSpin'), widgetList.get('negSpin'), widgetList.get('display')
+
+            startIndex = residueIndex - neg.getValue()
+            startIndex = startIndex if startIndex > 0 else 0
+
+            endIndex = residueIndex + pos.getValue()
+            endIndex = endIndex + 1 if endIndex < len(residueList) else len(residueList)
+            nmrResidues = residueList[startIndex:endIndex]
+
+            stripCount = len(nmrResidues)
+
+            for display in dis.getDisplays():
+                _doneAction = True
+                sharedAxis, nonSharedAxis = self._axisCategorise(display)
+                # indexing ensures only initial letter matters
+
+                atomsForShared = [nmrAtom for nmrAtom in nmrResidue.nmrAtoms if sharedAxis[0] in nmrAtom.isotopeCode]
+
+                self._makeStrips(display, stripCount)
+
+                for resInd, strip in enumerate(display.strips):
+                    HAtoms = [nmrAtom for nmrAtom in nmrResidues[resInd].nmrAtoms
+                              if '1H' == nmrAtom.isotopeCode and 'H' == nmrAtom.name]
+                    NAtoms = [nmrAtom for nmrAtom in nmrResidues[resInd].nmrAtoms
+                              if '15N' == nmrAtom.isotopeCode and 'N' == nmrAtom.name]
+
+                    self._processNonSharedAxis(strip, HAtoms+NAtoms, nonSharedAxis, markAtoms=HAtoms,
+                                               markPositions=markPositions, markColourByAtom=markColourByAtom)
+                self._processSharedAxis(display, atomsForShared, sharedAxis,
+                                        markPositions=markPositions, markColourByAtom=markColourByAtom)
+        return _doneAction
+
+    def _navigateChGroups(self, cShifts):
+        """Navigation for CH widget groups.
+
+        Loops through each display in the settings under 'CH Groups'.
+        For each C Atom it creates a strip and navigates to the bound
+        atoms.
+
+        If ignoreAxisPref is true:
+        Marks are created for the non-shared Axis with each
+        bound nmrAtoms and c atoms positions.
+
+        The shared axis is marked with just the bound atoms positions
+
+        Else it just will mark following conventional marking rules.
+        """
+        settings = self.moduleParent._settings
+        markColourByAtom = settings.markColourByAtom.checkBox.isChecked()
+        markPositions = settings.markPositionsWidget.checkBox.isChecked()
+
+        nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
+        nmrCAtoms = sorted([nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode],
+                           key=(lambda a : greekKey(a.name)))
+
+        _doneAction = False
+        # ensure correct number of strips
+        for display in self.moduleParent._settings.chDisplay.getDisplays():
+            _doneAction = True
+            sharedAxis, nonSharedAxis = self._axisCategorise(display)
+            atomsForShared = []
+            stripCount = len(nmrCAtoms)
+
+            self._makeStrips(display, stripCount)
+
+            for atomInd, strip in enumerate(display.strips):
+                attachedAtoms = [bAtom for bAtom in nmrCAtoms[atomInd].boundNmrAtoms
+                                 if 'H' in bAtom.name]
+                atomsForShared += attachedAtoms
+                attachedAtoms.append(nmrCAtoms[atomInd])
+
+                self._processNonSharedAxis(strip, attachedAtoms, nonSharedAxis,
+                                           markPositions=markPositions, markColourByAtom=markColourByAtom)
+
+            self._processSharedAxis(display, atomsForShared, sharedAxis,
+                                    markPositions=markPositions, markColourByAtom=markColourByAtom)
+        return _doneAction
+
+    @staticmethod
+    def _makeStrips(display, stripNum):
+        """Makes the display have given number of strips.
+
+        :param display: Display to change the number of strips on.
+        :param stripNum: Number of strips to change to.
+        :return:
+        """
+        while len(strips := display.strips) < stripNum:
+            display.addStrip()
+        for strip in strips[stripNum:]:
+            display.deleteStrip(strip)
+
+    def _resizeSharedAxis(self, display: GuiSpectrumDisplay, positions: list[float]):
+        """Sets a displays strips shared axis region to an appropriate size.
+
+        :param positions: list of positions along the axis
+        """
+        if not positions:
+            return
+
+        low, high = min(positions), max(positions)
+        border = (high - low) * 0.1 if len(positions) > 1 else 4
+
+        axis, _ = self._axisCategorise(display, axisCode=False)
+        for strip in display.strips:
+            strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
+
+    def _processSharedAxis(self, display: GuiSpectrumDisplay, nmrAtoms: list[NmrAtom], sharedAxis: str,
+                           markPositions: bool = True, markColourByAtom: bool = True):
+        """Marks and resizes to given atoms on the non-shared axis.
+
+        :param markPositions: True marks the nmrAtom positions.
+        :param markColourByAtom:  True overrides the default colours.
+        """
+        if not nmrAtoms:
+            return
+
+        allShifts = list(filter(None, set(cs.value for nmrAt in nmrAtoms for cs in nmrAt.chemicalShifts)))
+        self._resizeSharedAxis(display=display, positions=allShifts)
+
+        if markPositions:
+            self._markAxis(display, sharedAxis, nmrAtoms, markColourByAtom=markColourByAtom)
+
+    def _processNonSharedAxis(self, strip, nmrAtoms, nonSharedAxis, markAtoms=None,
+                              markPositions=True, markColourByAtom=True):
+        """Marks and navigates to the atoms on the non-shared axis.
+
+        :param markPositions: True marks the nmrAtom positions.
+        :param markColourByAtom:  True overrides the 'default' colours.
+        """
+        if not nmrAtoms:
+            return
+
+        if not markAtoms:
+            markAtoms = nmrAtoms
+
+        navigateToNmrAtomsInStrip(strip=strip, nmrAtoms=nmrAtoms, widths=[], markPositions=False)
+        if markPositions:
+            self._markAxis(strip, nonSharedAxis, markAtoms, markColourByAtom=markColourByAtom)
+
+    def _markAxis(self, guiTarget, axis, markAtoms, markColourByAtom=False):
+        """Adds marks on a given axis.
+
+        :param axis: Axis to mark on.
+        :param markAtoms: List of atoms to mark the positions of.
+        :param markColourByAtom: True overrides the 'default' colours.
+        :return:
+        """
+        for atom in markAtoms:
+            guiTarget.newMark(colour=self._hexColour(atom.name, markColourByAtom), positions=[atom.chemicalShifts[0].value],
+                              axisCodes=[axis], style='simple', units=(), labels=[atom.id])
+
+    @staticmethod
+    def _axisCategorise(display: GuiSpectrumDisplay,
+                        axisCode: bool = True) -> tuple[str | int | bool, str | int | bool]:
+        """Returns the 'shared axis' based on strip arrangement.
+        :param display: Display where the strips are arranged
+        :param axisCode: If false return as axisCode index
+        :return: Axis Code or Axis Index or false if strip arrangement is not 'X' or Y'
+        """
+        if (axis := display.stripArrangement) == 'X':
+            sharedAxis = display.axisOrder[0] if axisCode else 0
+            nonSharedAxis = display.axisOrder[1] if axisCode else 1
+        elif axis == 'Y':
+            sharedAxis = display.axisOrder[1] if axisCode else 1
+            nonSharedAxis = display.axisOrder[0] if axisCode else 0
+        else:
+            sharedAxis = nonSharedAxis = False
+        return sharedAxis, nonSharedAxis
+
+    @staticmethod
+    def _hexColour(seed: str | int, markColourByAtom: bool) -> str:
+        """Return a seeded random hex colour (string) restricted to a certain range.
+        """
+        if not markColourByAtom:
+            colourMarks = guiSettings.getColours().get(guiSettings.MARKS_COLOURS)
+            colour = colourMarks.get(seed[:min(2, len(seed))])
+            if not colour:
+                colour = colourMarks.get('default')
+        else:
+            random.seed(seed)
+            zeroHex = randint(0, 2)
+
+            r = f'{random.randint(0, 255):02x}' if zeroHex != 0 else '00'
+            g = f'{random.randint(0, 255):02x}' if zeroHex != 1 else '00'
+            b = f'{random.randint(0, 255):02x}' if zeroHex != 2 else '00'
+            colour = f'#{r + g + b}'
+
+        return colour
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
@@ -753,7 +925,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         self._highLightObjs(allShifts, scrollToSelection=False)
 
 
-class _AssignmentInspectorPeakTable(_NewPeakTableWidget):
+class _AssignmentInspectorPeakTable(_PeakTableWidget):
     className = '_AssignmentInspectorPeakTable'
     attributeName = 'peakLists'
 
