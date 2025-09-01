@@ -158,6 +158,16 @@ class AssignmentInspectorModule(CcpnModule):
 
         self._registerNotifiers()
 
+    @property
+    def displays(self) -> list:
+        dispList = []
+        if self._settings.nhGroups:
+            dispList = [display for widgetList in self._settings.nhGroups
+                        for display in widgetList.get('display').getDisplays()]
+        if self._settings.chDisplay.getDisplays():
+            dispList.extend(self._settings.chDisplay.getDisplays())
+        return dispList
+
     @QtCore.pyqtSlot(list)
     def _tableSelectionCallback(self, shifts):
 
@@ -329,7 +339,8 @@ class AssignmentInspectorModule(CcpnModule):
 
         getLogger().debug('nmrResidue=%s' % (nmrResidue.id))
 
-        displays = self.displaysWidget.getDisplays()
+        # displays = self.displaysWidget.getDisplays()
+        displays = self.displays
         if len(displays) == 0:
             logger.warning('Undefined display module(s); select in settings first')
             showWarning('startAssignment', 'Undefined display module(s);\nselect in settings first')
@@ -613,7 +624,8 @@ class AssignmentInspectorModule(CcpnModule):
         else:
             peak = objs
 
-        dpObjs = self.displaysWidget.getDisplays()
+        # dpObjs = self.displaysWidget.getDisplays()
+        dpObjs = self.displays
         if dpObjs:
 
             if len(self.mainWindow.marks):
