@@ -19,8 +19,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-09-10 16:48:06 +0100 (Wed, September 10, 2025) $"
-__version__ = "$Revision: 3.3.2.3 $"
+__dateModified__ = "$dateModified: 2025-09-10 18:22:02 +0100 (Wed, September 10, 2025) $"
+__version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -41,7 +41,8 @@ from random import randint
 
 from PyQt5 import QtCore, QtWidgets
 
-from ccpn.core.NmrAtom import NmrAtom, NmrResidue
+from ccpn.core.NmrAtom import NmrAtom
+from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.ChemicalShiftList import ChemicalShiftList
 from ccpn.core.lib.ContextManagers import notificationEchoBlocking
 from ccpn.core.lib.Notifiers import Notifier
@@ -672,7 +673,6 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                 axisCodePref = self.application.preferences.general.matchAxisCode
                 self.application.preferences.general.matchAxisCode = 1
 
-
             if cShifts:
                 checkNh = self._navigateNhGroups(cShifts)
                 checkCh = self._navigateChGroups(cShifts)
@@ -730,7 +730,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
                     NAtoms = [nmrAtom for nmrAtom in nmrResidues[resInd].nmrAtoms
                               if '15N' == nmrAtom.isotopeCode and 'N' == nmrAtom.name]
 
-                    self._processNonSharedAxis(strip, HAtoms+NAtoms, nonSharedAxis, markAtoms=HAtoms,
+                    self._processNonSharedAxis(strip, HAtoms + NAtoms, nonSharedAxis, markAtoms=HAtoms,
                                                markPositions=markPositions, markColourByAtom=markColourByAtom)
                 self._processSharedAxis(display, atomsForShared, sharedAxis,
                                         markPositions=markPositions, markColourByAtom=markColourByAtom)
@@ -757,7 +757,7 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
         nmrAtoms = cShifts[0].nmrAtom.nmrResidue.nmrAtoms
         nmrCAtoms = sorted([nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'C' in nmrAtom.isotopeCode],
-                           key=(lambda a : greekKey(a.name)))
+                           key=(lambda a: greekKey(a.name)))
 
         _doneAction = False
         # ensure correct number of strips
@@ -810,6 +810,17 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         for strip in display.strips:
             strip.setAxisRegion(axisIndex=axis, region=[low - border, high + border], update=True)
 
+            # NOTE:ED - this is not very friendly, but I will be improving soon
+            strip._updatePlaneAxes()
+
+            # redraw the contours
+            strip._updateVisibility()
+            # build here so it doesn't conflict with OpenGl update
+            strip._CcpnGLWidget.buildAllContours()
+            # strip._CcpnGLWidget.update()
+
+            strip._CcpnGLWidget.emitAllAxesChanged()
+
     def _processSharedAxis(self, display: GuiSpectrumDisplay, nmrAtoms: list[NmrAtom], sharedAxis: str,
                            markPositions: bool = True, markColourByAtom: bool = True):
         """Marks and resizes to given atoms on the non-shared axis.
@@ -852,7 +863,10 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
         :return:
         """
         for atom in markAtoms:
-            guiTarget.newMark(colour=self._hexColour(atom.name, markColourByAtom), positions=[atom.chemicalShifts[0].value],
+            if not atom.chemicalShifts:
+                continue
+            guiTarget.newMark(colour=self._hexColour(atom.name, markColourByAtom),
+                              positions=[atom.chemicalShifts[0].value],
                               axisCodes=[axis], style='simple', units=(), labels=[atom.id])
 
     @staticmethod
