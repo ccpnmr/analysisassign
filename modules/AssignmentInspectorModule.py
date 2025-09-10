@@ -18,9 +18,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-07-29 11:03:03 +0100 (Tue, July 29, 2025) $"
-__version__ = "$Revision: 3.3.3 $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-09-10 16:48:06 +0100 (Wed, September 10, 2025) $"
+__version__ = "$Revision: 3.3.2.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -29,6 +29,8 @@ __date__ = "$Date: 2016-07-09 14:17:30 +0100 (Sat, 09 Jul 2016) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
+
+__all__ = ['AssignmentInspectorModule']
 
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -46,18 +48,18 @@ from ccpn.core.lib.Notifiers import Notifier
 from ccpn.core.lib.CallBack import CallBack
 from ccpn.ui.gui import guiSettings
 from ccpn.ui.gui.lib.GuiSpectrumDisplay import GuiSpectrumDisplay
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.Font import getFontHeight
+from ccpn.ui.gui.widgets.Frame import Frame, ClippableFrame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.ListWidget import ListWidget
 from ccpn.ui.gui.widgets.SettingsWidgets import AssignmentInspectorSettings
-from ccpn.ui.gui.widgets.Spacer import Spacer
 from ccpn.ui.gui.widgets.Splitter import Splitter
 from ccpn.ui.gui.widgets.MessageDialog import showWarning
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.modules.ChemicalShiftTable import _NewChemicalShiftTable
 from ccpn.ui.gui.modules.PeakTable import _NewPeakTableWidget
-from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip, matchAxesAndNmrAtoms  #, _getCurrentZoomRatio
+from ccpn.ui.gui.lib.StripLib import navigateToNmrAtomsInStrip
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.lib.GuiStrip import GuiStrip
 from ccpn.util.Common import greekKey
@@ -168,28 +170,27 @@ class AssignmentInspectorModule(CcpnModule):
         """Set up the widgets for the new chemicalShiftTable
         """
         _topWidget = self._chemicalShiftFrame
+        # use the default font-size for the margins and padding
+        hh = getFontHeight() // 4
 
         # main widgets in the top splitter
         row = 0
-        Spacer(_topWidget, 5, 5,
-               QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed,
-               grid=(0, 0), gridSpan=(1, 1))
-        row += 1
+        self._moduleHeaderFrame = ClippableFrame(parent=_topWidget,
+                                                 grid=(row, 0), gridSpan=(1, 6),
+                                                 hAlign='left', vAlign='top',
+                                                 hPolicy='ignored', vPolicy='fixed',
+                                                 setLayout=True)
 
-        self._modulePulldown = ChemicalShiftListPulldown(parent=_topWidget,
+        self._moduleHeaderFrame.setContentsMargins(hh, hh, hh, hh)  # l, t, r, b
+        self._moduleHeaderFrame.layout().setSpacing(hh)
+        # put the real contents in the inner frame
+        self._modulePulldown = ChemicalShiftListPulldown(parent=self._moduleHeaderFrame,
                                                          mainWindow=self.mainWindow, default=None,
                                                          grid=(row, 0), gridSpan=(1, 1), minimumWidths=(0, 100),
                                                          showSelectName=True,
                                                          sizeAdjustPolicy=QtWidgets.QComboBox.AdjustToContents,
                                                          callback=self._selectionPulldownCallback,
                                                          )
-        # fixed height
-        self._modulePulldown.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
-
-        row += 1
-        self.spacer = Spacer(_topWidget, 5, 5,
-                             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed,
-                             grid=(2, 1), gridSpan=(1, 1))
         _topWidget.getLayout().setColumnStretch(1, 2)
 
         row += 1
@@ -223,6 +224,7 @@ class AssignmentInspectorModule(CcpnModule):
         # peaks assigned to the selection nmrAtoms - from chemicalShifts
         self.peaksLabel = Label(_bottomWidget, 'Peaks assigned to NmrAtom(s):', bold=True,
                                 grid=(0, 1), gridSpan=(1, 6))
+        self.peaksLabel.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Minimum)
 
         self.assignedPeaksTable = _AssignmentInspectorPeakTable(parent=_bottomWidget,
                                                                 mainWindow=self.mainWindow,
