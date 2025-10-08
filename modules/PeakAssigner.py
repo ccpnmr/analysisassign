@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-10-08 17:23:08 +0100 (Wed, October 08, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-08 17:51:57 +0100 (Wed, October 08, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -898,6 +898,14 @@ class AxisAssignmentObject(Frame):
         self._assignmentsFrame.layout().setRowStretch(row, 5)
 
         row += 1
+        _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
+                              tipTexts=['Rename selected nmrAtom', 'Create new nmrAtom'],
+                              callbacks=[self._reassignNmrAtomPopup,
+                                         self._newNmrAtomPopup],
+                              grid=(row, 0),
+                              hAlign='l'
+                              )
+        row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
         self._alternativesLabel.setMinimumHeight(height)
         row += 1
@@ -914,14 +922,6 @@ class AxisAssignmentObject(Frame):
         tt._owner = self
         self._assignmentsFrame.layout().setRowStretch(row, 4)
 
-        row += 1
-        _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
-                              tipTexts=['Rename selected nmrAtom', 'Create new nmrAtom'],
-                              callbacks=[self._reassignNmrAtomPopup,
-                                         self._newNmrAtomPopup],
-                              grid=(row, 0),
-                              hAlign='l'
-                              )
         self.editButton = _buttons.getButton('Edit')
         self.newNmrAtomButton = _buttons.getButton('New')
 
