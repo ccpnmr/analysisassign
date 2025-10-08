@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-01-10 17:57:36 +0000 (Fri, January 10, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-10-08 17:23:08 +0100 (Wed, October 08, 2025) $"
+__version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,6 +28,8 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
+
+__all__ = ["PeakAssigner"]
 
 import typing
 import numpy as np
@@ -46,9 +48,10 @@ from ccpn.core.lib.Notifiers import Notifier, _removeDuplicatedNotifiers
 from ccpn.core.lib.DataFrameObject import DataFrameObject
 from ccpn.core.lib.WeakRefLib import WeakRefDescriptor
 from ccpn.ui.gui.modules.CcpnModule import CcpnModule
-from ccpn.ui.gui.widgets.ButtonList import ButtonList, Button
+from ccpn.ui.gui.widgets.Button import Button
+from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
+from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
@@ -157,9 +160,6 @@ class PeakAssigner(CcpnModule):
         # add widgets to the module
         self._setWidgets()
 
-        # install event filter to track changes in width
-        self.mainWidget.installEventFilter(self)
-
         # populate the tables
         self._updateInterface(self.current.peaks)
 
@@ -169,17 +169,8 @@ class PeakAssigner(CcpnModule):
         self._lock = QtCore.QMutex()
         self._scheduler = UpdateScheduler(self.project, self._queueProcess, name='PeakAssigner',
                                           log=False, completeCallback=self.update)
-
         # set notifiers to respond to peaks
         self._registerNotifiers()
-
-    def eventFilter(self, target, event):
-        """Event filter to handle a mainWidget resizing
-        """
-        # tables are acting very strange in this module - caused by setStretchLastColumn
-        if event.type() == QtCore.QEvent.Resize:
-            self._resize(event.size().width())
-        return super().eventFilter(target, event)
 
     def _setWidgets(self):
         """Add the widgets to the module
@@ -223,16 +214,15 @@ class PeakAssigner(CcpnModule):
         self.peakLabel = Label(parent=self.mainWidget, setLayout=True, spacing=(0, 0),
                                text='Current Peak: ' + MSG, bold=True,
                                grid=(row, 0), margins=_margins,
-                               hAlign='left', vAlign='t',
-                               hPolicy='ignored', vPolicy='fixed'
+                               hAlign='left',
+                               hPolicy='ignored',
+                               vPolicy='fixed'
                                )
-
         row += 1
         # set up a frame for the dimension frames - scrollable frame not resizing correctly
-        self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
-                                               acceptDrops=True, grid=(row, 0),
-                                               )
-
+        self.axisFrameWidget = Frame(parent=self.mainWidget, showBorder=False, setLayout=True,
+                                     acceptDrops=True, grid=(row, 0),
+                                     )
         row += 1
         colIndex = 0
         for dimIndex in range(self.maxDims):
@@ -247,22 +237,7 @@ class PeakAssigner(CcpnModule):
             self.dimensionTabs.append(dimTab)
             colIndex += 1
 
-        self.mainWidget.getLayout().setAlignment(QtCore.Qt.AlignTop)
-        self.axisFrameWidget.setVisible(False)
-
         self.blockSignals(False)
-
-    def _resize(self, width):
-        if self.Ndims:
-            try:
-                wid = self.axisFrameWidget.scrollArea.verticalScrollBar()
-                visible = wid.isVisible()
-                offset = wid.width() if visible else 0
-            except Exception:
-                offset = 0
-            w = (width - 6 - offset) / min(self.Ndims, 4)
-            for tab in self.dimensionTabs:
-                tab.setFixedWidth(int(max(w, MINTABLEWIDTH)))
 
     def _registerNotifiers(self):
         # without a tableSelection specified in the table callback, this nmrAtom callback is needed
@@ -426,7 +401,6 @@ class PeakAssigner(CcpnModule):
                 dimTab.showNotAligned(not aligned)
 
             self._updateTables(peaks=peaks)
-            self._resize(self.mainWidget.width())
             self.axisFrameWidget.show()
 
     def _updateTables(self, peaks):
@@ -475,7 +449,7 @@ class PeakAssigner(CcpnModule):
 
         return sh
 
-    def _getDeltaShift(self, nmrAtom: NmrAtom, dim: int) -> typing.Union[float, str]:
+    def _getDeltaShift(self, nmrAtom: NmrAtom, dim: int) -> float | str:
         """
         Calculation of delta shift to add to the table.
         """
@@ -503,7 +477,7 @@ class PeakAssigner(CcpnModule):
         self._cachedTableDeltas[nmrAtom] = _val
         return _val
 
-    def _getShift(self, nmrAtom: NmrAtom) -> typing.Union[float, str]:
+    def _getShift(self, nmrAtom: NmrAtom) -> float | str | None:
         """
         Calculation of chemical shift value to add to the table.
         """
@@ -587,10 +561,14 @@ NOL = NotOnLine()
 _EDIT_OPTION = 'Edit nmrAtom'
 _NEW_OPTION = 'New nmrAtom'
 
-
 #=========================================================================================
 # AssignmentTable
 #=========================================================================================
+
+# The two AssignmentTables for each dimension
+_ASSIGNED_TABLE = 0
+_ALTERNATIVES_TABLE = 1
+
 
 class AssignmentTable(_ProjectTableABC):
     """Subclassed for some added functionality"""
@@ -623,12 +601,16 @@ class AssignmentTable(_ProjectTableABC):
     defaultSortColumn = 'Delta'
     defaultSortOrder = QtCore.Qt.AscendingOrder
 
-    def __init__(self, parent, dim=0, *args, **kwds):
-        """Intitialise the table and store as top-or-bottom table
+    def __init__(self, parent, dim=0, dimIndex=None, *args, **kwds):
+        """Initialise the table and store as top- (dim=0) or-bottom (dim=1) table
+        :param dimIndex: the dimension index for the assignments of a peak.
         """
         self._dim = dim
+        if dimIndex is None or dimIndex < 0:
+            raise ValueError(f'Initialising AssignmentTable: invalid {dimIndex = }')
+        self._dimIndex = dimIndex
 
-        super(AssignmentTable, self).__init__(parent, *args, **kwds)
+        super().__init__(parent, *args, **kwds)
 
     #-----------------------------------------------------------------------------------------
     # Build the dataFrame for the table
@@ -793,10 +775,10 @@ class AssignmentTable(_ProjectTableABC):
         else:
             # nmrAtom = objs[0] if isinstance(objs, (list, tuple)) else objs
 
-            if self._dim == 0:
+            if self._dim == _ASSIGNED_TABLE:
                 # deAssign from top to bottom
                 self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
-            elif self._dim == 1:
+            elif self._dim == _ALTERNATIVES_TABLE:
                 # assign bottom - up
                 self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
 
@@ -859,12 +841,9 @@ class AxisAssignmentObject(Frame):
 
     def __init__(self, parent, parentModule, dimIndex, mainWindow, grid=None, **kwds):
 
-        # settings = dict(hPolicy = 'minimum', hAlign='left', vPolicy = 'expanding', vAlign='top')
-        settings = dict(vAlign='top', )
-
         super().__init__(parent=parent,
                          setLayout=True, showBorder=_showBorders,
-                         grid=grid, **settings, **kwds
+                         grid=grid, **kwds
                          )
 
         # Derive application, project, and current from mainWindow
@@ -892,17 +871,10 @@ class AxisAssignmentObject(Frame):
         _tabHeight = 100
         _pullDownWidth = 65
 
-        aRow = -1  # Toplevel row in the widget
-        #-----------------------------------------------------------------------------------------
-        # divider line
-        # aRow += 1
-        # self.hLine = LabeledHLine(self, text='axis', grid=(aRow,0), height=10, colour=getColours()[DIVIDER])
-
-        #-----------------------------------------------------------------------------------------
         # assignments
-        aRow += 1
+        asRow = 0
         self._assignmentsFrame = Frame(self, setLayout=True, showBorder=_showBorders,
-                                       grid=(aRow, 0), margins=_margins, acceptDrops=True, **settings)
+                                       grid=(asRow, 0), margins=_margins, acceptDrops=True)
         self._parent.setGuiNotifier(self._assignmentsFrame, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
                                     callback=self._handleDropsFromSideBar)
 
@@ -911,55 +883,54 @@ class AxisAssignmentObject(Frame):
                                   colour=getColours()[DIVIDER])
 
         row += 1
-        self.tables[0] = AssignmentTable(parent=self._assignmentsFrame,
-                                         mainWindow=mainWindow,
-                                         grid=(row, 0), gridSpan=(1, 1),
-                                         # tipText='Click to select; double-click to de-assign'
-                                         showVerticalHeader=False,
-                                         multiSelect=False,
-                                         dim=0
-                                         )
-
-        self.tables[0].moduleParent = self._parent
-        self.tables[0]._owner = self
-        self.tables[0].setFixedHeight((ASSIGNEDROWS + 1) * getFontHeight() * 1.5)
-        # self.tables[0]._dim = 0
+        tt = self.tables[_ASSIGNED_TABLE] = AssignmentTable(parent=self._assignmentsFrame,
+                                                            mainWindow=mainWindow,
+                                                            grid=(row, 0), gridSpan=(1, 1),
+                                                            # tipText='Click to select; double-click to de-assign'
+                                                            showVerticalHeader=False,
+                                                            multiSelect=False,
+                                                            dim=_ASSIGNED_TABLE,
+                                                            dimIndex=dimIndex
+                                                            )
+        tt.moduleParent = self._parent
+        tt._owner = self
+        # Slight priority to the upper table
+        self._assignmentsFrame.layout().setRowStretch(row, 5)
 
         row += 1
         self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
         self._alternativesLabel.setMinimumHeight(height)
         row += 1
-        self.tables[1] = AssignmentTable(parent=self._assignmentsFrame,
-                                         mainWindow=mainWindow,
-                                         grid=(row, 0), gridSpan=(1, 1),
-                                         # tipText='Click to select; double-click to assign'
-                                         showVerticalHeader=False,
-                                         multiSelect=False,
-                                         dim=1
-                                         )
-
-        self.tables[1].moduleParent = self._parent
-        self.tables[1]._owner = self
-        self.tables[1].setFixedHeight((ALTERNATIVEROWS + 1) * getFontHeight() * 1.5)
-        # self.tables[1]._dim = 1
+        tt = self.tables[_ALTERNATIVES_TABLE] = AssignmentTable(parent=self._assignmentsFrame,
+                                                                mainWindow=mainWindow,
+                                                                grid=(row, 0), gridSpan=(1, 1),
+                                                                # tipText='Click to select; double-click to assign'
+                                                                showVerticalHeader=False,
+                                                                multiSelect=False,
+                                                                dim=_ALTERNATIVES_TABLE,
+                                                                dimIndex=dimIndex
+                                                                )
+        tt.moduleParent = self._parent
+        tt._owner = self
+        self._assignmentsFrame.layout().setRowStretch(row, 4)
 
         row += 1
         _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
                               tipTexts=['Rename selected nmrAtom', 'Create new nmrAtom'],
                               callbacks=[self._reassignNmrAtomPopup,
                                          self._newNmrAtomPopup],
-                              grid=(row, 0), hAlign='l'
+                              grid=(row, 0),
+                              hAlign='l'
                               )
         self.editButton = _buttons.getButton('Edit')
         self.newNmrAtomButton = _buttons.getButton('New')
 
         #-----------------------------------------------------------------------------------------==
         # Not-aligned frame
-        # aRow += 1
-        self.notAlignedFrame = Frame(self, setLayout=True, showBorder=_showBorders, grid=(aRow, 0),
-                                     margins=_margins, )  #**settings)
+        self.notAlignedFrame = Frame(self, setLayout=True, showBorder=_showBorders, grid=(asRow, 0),
+                                     margins=_margins, )
         self.notAlignedLabel = Label(parent=self.notAlignedFrame, text='peaks\nnot aligned', grid=(0, 0),
-                                     hPolicy='minimal', hAlign='centre',
+                                     hAlign='centre',
                                      textColour=getColours()[LABEL_WARNINGFOREGROUND])
 
         self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
