@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-09-10 18:22:02 +0100 (Wed, September 10, 2025) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-10-09 16:06:29 +0100 (Thu, October 09, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -132,6 +132,7 @@ class AssignmentInspectorModule(CcpnModule):
         self.showNmrAtomListWidget = self._settings.showNmrAtomListWidget
         self.ignoreAxisCodePref = self._settings.ignoreAxisCodePref
         self.markColourByAtom = self._settings.markColourByAtom
+        self.showBackboneHNCheckbox = self._settings.showBackboneHNCheckbox
 
         self.showNmrAtomListWidget.checkBox.stateChanged.connect(partial(self._setNmrAtomListVisible, None))
 
@@ -789,6 +790,9 @@ class _AssignmentInspectorTable(_NewChemicalShiftTable):
 
                 self._processNonSharedAxis(strip, attachedAtoms, nonSharedAxis,
                                            markPositions=markPositions, markColourByAtom=markColourByAtom)
+
+            if self.moduleParent.showBackboneHNCheckbox.isChecked():
+                atomsForShared += [nmrAtom for nmrAtom in nmrAtoms if nmrAtom if 'H' in nmrAtom.isotopeCode]
 
             self._processSharedAxis(display, atomsForShared, sharedAxis,
                                     markPositions=markPositions, markColourByAtom=markColourByAtom)
