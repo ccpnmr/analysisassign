@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-10-08 17:51:57 +0100 (Wed, October 08, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-09 14:47:56 +0100 (Thu, October 09, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -31,7 +31,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 __all__ = ["PeakAssigner"]
 
-import typing
 import numpy as np
 import pandas as pd
 from functools import partial
@@ -51,7 +50,7 @@ from ccpn.ui.gui.modules.CcpnModule import CcpnModule
 from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.ButtonList import ButtonList
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
-from ccpn.ui.gui.widgets.Frame import Frame
+from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
@@ -220,9 +219,14 @@ class PeakAssigner(CcpnModule):
                                )
         row += 1
         # set up a frame for the dimension frames - scrollable frame not resizing correctly
-        self.axisFrameWidget = Frame(parent=self.mainWidget, showBorder=False, setLayout=True,
-                                     acceptDrops=True, grid=(row, 0),
-                                     )
+        self.axisFrameWidget = ScrollableFrame(parent=self.mainWidget, showBorder=False, setLayout=True,
+                                               acceptDrops=True, grid=(row, 0),
+                                               scrollBarPolicies=('asNeeded', 'never')
+                                               )
+        # Set the constraint so that the frame can shrink to a minimum before
+        # the scrollbars become active
+        self.axisFrameWidget.layout().setSizeConstraint(QtWidgets.QLayout.SetMinimumSize)
+
         row += 1
         colIndex = 0
         for dimIndex in range(self.maxDims):
