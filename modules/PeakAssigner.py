@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-10 13:10:33 +0100 (Fri, October 10, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-10 13:40:04 +0100 (Fri, October 10, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -55,7 +55,7 @@ from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
-from ccpn.ui.gui.widgets.Splitter import SplitterGroup
+from ccpn.ui.gui.widgets.Splitter import Splitter, SplitterGroup
 from ccpn.ui.gui.widgets.table._ProjectTable import _ProjectTableABC
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
@@ -888,8 +888,6 @@ class AxisAssignmentObject(Frame):
         self._parent.setGuiNotifier(self._assignmentsFrame, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
                                     callback=self._handleDropsFromSideBar)
 
-        from ccpn.ui.gui.widgets.Splitter import Splitter
-
         self.split = Splitter(parent=self._assignmentsFrame, horizontal=False)
 
         self.getLayout().addWidget(self.split)
@@ -917,7 +915,7 @@ class AxisAssignmentObject(Frame):
         tt.moduleParent = self._parent
         tt._owner = self
         # Slight priority to the upper table
-        self._assignmentsFrame.layout().setRowStretch(row, 5)
+        # self._assignmentsFrame.layout().setRowStretch(row, 5)
 
         row += 1
         _buttons = ButtonList(self.topSplit, texts=['Edit', 'New'],
@@ -942,7 +940,7 @@ class AxisAssignmentObject(Frame):
                                                                 )
         tt.moduleParent = self._parent
         tt._owner = self
-        self._assignmentsFrame.layout().setRowStretch(row, 4)
+        # self._assignmentsFrame.layout().setRowStretch(row, 4)
 
         self.editButton = _buttons.getButton('Edit')
         self.newNmrAtomButton = _buttons.getButton('New')
@@ -955,7 +953,7 @@ class AxisAssignmentObject(Frame):
                                      hAlign='centre',
                                      textColour=getColours()[LABEL_WARNINGFOREGROUND])
 
-        self._assignmentWidget = self._nmrAtomWidget(parent=self._assignmentsFrame, minWidth=_pullDownWidth,
+        self._assignmentWidget = self._nmrAtomWidget(parent=self.topSplit, minWidth=_pullDownWidth,
                                                      setLayout=True, showBorder=_showBorders, grid=(0, 0))
         self.editPopup = EditNmrAtomBalloon(mainWindow=self.mainWindow, project=self.project, on_top=True)
         self.editPopup.setCentralWidget(self._assignmentWidget)
