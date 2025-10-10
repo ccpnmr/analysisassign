@@ -17,8 +17,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-10-09 14:47:56 +0100 (Thu, October 09, 2025) $"
+__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
+__dateModified__ = "$dateModified: 2025-10-10 13:10:33 +0100 (Fri, October 10, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -37,6 +37,7 @@ from functools import partial
 from collections import OrderedDict, Counter
 from PyQt5 import QtGui, QtCore, QtWidgets
 from time import time_ns
+
 from ccpn.core.NmrAtom import NmrAtom, UnknownIsotopeCode
 from ccpn.core.NmrResidue import NmrResidue, _getNmrResidue, MoveToEnd
 from ccpn.core.Peak import Peak
@@ -54,6 +55,7 @@ from ccpn.ui.gui.widgets.Frame import Frame, ScrollableFrame
 from ccpn.ui.gui.widgets.Label import Label
 from ccpn.ui.gui.widgets.HLine import LabeledHLine
 from ccpn.ui.gui.widgets.PulldownList import PulldownList
+from ccpn.ui.gui.widgets.Splitter import SplitterGroup
 from ccpn.ui.gui.widgets.table._ProjectTable import _ProjectTableABC
 from ccpn.ui.gui.widgets.Column import ColumnClass, Column
 from ccpn.ui.gui.widgets.SpeechBalloon import SpeechBalloon
@@ -227,6 +229,7 @@ class PeakAssigner(CcpnModule):
         # the scrollbars become active
         self.axisFrameWidget.layout().setSizeConstraint(QtWidgets.QLayout.SetMinimumSize)
 
+        splitterList = []
         row += 1
         colIndex = 0
         for dimIndex in range(self.maxDims):
@@ -238,8 +241,11 @@ class PeakAssigner(CcpnModule):
                                           parentModule=self, dimIndex=dimIndex,
                                           mainWindow=self.mainWindow,
                                           )
+            splitterList.append(dimTab.split)
             self.dimensionTabs.append(dimTab)
             colIndex += 1
+
+        self.splitterGroup = SplitterGroup(splitterList)
 
         self.blockSignals(False)
 
@@ -882,12 +888,24 @@ class AxisAssignmentObject(Frame):
         self._parent.setGuiNotifier(self._assignmentsFrame, [GuiNotifier.DROPEVENT], [DropBase.PIDS],
                                     callback=self._handleDropsFromSideBar)
 
+        from ccpn.ui.gui.widgets.Splitter import Splitter
+
+        self.split = Splitter(parent=self._assignmentsFrame, horizontal=False)
+
+        self.getLayout().addWidget(self.split)
+
+        self.topSplit = Frame(None, setLayout=True, showBorder=True)
+        self.bottomSplit = Frame(None, setLayout=True, showBorder=True)
+
+        self.split.addWidget(self.topSplit)
+        self.split.addWidget(self.bottomSplit)
+
         row = 0
-        self.hLine = LabeledHLine(self._assignmentsFrame, text='axis', grid=(row, 0), height=16,
+        self.hLine = LabeledHLine(self.topSplit, text='axis', grid=(row, 0), height=16,
                                   colour=getColours()[DIVIDER])
 
         row += 1
-        tt = self.tables[_ASSIGNED_TABLE] = AssignmentTable(parent=self._assignmentsFrame,
+        tt = self.tables[_ASSIGNED_TABLE] = AssignmentTable(parent=self.topSplit,
                                                             mainWindow=mainWindow,
                                                             grid=(row, 0), gridSpan=(1, 1),
                                                             # tipText='Click to select; double-click to de-assign'
@@ -902,7 +920,7 @@ class AxisAssignmentObject(Frame):
         self._assignmentsFrame.layout().setRowStretch(row, 5)
 
         row += 1
-        _buttons = ButtonList(self._assignmentsFrame, texts=['Edit', 'New'],
+        _buttons = ButtonList(self.topSplit, texts=['Edit', 'New'],
                               tipTexts=['Rename selected nmrAtom', 'Create new nmrAtom'],
                               callbacks=[self._reassignNmrAtomPopup,
                                          self._newNmrAtomPopup],
@@ -910,10 +928,10 @@ class AxisAssignmentObject(Frame):
                               hAlign='l'
                               )
         row += 1
-        self._alternativesLabel = Label(self._assignmentsFrame, 'Alternatives', hAlign='l', grid=(row, 0))
+        self._alternativesLabel = Label(self.bottomSplit, 'Alternatives', hAlign='l', grid=(row, 0))
         self._alternativesLabel.setMinimumHeight(height)
         row += 1
-        tt = self.tables[_ALTERNATIVES_TABLE] = AssignmentTable(parent=self._assignmentsFrame,
+        tt = self.tables[_ALTERNATIVES_TABLE] = AssignmentTable(parent=self.bottomSplit,
                                                                 mainWindow=mainWindow,
                                                                 grid=(row, 0), gridSpan=(1, 1),
                                                                 # tipText='Click to select; double-click to assign'
@@ -1033,6 +1051,8 @@ class AxisAssignmentObject(Frame):
     def showNotAligned(self, flag):
         """Show/hide of notAligned and assignmentFrame"""
         self.notAlignedFrame.setVisible(flag)
+        self.topSplit.setVisible(not flag)
+        self.bottomSplit.setVisible(not flag)
         self._assignmentsFrame.setVisible(not flag)
 
     def setHLineText(self, text):
