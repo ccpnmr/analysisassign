@@ -16,8 +16,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-01-23 16:03:29 +0000 (Thu, January 23, 2025) $"
-__version__ = "$Revision: 3.2.11 $"
+__dateModified__ = "$dateModified: 2025-10-13 16:17:09 +0100 (Mon, October 13, 2025) $"
+__version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -127,6 +127,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.extensionsSettingsFrame.getLayout().setAlignment(QtCore.Qt.AlignTop)
         self.settingsTabWidget.addTab(self.extensionsSettingsFrame, 'Extensions')
         self._addExtensionsToSettings()
+
+    def restoreWidgetsState(self, **widgetsState):
+        super().restoreWidgetsState(**widgetsState)
+        # DT: maybe a little hacky but ensures this is called after everything
+        # is initialised.
+        self._setNmrAtomsToMatch()
 
     def _setupGeneralSettings(self):
         """add to the layout of the general settings widgets"""
@@ -250,7 +256,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                              orientation='left',
                                              labelText='Match C NmrAtoms',
                                              callback=self._setNmrAtomsToMatch,
-                                             checked=False
+                                             # checked=False
                                              )
         self._setNmrAtomsToMatch()
 
@@ -584,8 +590,10 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if DropBase.TEXT in data and len(data[DropBase.TEXT]) > 0:
             droppedNmrResidue = self.application.project.getByPid(data[DropBase.TEXT])
         if droppedNmrResidue is None:
-            showWarning(str(self.windowTitle()), 'Backbone assignment: invalid dropped item')
-            getLogger().warning('Backbone assignment: invalid "pid" of dropped item')
+            # warning annoying when multiple bb assign modules are open as the first one processes
+            # and the second one gives the warning. Instead, made it a console warning only.
+            # showWarning(str(self.windowTitle()), 'Backbone assignment: invalid dropped item')
+            getLogger().warning('Backbone assignment: invalid "pid" of dropped item/multiple backbone modules open.')
             return
 
         if not isinstance(droppedNmrResidue, NmrResidue):
