@@ -16,20 +16,25 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-13 16:17:09 +0100 (Mon, October 13, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-16 14:49:31 +0100 (Thu, October 16, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: CCPN $"
 __date__ = "$Date: 2017-04-07 10:28:40 +0000 (Fri, April 07, 2017) $"
+
 #=========================================================================================
 # Start of code
 #=========================================================================================
 
 import typing
 from collections import OrderedDict
+from functools import partial
+
 from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtWidgets import QAction
+
 from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 from ccpn.core.ChemicalShift import ChemicalShift
 from ccpn.core.NmrResidue import NmrResidue
@@ -41,10 +46,12 @@ from ccpn.ui.gui.lib.StripLib import matchAxesAndNmrAtoms, markNmrAtoms
 from ccpn.ui.gui.lib.StripLib import navigateToNmrResidueInDisplay
 from ccpn.ui.gui.lib.alignWidgets import alignWidgets
 from ccpn.ui.gui.modules.NmrResidueTable import NmrResidueTableModule, LINKTOPULLDOWNCLASS
+from ccpn.ui.gui.widgets.Button import Button
 from ccpn.ui.gui.widgets.CheckBox import CheckBox
 from ccpn.ui.gui.widgets.CompoundWidgets import PulldownListCompoundWidget, CheckBoxCompoundWidget, \
     SpinBoxCompoundWidget
 from ccpn.ui.gui.widgets.MessageDialog import showWarning, progressManager, showYesNo
+from ccpn.ui.gui.widgets.MoreLessFrame import MoreLessFrame
 from ccpn.ui.gui.widgets.PulldownListsForObjects import ChemicalShiftListPulldown
 from ccpn.ui.gui.widgets.DropBase import DropBase
 from ccpn.ui.gui.widgets.Font import getTextDimensionsFromFont
@@ -53,8 +60,10 @@ from ccpn.ui.gui.widgets.PlaneToolbar import STRIPLABEL_CONNECTDIR, STRIPLABEL_C
 from ccpn.ui.gui.widgets.Tabs import Tabs
 from ccpn.ui.gui.widgets.Frame import Frame
 from ccpn.ui.gui.widgets.HLine import LabeledHLine, HLine
+from ccpn.util.AttrDict import AttrDict
 from ccpn.util.decorators import logCommand
 from ccpn.util.Logging import getLogger
+from memops.qtgui.TableModel import QIcon
 
 
 ALL = '<Use all>'
@@ -143,7 +152,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         if self.nmrResidueTableSettings.displaysWidget:
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
 
-        # colWidth0 = 180
+        colWidth0 = 180
         texts = ['i-1 Matches to show:',
                  'i+1 Matches to show:',
                  'Match SpectrumDisplay',
@@ -163,55 +172,58 @@ class BackboneAssignmentModule(NmrResidueTableModule):
               height=15)
 
         # new match module pulldown list
+        # needs moving.
         row += 1
-        self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[2],
-                                                      fixedWidths=(colWidth0, colWidth0, None), grid=(row, col),
-                                                      gridSpan=(1, 2),
-                                                      vAlign='top', hAlign='left',
-                                                      )
-        self.matchWidget.setPreSelect(self._fillMatchWidget)
-        self._fillMatchWidget()
-        self.matchWidget.pulldownList.setIndex(0)
+        # self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[2],
+        #                                               fixedWidths=(colWidth0, colWidth0, None), grid=(row, col),
+        #                                               gridSpan=(1, 2),
+        #                                               vAlign='top', hAlign='left',
+        #                                               )
+        # self.matchWidget.setPreSelect(self._fillMatchWidget)
+        # self._fillMatchWidget()
+        # self.matchWidget.pulldownList.setIndex(0)
 
         # Number of matches to show
-        row += 1
-        self.numberOfMinusMatchesWidget = SpinBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                                grid=(row, col), gridSpan=(1, 2),
-                                                                vAlign='top', hAlign='left',
-                                                                fixedWidths=(colWidth0, colWidth0 // 3, None),
-                                                                labelText=texts[0],
-                                                                minimum=1, maximum=MAXMATCHES,
-                                                                value=DEFAULTMATCHES
-                                                                )
-        row += 1
-        self.numberOfPlusMatchesWidget = SpinBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                               grid=(row, col), gridSpan=(1, 2),
-                                                               vAlign='top', hAlign='left',
-                                                               fixedWidths=(colWidth0, colWidth0 // 3, None),
-                                                               labelText=texts[1],
-                                                               minimum=1, maximum=MAXMATCHES,
-                                                               value=DEFAULTMATCHES
-                                                               )
+        # needs moving
+        # row += 1
+        # self.numberOfMinusMatchesWidget = SpinBoxCompoundWidget(self.nmrResidueTableSettings,
+        #                                                         grid=(row, col), gridSpan=(1, 2),
+        #                                                         vAlign='top', hAlign='left',
+        #                                                         fixedWidths=(colWidth0, colWidth0 // 3, None),
+        #                                                         labelText=texts[0],
+        #                                                         minimum=1, maximum=MAXMATCHES,
+        #                                                         value=DEFAULTMATCHES
+        #                                                         )
+        # row += 1
+        # self.numberOfPlusMatchesWidget = SpinBoxCompoundWidget(self.nmrResidueTableSettings,
+        #                                                        grid=(row, col), gridSpan=(1, 2),
+        #                                                        vAlign='top', hAlign='left',
+        #                                                        fixedWidths=(colWidth0, colWidth0 // 3, None),
+        #                                                        labelText=texts[1],
+        #                                                        minimum=1, maximum=MAXMATCHES,
+        #                                                        value=DEFAULTMATCHES
+        #                                                        )
 
-        row += 1
-        self.showSearchInMatch = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                        grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
-                                                        fixedWidths=(colWidth0, None),
-                                                        orientation='left',
-                                                        labelText='Show Search Strip in Match Module',
-                                                        checked=False
-                                                        )
+        # row += 1
+        # self.showSearchInMatch = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
+        #                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+        #                                                 fixedWidths=(colWidth0, None),
+        #                                                 orientation='left',
+        #                                                 labelText='Show Search Strip in Match Module',
+        #                                                 checked=False
+        #                                                 )
 
         # new search module pulldown list
-        row += 1
-        self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[3],
-                                                       fixedWidths=(colWidth0, colWidth0, None), grid=(row, col),
-                                                       gridSpan=(1, 2),
-                                                       vAlign='top', hAlign='left',
-                                                       )
-        self.targetWidget.setPreSelect(self._fillTargetWidget)
-        self._fillTargetWidget()
-        self.targetWidget.pulldownList.setIndex(0)
+        # needs moving.
+        # row += 1
+        # self.targetWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[3],
+        #                                                fixedWidths=(colWidth0, colWidth0, None), grid=(row, col),
+        #                                                gridSpan=(1, 2),
+        #                                                vAlign='top', hAlign='left',
+        #                                                )
+        # self.targetWidget.setPreSelect(self._fillTargetWidget)
+        # self._fillTargetWidget()
+        # self.targetWidget.pulldownList.setIndex(0)
 
         row += 1
         self.focusYAxis = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
@@ -276,9 +288,112 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         self._activeLinkCheckbox = self.activePulldownClass and getattr(self.nmrResidueTableSettings,
                                                                         LINKTOPULLDOWNCLASS, None)
+        row += 1
+        self.matchTargetFrame = Frame(parent=self.nmrResidueTableSettings, setLayout=True, grid=(row, 0))
+        row += 1
+        Button(parent=self.nmrResidueTableSettings, grid=(row, 0), gridspan=(1, 2), text='Add Display Group',
+               callback=self._addTargetMatchGroup)
+        self.targetMatchGroups = []
+        self._addTargetMatchGroup()
 
         # align the widgets in the settings-widget
         alignWidgets(self.nmrResidueTableSettings)
+
+    def _addTargetMatchGroup(self):
+
+        if group := self.targetMatchGroups:
+            row = len(group) + 2
+        else:
+            row = 2
+
+        moreLessFrame: MoreLessFrame = MoreLessFrame(self.matchTargetFrame, name='tempName', showMore=True,
+                                                     grid=(row, 0), gridSpan=(1, 1))
+        frame = moreLessFrame.contentsFrame
+
+        fRow: int = 0
+        matchWidget = PulldownListCompoundWidget(frame, labelText='Match SpectrumDisplay',
+                                                 grid=(fRow, 0), gridSpan=(1, 2),
+                                                 vAlign='top', hAlign='left',
+                                                 )
+        fRow += 1
+        negSpin = SpinBoxCompoundWidget(parent=frame, grid=(fRow, 0), gridSpan=(1, 0),
+                                        hAlign='left', labelText='i-1 Matches to show:',
+                                        value=1, step=1, minimum=0
+                                        )
+        fRow += 1
+        posSpin = SpinBoxCompoundWidget(parent=frame, grid=(fRow, 0), gridSpan=(1, 0),
+                                        hAlign='left', labelText='i+1 Matches to show',
+                                        value=1, step=1, minimum=0,
+                                        )
+        fRow += 1
+        showSearchInMatch = CheckBoxCompoundWidget(frame, grid=(fRow, 0), gridSpan=(1, 2),
+                                                   vAlign='top', hAlign='left', orientation='left',
+                                                   labelText='Show Search Strip in Match Module',
+                                                   checked=False
+                                                   )
+        fRow += 1
+        focusYAxis = CheckBoxCompoundWidget(frame, grid=(fRow, 0), gridSpan=(1, 2),
+                                            vAlign='top', hAlign='left', orientation='left',
+                                            labelText='Focus Y-Axis',
+                                            checked=False
+                                            )
+        fRow += 1
+        showSequentialStrips = CheckBoxCompoundWidget(frame, grid=(fRow, 0), gridSpan=(1, 2),
+                                                      vAlign='top', hAlign='left', orientation='left',
+                                                      labelText='Show Sequential Strips',
+                                                      checked=False
+                                                      )
+        fRow += 1
+        targetWidget = PulldownListCompoundWidget(frame, labelText='Search SpectrumDisplay',
+                                                  grid=(fRow, 0), gridSpan=(1, 2),
+                                                  vAlign='top', hAlign='left',
+                                                  )
+
+        widgets = AttrDict(moreLessFrame=moreLessFrame,
+                           matchWidget=matchWidget,
+                           negSpin=negSpin,
+                           posSpin=posSpin,
+                           showSearchInMatch=showSearchInMatch,
+                           focusYAxis=focusYAxis,
+                           showSequentialStrips=showSequentialStrips,
+                           targetWidget=targetWidget)
+
+        fRow += 1
+        removeButton = Button(parent=frame, grid=(fRow, 0), hAlign='left', text='Remove Display Group',
+                              callback=partial(self.removeMoreLess, widgets))
+        group.append(widgets)
+
+        matchWidget.pulldownList.currentTextChanged.connect(partial(self.renameMoreLessFrame, widgets))
+        targetWidget.pulldownList.currentTextChanged.connect(partial(self.renameMoreLessFrame, widgets))
+
+        matchWidget.setPreSelect(partial(self._fillMatchTargetWidget, matchWidget))
+        targetWidget.setPreSelect(partial(self._fillMatchTargetWidget, targetWidget))
+
+        self._fillMatchTargetWidget(matchWidget)
+        self._fillMatchTargetWidget(targetWidget)
+
+        matchWidget.pulldownList.setIndex(0)
+        targetWidget.pulldownList.setIndex(0)
+
+    def removeMoreLess(self, widgetList):
+        """Deletes all widgets in a widgetList"""
+        self.targetMatchGroups.remove(widgetList)
+        for widget in widgetList.values():
+            widget.deleteLater()
+
+    @staticmethod
+    def renameMoreLessFrame(widgets):
+        """Renames moreLessFrame based on spinbox values
+        """
+        UNFILLED = 'Unfilled'
+
+        if widgets.matchWidget and widgets.targetWidget and widgets.moreLessFrame:
+            match = widgets.matchWidget.getText() if widgets.matchWidget.getText() != '> select-to-add <' \
+                else UNFILLED
+            target = widgets.targetWidget.getText() if widgets.targetWidget.getText() != '> select-to-add <' \
+                else UNFILLED
+
+            widgets.moreLessFrame.name = f'{match}/{target}'
 
     @staticmethod
     def registerExtension(cls, extension):
@@ -306,19 +421,19 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         except Exception as err:
             getLogger().warning(f"Some Extensions failed to load {err}")
 
-    def _fillMatchWidget(self):
+    def _fillMatchTargetWidget(self, thisWidget: PulldownListCompoundWidget):
         ll = ['> select-to-add <'] + [display.pid for display in self.mainWindow.spectrumDisplays]
-        thisText = self.matchWidget.getText()
-        self.matchWidget.pulldownList.setData(texts=ll)
+        thisText = thisWidget.getText()
+        thisWidget.pulldownList.setData(texts=ll)
         if thisText:
-            self.matchWidget.select(thisText, True)
+            thisWidget.select(thisText, True)
 
-    def _fillTargetWidget(self):
-        ll = ['> select-to-add <'] + [display.pid for display in self.mainWindow.spectrumDisplays]
-        thisText = self.targetWidget.getText()
-        self.targetWidget.pulldownList.setData(texts=ll)
-        if thisText:
-            self.targetWidget.select(thisText, True)
+    # def _fillTargetWidget(self):
+    #     ll = ['> select-to-add <'] + [display.pid for display in self.mainWindow.spectrumDisplays]
+    #     thisText = self.targetWidget.getText()
+    #     self.targetWidget.pulldownList.setData(texts=ll)
+    #     if thisText:
+    #         self.targetWidget.select(thisText, True)
 
     def _getDisplays(self):
         """return list of displays to navigate"""
