@@ -3,6 +3,9 @@ Module to assign peaks
 Responds to current.peaks
 
 """
+from __future__ import annotations
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -17,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-10 13:40:04 +0100 (Fri, October 10, 2025) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2025-10-16 14:04:24 +0100 (Thu, October 16, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -605,13 +608,13 @@ class AssignmentTable(_ProjectTableABC):
 
     _dim = None
     _enableSearch = False
-    _owner = WeakRefDescriptor()
+    _owner: WeakRefDescriptor[AxisAssignmentObject] = WeakRefDescriptor()
     atomList: list[NmrAtom] | None = []
 
     defaultSortColumn = 'Delta'
     defaultSortOrder = QtCore.Qt.AscendingOrder
 
-    def __init__(self, parent, dim=0, dimIndex=None, *args, **kwds):
+    def __init__(self, parent, dim=0, dimIndex=None, owner=None, *args, **kwds):
         """Initialise the table and store as top- (dim=0) or-bottom (dim=1) table
         :param dimIndex: the dimension index for the assignments of a peak.
         """
@@ -619,7 +622,8 @@ class AssignmentTable(_ProjectTableABC):
         if dimIndex is None or dimIndex < 0:
             raise ValueError(f'Initialising AssignmentTable: invalid {dimIndex = }')
         self._dimIndex = dimIndex
-
+        self._owner = owner
+        
         super().__init__(parent, *args, **kwds)
 
     #-----------------------------------------------------------------------------------------
@@ -683,7 +687,7 @@ class AssignmentTable(_ProjectTableABC):
             Column('Pid', lambda nmrAtom: str(nmrAtom.pid), tipText='Pid of the nmrAtom'),
             Column('_object', lambda nmrAtom: nmrAtom, tipText='Object'),
             Column('Delta',
-                   lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._parent._thisparent.dimIndex),
+                   lambda nmrAtom: self.moduleParent._getDeltaShift(nmrAtom, self._dimIndex),
                    tipText='Delta-shift', format='%0.3f'),
             Column('Shift', lambda nmrAtom: self.moduleParent._getShift(nmrAtom), tipText='Chemical-shift',
                    format='%8.3f'),
@@ -712,7 +716,6 @@ class AssignmentTable(_ProjectTableABC):
         if (_actions := menu.actions()):
             _topMenuItem = _actions[0]
             _topSeparator = menu.insertSeparator(_topMenuItem)
-
             # move new actions to the top of the list
             menu.insertAction(_topSeparator, self._newMenuAction)
             menu.insertAction(_topSeparator, self._editMenuAction)
@@ -764,10 +767,10 @@ class AssignmentTable(_ProjectTableABC):
         self._owner.lastTableSelected = self._dim
         if self._dim == 0:
             # deAssign from top to bottom
-            self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
+            self._owner._deassignNmrAtom(self._owner.dimIndex)
         elif self._dim == 1:
             # assign bottom - up
-            self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
+            self._owner._assignNmrAtom(self._owner.dimIndex, action=True)
 
     #-----------------------------------------------------------------------------------------
     # Selection/action callbacks
@@ -787,10 +790,10 @@ class AssignmentTable(_ProjectTableABC):
 
             if self._dim == _ASSIGNED_TABLE:
                 # deAssign from top to bottom
-                self._parent._thisparent._deassignNmrAtom(self._parent._thisparent.dimIndex)
+                self._owner._deassignNmrAtom(self._owner.dimIndex)
             elif self._dim == _ALTERNATIVES_TABLE:
                 # assign bottom - up
-                self._parent._thisparent._assignNmrAtom(self._parent._thisparent.dimIndex, action=True)
+                self._owner._assignNmrAtom(self._owner.dimIndex, action=True)
 
     def selectionCallback(self, selected, deselected, selection, lastItem):
         """Notifier Callback for selecting rows in the table
@@ -803,7 +806,7 @@ class AssignmentTable(_ProjectTableABC):
 
         else:
             # enable the edit-button
-            self._parent._thisparent._clickedTableCallback(self._dim, {Notifier.OBJECT: objs})
+            self._owner._clickedTableCallback(self._dim, {Notifier.OBJECT: objs})
 
     def _selectCurrentCallBack(self, data):
         """Callback from a current changed notifier to highlight the current objects
@@ -910,10 +913,10 @@ class AxisAssignmentObject(Frame):
                                                             showVerticalHeader=False,
                                                             multiSelect=False,
                                                             dim=_ASSIGNED_TABLE,
-                                                            dimIndex=dimIndex
+                                                            dimIndex=dimIndex,
+                                                            owner=self
                                                             )
         tt.moduleParent = self._parent
-        tt._owner = self
         # Slight priority to the upper table
         # self._assignmentsFrame.layout().setRowStretch(row, 5)
 
@@ -936,10 +939,10 @@ class AxisAssignmentObject(Frame):
                                                                 showVerticalHeader=False,
                                                                 multiSelect=False,
                                                                 dim=_ALTERNATIVES_TABLE,
-                                                                dimIndex=dimIndex
+                                                                dimIndex=dimIndex,
+                                                                owner=self
                                                                 )
         tt.moduleParent = self._parent
-        tt._owner = self
         # self._assignmentsFrame.layout().setRowStretch(row, 4)
 
         self.editButton = _buttons.getButton('Edit')
