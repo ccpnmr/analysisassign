@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-17 12:14:30 +0100 (Fri, October 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-17 14:43:20 +0100 (Fri, October 17, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -65,6 +65,7 @@ from ccpn.util.Logging import getLogger
 
 
 ALL = '<Use all>'
+UNFILLED = 'Unfilled'
 MINMATCHES = 1
 MAXMATCHES = 20
 DEFAULTMATCHES = 3
@@ -120,11 +121,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.layout.setContentsMargins(0, 1, 0, 0)
 
         ## main group settings
-        self.numberOfMinusMatches = None
-        self.numberOfPlusMatches = None
-        self.showSearchInMatch = None
-        self.matchWidget = None
-        self.targetWidget = None
+        self.currGroup = None
 
     def _createSettingsWidgets(self):
         self.settingsWidget.setContentsMargins(5, 5, 5, 5)
@@ -317,7 +314,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             row = 2
 
         moreLessFrame: MoreLessFrame = MoreLessFrame(self.matchTargetFrame, name='tempName', showMore=True,
-                                                     grid=(row, 0), gridSpan=(1, 1))
+                                                     grid=(row, 0), gridSpan=(1, 1), frameMargins=(0, 5, 0, 0))
         frame = moreLessFrame.contentsFrame
 
         fRow: int = 0
@@ -395,7 +392,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
     def renameMoreLessFrame(widgets):
         """Renames moreLessFrame based on spinbox values
         """
-        UNFILLED = 'Unfilled'
 
         if widgets.matchWidget and widgets.targetWidget and widgets.moreLessFrame:
             match = widgets.matchWidget.getText() if widgets.matchWidget.getText() != '> select-to-add <' \
@@ -404,6 +400,13 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                 else UNFILLED
 
             widgets.moreLessFrame.name = f'{match}/{target}'
+
+    def _closeFilledGroups(self):
+        for group in self.targetMatchGroups:
+            if UNFILLED in group.moreLessFrame.name:
+                group.moreLessFrame.setCallback(True)
+            else:
+                group.moreLessFrame.setContentsVisible(False)
 
     @staticmethod
     def registerExtension(cls, extension):
@@ -514,35 +517,40 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         displays = self._getDisplays()
 
         for group in self.targetMatchGroups:
-            self.showSearchInMatch = group.showSearchInMatch.isChecked()
-            self.numberOfPlusMatches = group.posSpin.getValue()
-            self.numberOfMinusMatches = group.negSpin.getValue()
-            self.matchWidget = group.matchWidget
-            self.targetWidget = group.targetWidget
+
             matchIndex = group.matchWidget.getIndex()
             targetIndex = group.targetWidget.getIndex()
             if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
                 getLogger().warning(
-                        'Undefined Match module; select Match module in Settings or unselect "Find matches"')
+                        'Undefined Match module; select Match module in Settings or unselect "Find matches"'
+                        '... Opening unfilled tabs')
                 showWarning('startAssignment',
-                            'Undefined Match module;\nSelect your Match module in the Backbone Assignment Settings panel'
-                            'or unselect "Find matches"')
+                            'Undefined Match module;\nSelect your Match module in '
+                            'the Backbone Assignment Settings panel or unselect "Find matches"'
+                            '\n ... Opening unfilled tabs')
+                self._closeFilledGroups()
                 return
 
-            if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch:
+            if (self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and
+                    not group.showSearchInMatch.checkBox.isChecked()):
                 getLogger().warning(
                         'Undefined Search module; select Search module in Settings, unselect "Find matches" or select '
-                        '"Show Search Strip in Match Module"')
+                        '"Show Search Strip in Match Module" ... Opening unfilled tabs')
                 showWarning('startAssignment',
                             'Undefined Search module;\nSelect your Search module in the Backbone Assignment '
                             'Settings panel, unselect "Find matches" or\nselect "Show Search Strip in Match Module" '
-                            'in the Settings')
+                            'in the Settings\n'
+                            '... Opening unfilled tabs')
+                self._closeFilledGroups()
                 return
 
             if (matchIndex == targetIndex) and matchIndex != 0:
                 getLogger().warning('Match module and Search module cannot be the same')
                 showWarning('startAssignment', 'Match module and Search module cannot be the same')
                 return
+
+        for group in self.targetMatchGroups:
+            self.currGroup = group
 
             with undoBlockWithoutSideBar():
 
@@ -1018,11 +1026,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # Assignment score has the format {score: nmrResidue} where score is a float
         # assignMatrix[0] is a dict {score: nmrResidue} assignMatrix[1] is a concurrent list of scores
         # numberOfMatches = int(self.numberOfMatchesWidget.getText())
-        assignmentScores = ([-1] if self.showSearchInMatch else []) + sorted(list(assignMatrix.keys()))[
-                                                                                  :MAXMATCHES]
-        scoreAssignment = [''] if self.showSearchInMatch else []
-        scoreLabelling = [''] if self.showSearchInMatch else []
-        nmrAtomPairs = [(None, None)] if self.showSearchInMatch else []
+        assignmentScores = (([-1] if self.currGroup.showSearchInMatch.checkBox.isChecked() else [])
+                            + sorted(list(assignMatrix.keys()))[:MAXMATCHES])
+        scoreAssignment = [''] if self.currGroup.showSearchInMatch.checkBox.isChecked() else []
+        scoreLabelling = [''] if self.currGroup.showSearchInMatch.checkBox.isChecked() else []
+        nmrAtomPairs = [(None, None)] if self.currGroup.showSearchInMatch.checkBox.isChecked() else []
 
         matchDirection = 0
         for assignmentScore in assignmentScores:
@@ -1046,26 +1054,24 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             nmrAtomPairs.append((iNmrResidue.fetchNmrAtom(name='N', isotopeCode='N'),
                                  iNmrResidue.fetchNmrAtom(name='H', isotopeCode='H')))
 
-        numberOfMatches = 1 if self.showSearchInMatch else 0
+        numberOfMatches = 1 if self.currGroup.showSearchInMatch.checkBox.isChecked() else 0
         if matchDirection == 1:
-            # numberOfMatches = int(self.numberOfPlusMatchesWidget.getText())
-            numberOfMatches += self.numberOfPlusMatches
+            numberOfMatches += self.currGroup.posSpin.getValue()
         else:
-            # numberOfMatches = int(self.numberOfMinusMatchesWidget.getText())
-            numberOfMatches += self.numberOfMinusMatches
+            numberOfMatches += self.currGroup.negSpin.getValue()
 
         nmrAtomPairs = nmrAtomPairs[:numberOfMatches]
         scoreAssignment = scoreAssignment[:numberOfMatches]
         scoreLabelling = scoreLabelling[:numberOfMatches]
 
-        for module in self._getMatchTargetDisplays(self.matchWidget):
+        for module in self._getMatchTargetDisplays(self.currGroup.matchWidget):
 
             # skip of the module if not defined - possibly in the case that spectrumDisplays have been closed
             if not module:
                 continue
 
             # set the first strip to the search-strip, not nice here
-            if self.showSearchInMatch:
+            if self.currGroup.showSearchInMatch.checkBox.isChecked():
                 # add a mask to ignore the position for the Y-axis
                 axisMask = [True] * len(module.axisCodes)
                 axisMask[1] = False
@@ -1121,7 +1127,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
             # self._centreStripForNmrResidue(assignMatrix[assignmentScores[0]], module.strips[0])
             self._centreCcpnStripsForNmrResidue(
-                    assignMatrix[assignmentScores[1 if self.showSearchInMatch else 0]], module.strips)
+                    assignMatrix[assignmentScores[1 if self.showSearchInMatch.checkBox.isChecked() else 0]],
+                    module.strips)
             module.setColumnStretches(stretchValue=True)
 
             # this forces a refresh/rescale of all strips in the spectrumDisplay
