@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-17 14:43:20 +0100 (Fri, October 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-17 15:33:40 +0100 (Fri, October 17, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -314,7 +314,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             row = 2
 
         moreLessFrame: MoreLessFrame = MoreLessFrame(self.matchTargetFrame, name='tempName', showMore=True,
-                                                     grid=(row, 0), gridSpan=(1, 1), frameMargins=(0, 5, 0, 0))
+                                                     grid=(row, 0), gridSpan=(1, 1), frameMargins=(5, 5, 5, 5))
         frame = moreLessFrame.contentsFrame
 
         fRow: int = 0
@@ -1127,7 +1127,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
             # self._centreStripForNmrResidue(assignMatrix[assignmentScores[0]], module.strips[0])
             self._centreCcpnStripsForNmrResidue(
-                    assignMatrix[assignmentScores[1 if self.showSearchInMatch.checkBox.isChecked() else 0]],
+                    assignMatrix[assignmentScores[1 if self.currGroup.showSearchInMatch.checkBox.isChecked() else 0]],
                     module.strips)
             module.setColumnStretches(stretchValue=True)
 
