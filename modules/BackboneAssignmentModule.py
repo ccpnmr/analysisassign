@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-17 11:52:51 +0100 (Fri, October 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-17 12:14:30 +0100 (Fri, October 17, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -277,6 +277,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                              )
         self._setNmrAtomsToMatch()
 
+        self.nmrResidueTableSettings.sequentialStripsWidget.setEnabled(False)
         row += 1
         HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER],
               height=15)
