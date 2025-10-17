@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-17 11:38:49 +0100 (Fri, October 17, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-17 11:52:51 +0100 (Fri, October 17, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -33,7 +33,6 @@ from collections import OrderedDict
 from functools import partial
 
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QAction
 
 from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 from ccpn.core.ChemicalShift import ChemicalShift
@@ -63,7 +62,6 @@ from ccpn.ui.gui.widgets.HLine import LabeledHLine, HLine
 from ccpn.util.AttrDict import AttrDict
 from ccpn.util.decorators import logCommand
 from ccpn.util.Logging import getLogger
-from memops.qtgui.TableModel import QIcon
 
 
 ALL = '<Use all>'
