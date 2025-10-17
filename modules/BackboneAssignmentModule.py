@@ -16,7 +16,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-16 14:49:31 +0100 (Thu, October 16, 2025) $"
+__dateModified__ = "$dateModified: 2025-10-17 11:38:49 +0100 (Fri, October 17, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -121,6 +121,13 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         self.mainWidget.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
         self.layout.setContentsMargins(0, 1, 0, 0)
 
+        ## main group settings
+        self.numberOfMinusMatches = None
+        self.numberOfPlusMatches = None
+        self.showSearchInMatch = None
+        self.matchWidget = None
+        self.targetWidget = None
+
     def _createSettingsWidgets(self):
         self.settingsWidget.setContentsMargins(5, 5, 5, 5)
         self.settingsTabWidget = Tabs(self.settingsWidget, setLayout=True, grid=(0, 0))
@@ -173,7 +180,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         # new match module pulldown list
         # needs moving.
-        row += 1
+        # row += 1
         # self.matchWidget = PulldownListCompoundWidget(self.nmrResidueTableSettings, labelText=texts[2],
         #                                               fixedWidths=(colWidth0, colWidth0, None), grid=(row, col),
         #                                               gridSpan=(1, 2),
@@ -225,20 +232,20 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # self._fillTargetWidget()
         # self.targetWidget.pulldownList.setIndex(0)
 
-        row += 1
-        self.focusYAxis = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
-                                                 grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
-                                                 fixedWidths=(colWidth0, None),
-                                                 orientation='left',
-                                                 labelText='Focus Y-Axis',
-                                                 checked=True
-                                                 )
+        # row += 1
+        # self.focusYAxis = CheckBoxCompoundWidget(self.nmrResidueTableSettings,
+        #                                          grid=(row, col), gridSpan=(1, 2), vAlign='top', hAlign='left',
+        #                                          fixedWidths=(colWidth0, None),
+        #                                          orientation='left',
+        #                                          labelText='Focus Y-Axis',
+        #                                          checked=True
+        #                                          )
 
         # re-order, move the sequential checkbox to here, swap with focusYAxis checkbox - not nice method :|
-        row += 1
-        self.nmrResidueTableSettings.layout().addWidget(self.nmrResidueTableSettings.sequentialStripsWidget, row, col,
-                                                        1, 2)
-        self.nmrResidueTableSettings.layout().addWidget(self.focusYAxis, focusRow, col, 1, 2)
+        # row += 1
+        # self.nmrResidueTableSettings.layout().addWidget(self.nmrResidueTableSettings.sequentialStripsWidget, row, col,
+        #                                                 1, 2)
+        # self.nmrResidueTableSettings.layout().addWidget(self.focusYAxis, focusRow, col, 1, 2)
 
         # Select which NmrAtoms to match
         # VAH: This could probably be improved by putting the check-boxes into a group "NmrAtoms to Match"
@@ -288,6 +295,10 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         self._activeLinkCheckbox = self.activePulldownClass and getattr(self.nmrResidueTableSettings,
                                                                         LINKTOPULLDOWNCLASS, None)
+
+        row += 1
+        HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER],
+              height=15)
         row += 1
         self.matchTargetFrame = Frame(parent=self.nmrResidueTableSettings, setLayout=True, grid=(row, 0))
         row += 1
@@ -318,12 +329,12 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         fRow += 1
         negSpin = SpinBoxCompoundWidget(parent=frame, grid=(fRow, 0), gridSpan=(1, 0),
                                         hAlign='left', labelText='i-1 Matches to show:',
-                                        value=1, step=1, minimum=0
+                                        value=DEFAULTMATCHES, step=1, minimum=1, max=MAXMATCHES
                                         )
         fRow += 1
         posSpin = SpinBoxCompoundWidget(parent=frame, grid=(fRow, 0), gridSpan=(1, 0),
                                         hAlign='left', labelText='i+1 Matches to show',
-                                        value=1, step=1, minimum=0,
+                                        value=DEFAULTMATCHES, step=1, minimum=1, max=MAXMATCHES
                                         )
         fRow += 1
         showSearchInMatch = CheckBoxCompoundWidget(frame, grid=(fRow, 0), gridSpan=(1, 2),
@@ -441,33 +452,44 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
         if self.nmrResidueTableSettings and self.nmrResidueTableSettings.displaysWidget:
             dGids = self.nmrResidueTableSettings.displaysWidget.getTexts()  # gids of displays
-            if len(dGids) == 0: return displays
+            if len(dGids) == 0:
+                return displays
 
-            matchGids = self.matchWidget.getText()  # gid of the match module
-            targetGids = self.targetWidget.getText()  # gid of the target module - don't discard for the minute
+            # gid of the target module - don't discard for the minute
+            matchGids = [wList.matchWidget.getText() for wList in self.targetMatchGroups]
+            # gid of the target module - don't discard for the minute
+            targetGids = [wList.targetWidget.getText() for wList in self.targetMatchGroups]
+
+            mtGids = matchGids + targetGids
 
             if ALL in dGids:
                 displays = [dp for dp in self.application.ui.mainWindow.spectrumDisplays if
-                            dp.pid not in (matchGids, targetGids)]
+                            dp.pid not in mtGids]
             else:
-                displays = [self.application.getByGid(gid) for gid in dGids if gid not in (ALL, matchGids, targetGids)]
+                displays = [self.application.getByGid(gid) for gid in dGids if gid not in (*mtGids, ALL)]
 
             displays = [display for display in displays if display is not None]
 
         return displays
 
-    def _getMatchDisplays(self):
-        """return list of displays to display matches
-        """
-        mGids = self.matchWidget.getText()  # gid of the match displays
-        displays = [self.application.getByGid(gid) for gid in (mGids,)]
-        displays = [display for display in displays if display is not None]
-        return displays
+    # def _getMatchDisplays(self):
+    #     """return list of displays to display matches
+    #     """
+    #     mGids = self.matchWidget.getText()  # gid of the match displays
+    #     displays = [self.application.getByGid(gid) for gid in (mGids,)]
+    #     displays = [display for display in displays if display is not None]
+    #     return displays
+    #
+    # def _getTargetDisplays(self):
+    #     """return list of displays to display targets
+    #     """
+    #     mGids = self.targetWidget.getText()  # gid of the match displays
+    #     displays = [self.application.getByGid(gid) for gid in (mGids,)]
+    #     displays = [display for display in displays if display is not None]
+    #     return displays
 
-    def _getTargetDisplays(self):
-        """return list of displays to display targets
-        """
-        mGids = self.targetWidget.getText()  # gid of the match displays
+    def _getMatchTargetDisplays(self, widget):
+        mGids = widget.getText()  # gid of the match displays
         displays = [self.application.getByGid(gid) for gid in (mGids,)]
         displays = [display for display in displays if display is not None]
         return displays
@@ -491,147 +513,156 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         If matchCheckbox is checked, also call findAndDisplayMatches
         """
         displays = self._getDisplays()
-        matchIndex = self.matchWidget.getIndex()
-        targetIndex = self.targetWidget.getIndex()
-        if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
-            getLogger().warning('Undefined Match module; select Match module in Settings or unselect "Find matches"')
-            showWarning('startAssignment',
-                        'Undefined Match module;\nSelect your Match module in the Backbone Assignment Settings panel'
-                        'or unselect "Find matches"')
-            return
 
-        if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch.isChecked():
-            getLogger().warning(
-                    'Undefined Search module; select Search module in Settings, unselect "Find matches" or select '
-                    '"Show Search Strip in Match Module"')
-            showWarning('startAssignment',
-                        'Undefined Search module;\nSelect your Search module in the Backbone Assignment '
-                        'Settings panel, unselect "Find matches" or\nselect "Show Search Strip in Match Module" '
-                        'in the Settings')
-            return
+        for group in self.targetMatchGroups:
+            self.showSearchInMatch = group.showSearchInMatch.isChecked()
+            self.numberOfPlusMatches = group.posSpin.getValue()
+            self.numberOfMinusMatches = group.negSpin.getValue()
+            self.matchWidget = group.matchWidget
+            self.targetWidget = group.targetWidget
+            matchIndex = group.matchWidget.getIndex()
+            targetIndex = group.targetWidget.getIndex()
+            if self.matchCheckBoxWidget.isChecked() and matchIndex == 0:
+                getLogger().warning(
+                        'Undefined Match module; select Match module in Settings or unselect "Find matches"')
+                showWarning('startAssignment',
+                            'Undefined Match module;\nSelect your Match module in the Backbone Assignment Settings panel'
+                            'or unselect "Find matches"')
+                return
 
-        if (matchIndex == targetIndex) and matchIndex != 0:
-            getLogger().warning('Match module and Search module cannot be the same')
-            showWarning('startAssignment', 'Match module and Search module cannot be the same')
-            return
+            if self.matchCheckBoxWidget.isChecked() and targetIndex == 0 and not self.showSearchInMatch:
+                getLogger().warning(
+                        'Undefined Search module; select Search module in Settings, unselect "Find matches" or select '
+                        '"Show Search Strip in Match Module"')
+                showWarning('startAssignment',
+                            'Undefined Search module;\nSelect your Search module in the Backbone Assignment '
+                            'Settings panel, unselect "Find matches" or\nselect "Show Search Strip in Match Module" '
+                            'in the Settings')
+                return
 
-        with undoBlockWithoutSideBar():
+            if (matchIndex == targetIndex) and matchIndex != 0:
+                getLogger().warning('Match module and Search module cannot be the same')
+                showWarning('startAssignment', 'Match module and Search module cannot be the same')
+                return
 
-            # optionally clear the marks
-            if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
-                self.mainWindow.clearMarks()
+            with undoBlockWithoutSideBar():
 
-            # clear any notifiers of previous strips
-            for notifier in self._stripNotifiers:
-                notifier.unRegister()
-                del (notifier)
-            self._stripNotifiers = []
+                # optionally clear the marks
+                if self.nmrResidueTableSettings.autoClearMarksWidget.checkBox.isChecked():
+                    self.mainWindow.clearMarks()
 
-            nr = nmrResidue.mainNmrResidue
-            targetDisplays = self._getTargetDisplays()
-            matchDisplays = self._getMatchDisplays()
+                # clear any notifiers of previous strips
+                for notifier in self._stripNotifiers:
+                    notifier.unRegister()
+                    del (notifier)
+                self._stripNotifiers = []
 
-            # navigate to the other displays - not matchDisplay
-            for display in displays:
+                nr = nmrResidue.mainNmrResidue
+                targetDisplays = self._getMatchTargetDisplays(group.targetWidget)
+                matchDisplays = self._getMatchTargetDisplays(group.matchWidget)
 
-                if len(display.strips) > 0:
+                # navigate to the other displays - not matchDisplay
+                for display in displays:
 
-                    # if contains 2D's (e.g. a hsqc) then keep zoom
-                    if display.spectrumViews[0].spectrum.dimensionCount <= 2:
-                        newWidths = []
-                    else:
-                        # set the width in case of nD (n>2)
-                        _widths = {'H': 2.5, 'C': 1.0, 'N': 1.0}
-                        _ac = display.strips[0].axisCodes[0]
-                        _w = _widths.setdefault(_ac[0], 1.0)
-                        newWidths = [_w, 'full']
+                    if len(display.strips) > 0:
 
-                    strips = navigateToNmrResidueInDisplay(nr, display, stripIndex=0,
-                                                           widths=newWidths,
-                                                           showSequentialResidues=(len(display.axisCodes) > 2) and
-                                                                                  self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.isChecked(),
-                                                           markPositions=False,
-                                                           #self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
-                                                           showDropHeaders=display in targetDisplays,
-                                                           )
-
-                    strips[0].spectrumDisplay.setColumnStretches(True)
-                    # need better way to make sure that the floating axis updates
-                    strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
-
-            # navigate to the targetDisplays
-            for display in targetDisplays:
-
-                display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
-
-                if len(display.strips) > 0:
-
-                    # add a mask to ignore the position for the Y-axis
-                    axisMask = [True] * len(display.axisCodes)
-                    axisMask[1] = False
-
-                    newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
-                    strips = navigateToNmrResidueInDisplay(nr, display, stripIndex=0,
-                                                           widths=newWidths,
-                                                           showSequentialResidues=(len(display.axisCodes) > 2) and
-                                                                                  self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.isChecked(),
-                                                           markPositions=False,
-                                                           #self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked()
-                                                           showDropHeaders=True,
-                                                           axisMask=axisMask
-                                                           )
-                    for strip in strips:
-                        if strip is not None:
-                            strip.header.handle = STRIPBACKBONE
-                            strip.header.headerVisible = True
-                    strips[0].spectrumDisplay.setColumnStretches(True)
-                    strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
-
-                    # ejb
-                    # if 'i-1' residue, take CA CB, and take H, N from the 'i' residue (.mainNmrResidue)
-                    # check if contains '-1' in pid, is this robust? no :)
-                    #
-                    # VAH:
-                    # Changed, so marks are drawn for the C atoms that are being matched and the base
-                    # atoms specified here. Relies on use of NEF atom names, but makes it easier to
-                    # make more generic at a later stage.
-                    baseNmrAtoms = ['H', 'N']
-                    if self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked():
-                        if nmrResidue.relativeOffset is not None and nmrResidue.relativeOffset != 0:
-                            # offset residue (not necessarily i-1!) so need to split the match nmrAtoms
-                            # (e.g. CA/CB) from the base nmrAtoms (e.g. N, H)
-                            nmrAtomsOffset = nmrAtomsFromResidue(nmrResidue)
-                            nmrAtomsCentre = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
-
-                            nmrAtoms = [naOffset for naOffset in nmrAtomsOffset if
-                                        naOffset.name in self.nmrAtomsToMatch]
-                            nmrAtoms.extend(naCentre for naCentre in nmrAtomsCentre if naCentre.name in baseNmrAtoms)
-
-                        elif MARKCONNECTED:
-                            nmrAtoms = [na for na in nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
-                                        if na.name in self.nmrAtomsToMatch
-                                        or na.name in baseNmrAtoms]
+                        # if contains 2D's (e.g. a hsqc) then keep zoom
+                        if display.spectrumViews[0].spectrum.dimensionCount <= 2:
+                            newWidths = []
                         else:
-                            nmrAtoms = [na for na in nmrResidue.mainNmrResidue.nmrAtoms
-                                        if na.name in self.nmrAtomsToMatch
-                                        or na.name in baseNmrAtoms]
-                        markNmrAtoms(mainWindow=self.mainWindow, nmrAtoms=nmrAtoms, guiTarget=strips[0])
+                            # set the width in case of nD (n>2)
+                            _widths = {'H': 2.5, 'C': 1.0, 'N': 1.0}
+                            _ac = display.strips[0].axisCodes[0]
+                            _w = _widths.setdefault(_ac[0], 1.0)
+                            newWidths = [_w, 'full']
 
-            if self.matchCheckBoxWidget.isChecked():
-                self.findAndDisplayMatches(nmrResidue)
+                        strips = navigateToNmrResidueInDisplay(
+                                nr, display, stripIndex=0,
+                                widths=newWidths,
+                                showSequentialResidues=((len(display.axisCodes) > 2) and
+                                                        group.showSequentialStrips.checkBox.isChecked()),
+                                markPositions=False,
+                                showDropHeaders=display in targetDisplays,
+                                )
 
-            # select the order for copying YAxis values
-            if self.focusYAxis.isChecked():
-                # align the target modules to the display module
-                self._setDisplayPosWidth(matchDisplays, targetDisplays)
-            else:
-                # align the display modules to the target module
-                self._setDisplayPosWidth(targetDisplays, matchDisplays)
+                        strips[0].spectrumDisplay.setColumnStretches(True)
+                        # need better way to make sure that the floating axis updates
+                        strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
 
-        # update current to trigger other modules
-        if self._activeLinkCheckbox and self._activeLinkCheckbox.isChecked():
-            self.current.nmrChain = nmrResidue.nmrChain
-        self.current.nmrResidue = nmrResidue
+                # navigate to the targetDisplays
+                for display in targetDisplays:
+
+                    display.showAllStripHeaders()  # tag all headers with backboneAssignment module as handler
+
+                    if len(display.strips) > 0:
+
+                        # add a mask to ignore the position for the Y-axis
+                        axisMask = [True] * len(display.axisCodes)
+                        axisMask[1] = False
+
+                        newWidths = []  #_getCurrentZoomRatio(display.strips[0].viewBox.viewRange())
+                        strips = navigateToNmrResidueInDisplay(
+                                nr, display, stripIndex=0,
+                                widths=newWidths,
+                                showSequentialResidues=((len(display.axisCodes) > 2) and
+                                                        group.showSequentialStrips.checkBox.isChecked()),
+                                markPositions=False,
+                                showDropHeaders=True,
+                                axisMask=axisMask
+                                )
+                        for strip in strips:
+                            if strip is not None:
+                                strip.header.handle = STRIPBACKBONE
+                                strip.header.headerVisible = True
+                        strips[0].spectrumDisplay.setColumnStretches(True)
+                        strips[0]._CcpnGLWidget.emitYAxisChanged(allStrips=True)
+
+                        # ejb
+                        # if 'i-1' residue, take CA CB, and take H, N from the 'i' residue (.mainNmrResidue)
+                        # check if contains '-1' in pid, is this robust? no :)
+                        #
+                        # VAH:
+                        # Changed, so marks are drawn for the C atoms that are being matched and the base
+                        # atoms specified here. Relies on use of NEF atom names, but makes it easier to
+                        # make more generic at a later stage.
+                        baseNmrAtoms = ['H', 'N']
+                        if self.nmrResidueTableSettings.markPositionsWidget.checkBox.isChecked():
+                            if nmrResidue.relativeOffset is not None and nmrResidue.relativeOffset != 0:
+                                # offset residue (not necessarily i-1!) so need to split the match nmrAtoms
+                                # (e.g. CA/CB) from the base nmrAtoms (e.g. N, H)
+                                nmrAtomsOffset = nmrAtomsFromResidue(nmrResidue)
+                                nmrAtomsCentre = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
+
+                                nmrAtoms = [naOffset for naOffset in nmrAtomsOffset if
+                                            naOffset.name in self.nmrAtomsToMatch]
+                                nmrAtoms.extend(
+                                        naCentre for naCentre in nmrAtomsCentre if naCentre.name in baseNmrAtoms)
+
+                            elif MARKCONNECTED:
+                                nmrAtoms = [na for na in nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
+                                            if na.name in self.nmrAtomsToMatch
+                                            or na.name in baseNmrAtoms]
+                            else:
+                                nmrAtoms = [na for na in nmrResidue.mainNmrResidue.nmrAtoms
+                                            if na.name in self.nmrAtomsToMatch
+                                            or na.name in baseNmrAtoms]
+                            markNmrAtoms(mainWindow=self.mainWindow, nmrAtoms=nmrAtoms, guiTarget=strips[0])
+
+                if self.matchCheckBoxWidget.isChecked():
+                    self.findAndDisplayMatches(nmrResidue)
+
+                # select the order for copying YAxis values
+                if group.focusYAxis.isChecked():
+                    # align the target modules to the display module
+                    self._setDisplayPosWidth(matchDisplays, targetDisplays)
+                else:
+                    # align the display modules to the target module
+                    self._setDisplayPosWidth(targetDisplays, matchDisplays)
+
+            # update current to trigger other modules
+            if self._activeLinkCheckbox and self._activeLinkCheckbox.isChecked():
+                self.current.nmrChain = nmrResidue.nmrChain
+            self.current.nmrResidue = nmrResidue
 
     @staticmethod
     def _setDisplayPosWidth(matchDisplays, targetDisplays):
@@ -988,11 +1019,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         # Assignment score has the format {score: nmrResidue} where score is a float
         # assignMatrix[0] is a dict {score: nmrResidue} assignMatrix[1] is a concurrent list of scores
         # numberOfMatches = int(self.numberOfMatchesWidget.getText())
-        assignmentScores = ([-1] if self.showSearchInMatch.isChecked() else []) + sorted(list(assignMatrix.keys()))[
+        assignmentScores = ([-1] if self.showSearchInMatch else []) + sorted(list(assignMatrix.keys()))[
                                                                                   :MAXMATCHES]
-        scoreAssignment = [''] if self.showSearchInMatch.isChecked() else []
-        scoreLabelling = [''] if self.showSearchInMatch.isChecked() else []
-        nmrAtomPairs = [(None, None)] if self.showSearchInMatch.isChecked() else []
+        scoreAssignment = [''] if self.showSearchInMatch else []
+        scoreLabelling = [''] if self.showSearchInMatch else []
+        nmrAtomPairs = [(None, None)] if self.showSearchInMatch else []
 
         matchDirection = 0
         for assignmentScore in assignmentScores:
@@ -1016,26 +1047,26 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             nmrAtomPairs.append((iNmrResidue.fetchNmrAtom(name='N', isotopeCode='N'),
                                  iNmrResidue.fetchNmrAtom(name='H', isotopeCode='H')))
 
-        numberOfMatches = 1 if self.showSearchInMatch.isChecked() else 0
+        numberOfMatches = 1 if self.showSearchInMatch else 0
         if matchDirection == 1:
             # numberOfMatches = int(self.numberOfPlusMatchesWidget.getText())
-            numberOfMatches += self.numberOfPlusMatchesWidget.getValue()
+            numberOfMatches += self.numberOfPlusMatches
         else:
             # numberOfMatches = int(self.numberOfMinusMatchesWidget.getText())
-            numberOfMatches += self.numberOfMinusMatchesWidget.getValue()
+            numberOfMatches += self.numberOfMinusMatches
 
         nmrAtomPairs = nmrAtomPairs[:numberOfMatches]
         scoreAssignment = scoreAssignment[:numberOfMatches]
         scoreLabelling = scoreLabelling[:numberOfMatches]
 
-        for module in self._getMatchDisplays():
+        for module in self._getMatchTargetDisplays(self.matchWidget):
 
             # skip of the module if not defined - possibly in the case that spectrumDisplays have been closed
             if not module:
                 continue
 
             # set the first strip to the search-strip, not nice here
-            if self.showSearchInMatch.isChecked():
+            if self.showSearchInMatch:
                 # add a mask to ignore the position for the Y-axis
                 axisMask = [True] * len(module.axisCodes)
                 axisMask[1] = False
@@ -1091,7 +1122,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
 
             # self._centreStripForNmrResidue(assignMatrix[assignmentScores[0]], module.strips[0])
             self._centreCcpnStripsForNmrResidue(
-                    assignMatrix[assignmentScores[1 if self.showSearchInMatch.isChecked() else 0]], module.strips)
+                    assignMatrix[assignmentScores[1 if self.showSearchInMatch else 0]], module.strips)
             module.setColumnStretches(stretchValue=True)
 
             # this forces a refresh/rescale of all strips in the spectrumDisplay
@@ -1101,7 +1132,9 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """
         Re-implementation of the closeModule method of the CcpnModule class required
         """
-        for display in self._getDisplays() + self._getMatchDisplays():
+        matchDisplays = [self._getMatchTargetDisplays(wList.matchWidget) for wList in self.targetMatchGroups]
+
+        for display in self._getDisplays() + matchDisplays:
             if display:
                 display.hideAllStripHeaders(handle=STRIPBACKBONE)
         super()._closeModule()
