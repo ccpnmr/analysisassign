@@ -1137,7 +1137,8 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """
         Re-implementation of the closeModule method of the CcpnModule class required
         """
-        matchDisplays = [self._getMatchTargetDisplays(wList.matchWidget) for wList in self.targetMatchGroups]
+        matchDisplays = [display for wList in self.targetMatchGroups
+                         for display in self._getMatchTargetDisplays(wList.matchWidget)]
 
         for display in self._getDisplays() + matchDisplays:
             if display:
