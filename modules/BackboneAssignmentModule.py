@@ -150,7 +150,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         ### Settings ###
 
         # change defaults setting inherited from NmrResidueTableModule
-        self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(True)
+        # self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(True)
         if self.nmrResidueTableSettings.displaysWidget:
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
 
@@ -274,7 +274,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                              )
         self._setNmrAtomsToMatch()
 
-        self.nmrResidueTableSettings.sequentialStripsWidget.setEnabled(False)
         row += 1
         HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER],
               height=15)
