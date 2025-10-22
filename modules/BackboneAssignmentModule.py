@@ -150,7 +150,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         ### Settings ###
 
         # change defaults setting inherited from NmrResidueTableModule
-        self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(True)
+        # self.nmrResidueTableSettings.sequentialStripsWidget.checkBox.setChecked(True)
         if self.nmrResidueTableSettings.displaysWidget:
             self.nmrResidueTableSettings.displaysWidget.addPulldownItem(0)
 
@@ -274,7 +274,6 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                              )
         self._setNmrAtomsToMatch()
 
-        self.nmrResidueTableSettings.sequentialStripsWidget.setEnabled(False)
         row += 1
         HLine(parent=self.nmrResidueTableSettings, grid=(row, 0), gridSpan=(1, 2), colour=getColours()[DIVIDER],
               height=15)
@@ -1138,9 +1137,10 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         """
         Re-implementation of the closeModule method of the CcpnModule class required
         """
-        matchDisplays = [self._getMatchTargetDisplays(wList.matchWidget) for wList in self.targetMatchGroups]
+        targetDisplays = [display for wList in self.targetMatchGroups
+                          for display in self._getMatchTargetDisplays(wList.targetWidget)]
 
-        for display in self._getDisplays() + matchDisplays:
+        for display in self._getDisplays() + targetDisplays:
             if display:
                 display.hideAllStripHeaders(handle=STRIPBACKBONE)
         super()._closeModule()
