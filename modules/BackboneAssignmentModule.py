@@ -15,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-17 15:33:40 +0100 (Fri, October 17, 2025) $"
+__modifiedBy__ = "$modifiedBy: djt540 $"
+__dateModified__ = "$dateModified: 2025-10-28 15:00:13 +0000 (Tue, October 28, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -306,7 +306,20 @@ class BackboneAssignmentModule(NmrResidueTableModule):
         alignWidgets(self.nmrResidueTableSettings)
 
     def _addTargetMatchGroup(self):
+        """Create a display group
 
+        This display group contains the following in order:
+
+        moreLessFrame : The moreLess frame all widgets are contained within
+        matchWidget : Pulldown List widget (match Display)
+        negSpin : SpinBox (i-1 matches)
+        posSpin : SpinBox (i+1 matches)
+        showSearchInMatch    : Checkbox
+        focusYAxis           : Checkbox
+        showSequentialStrips : Checkbox
+        targetWidget : Pulldown List widget (search Display)
+
+        """
         if group := self.targetMatchGroups:
             row = len(group) + 2
         else:
@@ -401,6 +414,11 @@ class BackboneAssignmentModule(NmrResidueTableModule):
             widgets.moreLessFrame.name = f'{match}/{target}'
 
     def _closeFilledGroups(self):
+        """Closes the widget groups where the name only includes displays
+
+        If the unfilled text is found in the groups name it is opened to highlight
+        that settings need adjusting to complete BBAssignment.
+        """
         for group in self.targetMatchGroups:
             if UNFILLED in group.moreLessFrame.name:
                 group.moreLessFrame.setCallback(True)
