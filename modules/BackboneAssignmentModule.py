@@ -15,9 +15,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Daniel Thompson $"
-__dateModified__ = "$dateModified: 2025-10-17 15:33:40 +0100 (Fri, October 17, 2025) $"
-__version__ = "$Revision: 3.3.3 $"
+__modifiedBy__ = "$modifiedBy: Vicky Higman $"
+__dateModified__ = "$dateModified: 2025-11-04 15:43:10 +0000 (Tue, November 04, 2025) $"
+__version__ = "$Revision: 3.3.5 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -637,7 +637,7 @@ class BackboneAssignmentModule(NmrResidueTableModule):
                                 # offset residue (not necessarily i-1!) so need to split the match nmrAtoms
                                 # (e.g. CA/CB) from the base nmrAtoms (e.g. N, H)
                                 nmrAtomsOffset = nmrAtomsFromResidue(nmrResidue)
-                                nmrAtomsCentre = nmrAtomsFromResidue(nmrResidue.mainNmrResidue)
+                                nmrAtomsCentre = nmrResidue.mainNmrResidue.nmrAtoms
 
                                 nmrAtoms = [naOffset for naOffset in nmrAtomsOffset if
                                             naOffset.name in self.nmrAtomsToMatch]
