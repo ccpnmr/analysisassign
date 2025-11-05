@@ -21,7 +21,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: djt540 $"
-__dateModified__ = "$dateModified: 2025-10-28 15:00:50 +0000 (Tue, October 28, 2025) $"
+__dateModified__ = "$dateModified: 2025-11-05 11:31:58 +0000 (Wed, November 05, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -1887,10 +1887,9 @@ class AxisAssignmentObject(Frame):
                 atomsByIsotopeCode = OrderedSet(sorted(getIsotopeListFromCode(isotopeCode or nmrAtom.isotopeCode),
                                                        key=greekKey))
                 atomOfSameIsotopeCode = isotopeCodeAtoms & atomsByIsotopeCode
-                print(isotopeCode, isotopeCodeAtoms, atomOfSameIsotopeCode)
                 atomNotOfSameIsotopeCode = isotopeCodeAtoms - atomsByIsotopeCode
                 if atomOfSameIsotopeCode:
-                    _atomNameOptions += ([OtherByIC] + list(atomOfSameIsotopeCode - thisNmrResAtoms))
+                    _atomNameOptions += ([OtherByIC] + list(atomOfSameIsotopeCode))
                 # if thisNmrResAtoms:
                 #     _atomNameOptions += ([OtherByResType] + list(thisNmrResAtoms - atomOfSameIsotopeCode))
                 # if atomNotOfSameIsotopeCode:
