@@ -20,8 +20,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2025-10-16 14:04:24 +0100 (Thu, October 16, 2025) $"
+__modifiedBy__ = "$modifiedBy: djt540 $"
+__dateModified__ = "$dateModified: 2025-11-05 11:31:58 +0000 (Wed, November 05, 2025) $"
 __version__ = "$Revision: 3.3.3 $"
 #=========================================================================================
 # Created
@@ -1017,6 +1017,10 @@ class AxisAssignmentObject(Frame):
     def _userSelectChainFromPulldown(self, *args):
         """Check the chain/sequenceCode and update the residueType/atomNames if set
         """
+        # set residues
+        nmrChain = self.project.getNmrChain(self.chainPulldown.currentText())
+        nmrResidues = [f'{nmrResidue.sequenceCode}' for nmrResidue in nmrChain.nmrResidues]
+        self.seqCodePulldown.setData(texts=nmrResidues)
         # just clarify that they are from different pulldowns
         self._userSelectSeqCodeFromPulldown(*args)
 
@@ -1763,10 +1767,10 @@ class AxisAssignmentObject(Frame):
                 atomNotOfSameIsotopeCode = isotopeCodeAtoms - atomsByIsotopeCode
                 if atomOfSameIsotopeCode:
                     _atomNameOptions += ([OtherByIC] + list(atomOfSameIsotopeCode))
-                if thisNmrResAtoms:
-                    _atomNameOptions += ([OtherByResType] + list(thisNmrResAtoms - atomOfSameIsotopeCode))
-                if atomNotOfSameIsotopeCode:
-                    _atomNameOptions += ([OtherNames] + list(atomNotOfSameIsotopeCode - thisNmrResAtoms))
+                # if thisNmrResAtoms:
+                #     _atomNameOptions += ([OtherByResType] + list(thisNmrResAtoms - atomOfSameIsotopeCode))
+                # if atomNotOfSameIsotopeCode:
+                #     _atomNameOptions += ([OtherNames] + list(atomNotOfSameIsotopeCode - thisNmrResAtoms))
 
             elif thisNmrResAtoms:
                 _atomNameOptions += ([OtherByResType] +
